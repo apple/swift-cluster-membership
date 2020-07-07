@@ -1,0 +1,22 @@
+.DS_Store
+.swift-version
+
+*.orig
+*.app
+
+/.build
+/Samples/.build
+/.SourceKitten
+/Packages
+.xcode
+*.app
+/*.xcodeproj
+.xcode
+.idea
+
+# rendered docs output dirs
+/reference/
+/api/
+.swiftpm/
+Package.resolved
+

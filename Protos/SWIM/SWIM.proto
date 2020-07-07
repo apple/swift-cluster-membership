@@ -1,0 +1,77 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Swift Cluster Membership open source project
+//
+// Copyright (c) 2020 Apple Inc. and the Swift Cluster Membership project authors
+// Licensed under Apache License v2.0
+//
+// See LICENSE.txt for license information
+// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+//===----------------------------------------------------------------------===//
+
+
+syntax = "proto3";
+
+option optimize_for = SPEED;
+option swift_prefix = "Proto";
+
+import "PeerAddress.proto";
+
+message SWIMRemoteMessage {
+    oneof request {
+        SWIMPing ping = 1;
+        SWIMPingRequest pingRequest = 2;
+    }
+}
+
+message SWIMPing {
+    PeerAddress replyTo = 1;
+    SWIMPayload payload = 2;
+}
+
+message SWIMPingRequest {
+    PeerAddress target = 1;
+    PeerAddress replyTo = 2;
+    SWIMPayload payload = 3;
+}
+
+message SWIMPingResponse {
+    message Ack {
+        PeerAddress target = 1;
+        uint64 incarnation = 2;
+        SWIMPayload payload = 3;
+    }
+    message Nack {
+        PeerAddress target = 1;
+    }
+    oneof pingResponse {
+        Ack ack = 1;
+        Nack nack = 2;
+    }
+}
+
+message SWIMStatus {
+    enum Type {
+        UNSPECIFIED = 0;
+        ALIVE = 1;
+        SUSPECT = 2;
+        UNREACHABLE = 3;
+        DEAD = 4;
+    }
+
+    Type type = 1;
+    uint64 incarnation = 2;
+    repeated UniqueNode suspectedBy = 3;
+}
+
+message SWIMMember {
+    PeerAddress address = 1;
+    SWIMStatus status = 2;
+}
+
+message SWIMPayload {
+    repeated SWIMMember member = 1;
+}
