@@ -22,8 +22,30 @@ var targets: [PackageDescription.Target] = [
     // MARK: SWIM
 
     .target(
+        name: "ClusterMembership",
+        dependencies: [
+            .product(name: "NIO", package: "swift-nio"),
+            .product(name: "NIOFoundationCompat", package: "swift-nio"),
+            .product(name: "NIOSSL", package: "swift-nio-ssl"),
+            .product(name: "SwiftProtobuf", package: "SwiftProtobuf"),
+        ]
+    ),
+
+    .target(
         name: "SWIM",
         dependencies: [
+            "ClusterMembership",
+            .product(name: "SwiftProtobuf", package: "SwiftProtobuf"),
+
+            .product(name: "Logging", package: "swift-log"),
+            .product(name: "Metrics", package: "swift-metrics"),
+        ]
+    ),
+
+    .target(
+        name: "SWIM-NIO",
+        dependencies: [
+            "SWIM",
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "NIOFoundationCompat", package: "swift-nio"),
             .product(name: "NIOSSL", package: "swift-nio-ssl"),
@@ -74,22 +96,30 @@ var targets: [PackageDescription.Target] = [
 
 var dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/apple/swift-nio.git",        from: "2.19.0"),
-    .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.5.1"),
     .package(url: "https://github.com/apple/swift-nio-ssl.git",    from: "2.8.0"),
+    .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.5.1"),
 
     .package(name: "SwiftProtobuf", url: "https://github.com/apple/swift-protobuf.git", from: "1.7.0"),
 
     // ~~~ SSWG APIs ~~~
 
-    .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
+    .package(url: "https://github.com/apple/swift-log.git", from: "1.3.0"),
     // swift-metrics 1.x and 2.x are almost API compatible, so most clients should use
     .package(url: "https://github.com/apple/swift-metrics.git", "1.0.0" ..< "3.0.0"),
 ]
 
 let products: [PackageDescription.Product] = [
     .library(
+        name: "ClusterMembership",
+        targets: ["ClusterMembership"]
+    ),
+    .library(
         name: "SWIM",
         targets: ["SWIM"]
+    ),
+    .library(
+        name: "SWIM-NIO",
+        targets: ["SWIM-NIO"]
     ),
 ]
 

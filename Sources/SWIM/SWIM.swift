@@ -12,6 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+import ClusterMembership
+
 /// # SWIM (Scalable Weakly-consistent Infection-style Process Group Membership Protocol).
 ///
 /// SWIM serves as a low-level distributed failure detector mechanism.
@@ -24,30 +26,31 @@
 ///
 /// Cluster members may be discovered though SWIM gossip, yet will be asked to participate in the high-level
 /// cluster membership as driven by the `ClusterShell`.
+///
 /// ### See Also
 /// - SeeAlso: `SWIM.Instance` for a detailed discussion on the implementation.
 /// - SeeAlso: `SWIM.Shell` for the interpretation and driving the interactions.
 public enum SWIM {
-    typealias Incarnation = UInt64
+    public typealias Context = SWIMContext
+    public typealias Incarnation = UInt64
+    public typealias Ref = Peer<SWIM.Message>
+    public typealias Shell = NIOSWIMShell
+    public typealias Instance = SWIMInstance
+    public typealias Members = [SWIM.Member]
 
-    typealias Ref = Peer<SWIM.Message>
-    typealias Shell = SWIMShell
-    typealias Instance = SWIMInstance
-    typealias Member = SWIMMember
-    typealias Members = [SWIMMember]
     internal typealias MembersValues = Dictionary<Peer<SWIM.Message>, SWIM.Member>.Values
 
-    internal enum Message: Codable {
+    public enum Message: Codable {
         case remote(RemoteMessage)
         case local(LocalMessage)
         case _testing(TestingMessage)
     }
 
-    internal enum RemoteMessage: Codable {
-        case ping(replyTo: Peer<PingResponse>, payload: Payload)
+    public enum RemoteMessage: Codable {
+        case ping(replyTo: Peer<PingResponse>, payload: GossipPayload)
 
         /// "Ping Request" requests a SWIM probe.
-        case pingReq(target: Peer<Message>, replyTo: Peer<PingResponse>, payload: Payload)
+        case pingReq(target: Peer<Message>, replyTo: Peer<PingResponse>, payload: GossipPayload)
     }
 
     /// A `SWIM.Ack` is sent always in reply to a `SWIM.RemoteMessage.ping`.
@@ -55,18 +58,17 @@ public enum SWIM {
     /// The ack may be delivered directly in a request-response fashion between the probing and pinged members,
     /// or indirectly, as a result of a `pingReq` message.
     ///
-    /// - parameter target: always contains the ref of the member that was the target of the `ping`.
-
-    internal enum PingResponse: Codable {
-        case ack(target: Peer<Message>, incarnation: Incarnation, payload: Payload)
+    /// - parameter target: always contains the peer of the member that was the target of the `ping`.
+    public enum PingResponse: Codable {
+        case ack(target: Peer<Message>, incarnation: Incarnation, payload: GossipPayload)
         case nack(target: Peer<Message>)
     }
 
-    internal struct MembershipState: NonTransportableCodable {
+    internal struct MembershipState {
         let membershipState: [Peer<SWIM.Message>: Status]
     }
 
-    internal enum LocalMessage: NonTransportableCodable {
+    public enum LocalMessage {
         /// Periodic message used to wake up SWIM and perform a random ping probe among its members.
         case pingRandomMember
 
@@ -74,7 +76,7 @@ public enum SWIM {
         ///
         /// Requests SWIM to monitor a node, which also causes an association to this node to be requested
         /// start gossiping SWIM messages with the node once established.
-        case monitor(UniqueNode)
+        case monitor(Node)
 
         /// Sent by `ClusterShell` whenever a `cluster.down(node:)` command is issued.
         ///
@@ -107,10 +109,10 @@ public enum SWIM {
         ///     - `clusterShell` marks the node(s) as `.down`, and as it is the same code path as 1. and 2., also confirms to SWIM that `.confirmDead`
         ///     - SWIM already knows those nodes are dead, and thus ignores the update, yet may continue to proceed gossiping the `.dead` information,
         ///       e.g. until all nodes are informed of this fact
-        case confirmDead(UniqueNode)
+        case confirmDead(Node)
     }
 
-    internal enum TestingMessage: NonTransportableCodable {
+    public enum TestingMessage {
         /// FOR TESTING: Expose the entire membership state
         case getMembershipState(replyTo: Peer<MembershipState>)
     }
@@ -144,7 +146,7 @@ extension SWIM {
     /// - SeeAlso: `SWIM.Incarnation`
     internal enum Status: Hashable {
         case alive(incarnation: Incarnation)
-        case suspect(incarnation: Incarnation, suspectedBy: Set<UniqueNode>)
+        case suspect(incarnation: Incarnation, suspectedBy: Set<Node>)
         case unreachable(incarnation: Incarnation)
         case dead
     }
@@ -240,56 +242,62 @@ extension SWIM.Status {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Member
 
-internal struct SWIMMember {
-    var node: UniqueNode {
-        self.ref.address.node ?? self.ref._system!.settings.cluster.uniqueBindNode
-    }
+extension SWIM {
+    internal struct Member {
+        /// Peer reference, used to send messages to this cluster member.
+        ///
+        /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
+        let peer: Peer<SWIM.Message>
+        var node: ClusterMembership.Node {
+            self.peer.node
+        }
 
-    /// Each (SWIM) cluster member is running a `probe` peer which we interact with when gossiping the SWIM messages.
-    let ref: Peer<SWIM.Message>
+        /// Membership status of this cluster member
+        var status: SWIM.Status
 
-    var status: SWIM.Status
+        // Period in which protocol period was this state set
+        let protocolPeriod: Int
 
-    // Period in which protocol period was this state set
-    let protocolPeriod: Int
+        /// Indicates a time when suspicion was started. Only suspicion needs to have it, but having the actual field in SWIM.Member feels more natural.
+        /// Putting it inside `SWIM.Status` makes time management a huge mess: status can either be created internally in SWIM.Member or deserialised from protobuf.
+        /// Having this in SWIM.Member ensures we never pass it on the wire and we can't make a mistake when merging suspicions.
+        let suspicionStartedAt: Int64?
 
-    /// Indicates a time when suspicion was started. Only suspicion needs to have it, but having the actual field in SWIMMember feels more natural.
-    /// Putting it inside `SWIM.Status` makes time management a huge mess: status can either be created internally in SWIMMember or deserialised from protobuf.
-    /// Having this in SWIMMember ensures we never pass it on the wire and we can't make a mistake when merging suspicions.
-    let suspicionStartedAt: Int64?
+        init(peer: Peer<SWIM.Message>, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
+            self.peer = peer
+            self.status = status
+            self.protocolPeriod = protocolPeriod
+            self.suspicionStartedAt = suspicionStartedAt
+        }
 
-    init(ref: Peer<SWIM.Message>, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
-        self.ref = ref
-        self.status = status
-        self.protocolPeriod = protocolPeriod
-        self.suspicionStartedAt = suspicionStartedAt
-    }
+        var isAlive: Bool {
+            self.status.isAlive
+        }
 
-    var isAlive: Bool {
-        self.status.isAlive
-    }
+        var isSuspect: Bool {
+            self.status.isSuspect
+        }
 
-    var isSuspect: Bool {
-        self.status.isSuspect
-    }
+        var isUnreachable: Bool {
+            self.status.isUnreachable
+        }
 
-    var isUnreachable: Bool {
-        self.status.isUnreachable
-    }
-
-    var isDead: Bool {
-        self.status.isDead
+        var isDead: Bool {
+            self.status.isDead
+        }
     }
 }
 
-/// Manual Hashable conformance since we ommit suspicionStartedAt from identity
-extension SWIMMember: Hashable, Equatable {
-    static func == (lhs: SWIMMember, rhs: SWIMMember) -> Bool {
-        lhs.ref == rhs.ref && lhs.protocolPeriod == rhs.protocolPeriod && lhs.status == rhs.status
+/// Manual Hashable conformance since we omit suspicionStartedAt from identity
+extension SWIM.Member: Hashable, Equatable {
+    static func == (lhs: SWIM.Member, rhs: SWIM.Member) -> Bool {
+        lhs.peer == rhs.peer &&
+            lhs.protocolPeriod == rhs.protocolPeriod &&
+            lhs.status == rhs.status
     }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(self.ref)
+        hasher.combine(self.peer)
         hasher.combine(self.protocolPeriod)
         hasher.combine(self.status)
     }
@@ -299,14 +307,14 @@ extension SWIMMember: Hashable, Equatable {
 // MARK: SWIM Gossip Payload
 
 extension SWIM {
-    internal enum Payload {
+    public enum GossipPayload {
         case none
         case membership(SWIM.Members)
     }
 }
 
-extension SWIM.Payload {
-    var isNone: Bool {
+extension SWIM.GossipPayload {
+    public var isNone: Bool {
         switch self {
         case .none:
             return true
@@ -315,7 +323,7 @@ extension SWIM.Payload {
         }
     }
 
-    var isMembership: Bool {
+    public var isMembership: Bool {
         switch self {
         case .none:
             return false

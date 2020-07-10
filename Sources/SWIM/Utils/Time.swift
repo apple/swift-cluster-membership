@@ -19,8 +19,6 @@ import struct NIO.TimeAmount
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: TimeAmount
 
-// TODO: We have discussed and wanted to "do your own" rather than import the NIO ones, but not entirely sold on the usefulness of replicating them -- ktoso
-
 /// Represents a time _interval_.
 ///
 /// - note: `TimeAmount` should not be used to represent a point in time.
@@ -124,7 +122,7 @@ extension TimeAmount: Comparable {
 }
 
 /// "Pretty" time amount rendering, useful for human readable durations in tests
-extension TimeAmount: CustomStringConvertible, CustomPrettyStringConvertible {
+extension TimeAmount: CustomStringConvertible {
     public var description: String {
         "TimeAmount(\(self.prettyDescription), nanoseconds: \(self.nanoseconds))"
     }
@@ -441,5 +439,60 @@ public struct WallTimeClock: Codable, Comparable, CustomStringConvertible {
 
     public var description: String {
         "\(self.timestamp.description)"
+    }
+}
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: TimeSpec
+
+#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+import Darwin
+#else
+import Glibc
+#endif
+
+import NIO
+
+// MARK: utilities to convert between TimeAmount and C timespec
+
+private let NANOS = 1_000_000_000
+
+/// :nodoc: Not intended for general use. TODO: Make internal if possible.
+public typealias TimeSpec = timespec
+
+// TODO: move to Time.swift?
+
+/// :nodoc: Not intended for general use. TODO: Make internal if possible.
+public extension TimeSpec {
+    static func from(timeAmount amount: TimeAmount) -> timespec {
+        let seconds = Int(amount.nanoseconds) / NANOS
+        let nanos = Int(amount.nanoseconds) % NANOS
+        var time = timespec()
+        time.tv_sec = seconds
+        time.tv_nsec = nanos
+        return time
+    }
+
+    static func + (a: timespec, b: timespec) -> timespec {
+        let totalNanos = a.toNanos() + b.toNanos()
+        let seconds = totalNanos / NANOS
+        var result = timespec()
+        result.tv_sec = seconds
+        result.tv_nsec = totalNanos % NANOS
+        return result
+    }
+
+    func toNanos() -> Int {
+        self.tv_nsec + (self.tv_sec * NANOS)
+    }
+}
+
+extension TimeSpec: Comparable {
+    public static func < (lhs: TimeSpec, rhs: TimeSpec) -> Bool {
+        lhs.tv_sec < rhs.tv_sec || (lhs.tv_sec == rhs.tv_sec && lhs.tv_nsec < rhs.tv_nsec)
+    }
+
+    public static func == (lhs: TimeSpec, rhs: TimeSpec) -> Bool {
+        lhs.tv_sec == rhs.tv_sec && lhs.tv_nsec == lhs.tv_nsec
     }
 }

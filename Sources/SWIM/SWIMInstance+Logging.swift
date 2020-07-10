@@ -12,7 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import struct Logging.Logger
+import ClusterMembership
+import Logging
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Logging Metadata
@@ -21,13 +22,13 @@ extension SWIM.Instance {
     /// While the SWIM.Instance is not meant to be logging by itself, it does offer metadata for loggers to use.
     var metadata: Logger.Metadata {
         [
-            "swim/membersToPing": Logger.Metadata.Value.array(self.membersToPing.map { "\($0)" }),
             "swim/protocolPeriod": "\(self.protocolPeriod)",
             "swim/timeoutSuspectsBeforePeriodMax": "\(self.timeoutSuspectsBeforePeriodMax)",
             "swim/timeoutSuspectsBeforePeriodMin": "\(self.timeoutSuspectsBeforePeriodMin)",
             "swim/incarnation": "\(self.incarnation)",
-            "swim/memberCount": "\(self.memberCount)",
-            "swim/suspectCount": "\(self.suspects.count)",
+            "swim/membersToPing": Logger.Metadata.Value.array(self.membersToPing.map { "\($0)" }),
+            "swim/member/count": "\(self.memberCount)",
+            "swim/suspects/count": "\(self.suspects.count)",
         ]
     }
 }
@@ -35,18 +36,18 @@ extension SWIM.Instance {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Tracelog: SWIM [tracelog:SWIM]
 
-extension SWIMShell {
+extension NIOSWIMShell {
     /// Optional "dump all messages" logging.
     ///
     /// Enabled by `SWIM.Settings.traceLogLevel` or `-DTRACELOG_SWIM`
     func tracelog(
-        _ context: Context<SWIM.Message>, _ type: TraceLogType, message: Any,
+        _ context: SWIMContext, _ type: TraceLogType, message: Any,
         file: String = #file, function: String = #function, line: UInt = #line
     ) {
         if let level = self.settings.traceLogLevel {
             context.log.log(
                 level: level,
-                "[tracelog:SWIM] \(type.description): \(message)",
+                "\(type.description): \(message)",
                 metadata: self.swim.metadata,
                 file: file, function: function, line: line
             )
@@ -56,7 +57,6 @@ extension SWIMShell {
     internal enum TraceLogType: CustomStringConvertible {
         case reply(to: Peer<SWIM.PingResponse>)
         case receive(pinged: Peer<SWIM.Message>?)
-        case ask(Peer<SWIM.Message>)
 
         static var receive: TraceLogType {
             .receive(pinged: nil)
@@ -67,11 +67,9 @@ extension SWIMShell {
             case .receive(nil):
                 return "RECV"
             case .receive(let .some(pinged)):
-                return "RECV(pinged:\(pinged.address))"
+                return "RECV(pinged:\(pinged.node))"
             case .reply(let to):
-                return "REPL(to:\(to.address))"
-            case .ask(let who):
-                return "ASK(\(who.address))"
+                return "REPL(to:\(to.node))"
             }
         }
     }

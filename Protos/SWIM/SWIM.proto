@@ -18,7 +18,7 @@ syntax = "proto3";
 option optimize_for = SPEED;
 option swift_prefix = "Proto";
 
-import "PeerAddress.proto";
+import "ClusterMembership/ClusterMembership.proto";
 
 message SWIMRemoteMessage {
     oneof request {
@@ -28,24 +28,24 @@ message SWIMRemoteMessage {
 }
 
 message SWIMPing {
-    PeerAddress replyTo = 1;
+    Peer replyTo = 1;
     SWIMPayload payload = 2;
 }
 
 message SWIMPingRequest {
-    PeerAddress target = 1;
-    PeerAddress replyTo = 2;
+    Peer target = 1;
+    Peer replyTo = 2;
     SWIMPayload payload = 3;
 }
 
 message SWIMPingResponse {
     message Ack {
-        PeerAddress target = 1;
+        Peer target = 1;
         uint64 incarnation = 2;
         SWIMPayload payload = 3;
     }
     message Nack {
-        PeerAddress target = 1;
+        Peer target = 1;
     }
     oneof pingResponse {
         Ack ack = 1;
@@ -64,11 +64,11 @@ message SWIMStatus {
 
     Type type = 1;
     uint64 incarnation = 2;
-    repeated UniqueNode suspectedBy = 3;
+    repeated Node suspectedBy = 3;
 }
 
 message SWIMMember {
-    PeerAddress address = 1;
+    Peer peer = 1;
     SWIMStatus status = 2;
 }
 
