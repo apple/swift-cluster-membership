@@ -78,6 +78,7 @@ internal protocol InternalProtobufRepresentable: AnyProtobufRepresentable {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Errors
 
-enum SerializationError: Error {
+// TODO: make a struct for compat
+public enum SWIMSerializationError: Error {
     case missingField(String, type: String)
 }

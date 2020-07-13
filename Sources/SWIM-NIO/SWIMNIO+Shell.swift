@@ -16,6 +16,21 @@ import ClusterMembership
 import NIO
 import Logging
 
+extension SWIM {
+    public enum Message: Codable {
+        case remote(RemoteMessage)
+        case local(LocalMessage)
+    }
+    
+    public enum RemoteMessage: Codable {
+        case ping(replyTo: Peer<PingResponse>, payload: GossipPayload)
+        
+        /// "Ping Request" requests a SWIM probe.
+        case pingReq(target: Peer<Message>, replyTo: Peer<PingResponse>, payload: GossipPayload)
+    }
+    
+}
+
 /// The SWIM shell is responsible for driving all interactions of the `SWIM.Instance` with the outside world.
 ///
 /// - SeeAlso: `SWIM.Instance` for detailed documentation about the SWIM protocol implementation.

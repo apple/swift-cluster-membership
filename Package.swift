@@ -78,6 +78,11 @@ var targets: [PackageDescription.Target] = [
         dependencies: ["SWIM"]
     ),
 
+    .testTarget(
+        name: "SWIM-NIOTests",
+        dependencies: ["SWIM-NIO"]
+    ),
+
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Integration Tests - `it_` prefixed
 

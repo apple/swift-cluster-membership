@@ -31,11 +31,11 @@ import Logging
 /// ### Related Papers
 /// - SeeAlso: [SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol](https://www.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf)
 /// - SeeAlso: [Lifeguard: Local Health Awareness for More Accurate Failure Detection](https://arxiv.org/abs/1707.00788)
-final class SWIMInstance {
+public final class SWIMInstance {
     let settings: SWIM.Settings
 
     /// Main members storage, map to values to obtain current members.
-    internal var members: [Peer<SWIM.Message>: SWIM.Member]
+    internal var members: [ClusterMembership.Node: SWIM.Member]
 
     /// List of members maintained in random yet stable order, see `addMember` for details.
     internal var membersToPing: [SWIM.Member]
@@ -83,7 +83,7 @@ final class SWIMInstance {
     }
 
     func makeSuspicion(incarnation: SWIM.Incarnation) -> SWIM.Status {
-        .suspect(incarnation: incarnation, suspectedBy: [self.myNode])
+        .suspect(incarnation: incarnation, suspectedBy: [self.node])
     }
 
     func mergeSuspicions(suspectedBy: Set<ClusterMembership.Node>, previouslySuspectedBy: Set<ClusterMembership.Node>) -> Set<ClusterMembership.Node> {
@@ -119,19 +119,18 @@ final class SWIMInstance {
     private var _protocolPeriod: Int = 0
 
     // We store the owning SWIMShell peer in order avoid adding it to the `membersToPing` list
-    private let myself: Peer<SWIM.Message>
-    private var myNode: ClusterMembership.Node {
+    private let myself: SWIMPeerProtocol
+    private var node: ClusterMembership.Node {
         self.myself.node
     }
 
-    private var _messagesToGossip = Heap(
-        of: SWIM.Gossip.self,
+    private var _messagesToGossip: Heap<SWIM.Gossip> = Heap(
         comparator: {
             $0.numberOfTimesGossiped < $1.numberOfTimesGossiped
         }
     )
 
-    public init(_ settings: SWIM.Settings, myself: Peer<SWIM.Message>) {
+    public init(_ settings: SWIM.Settings, myself: SWIMPeerProtocol) {
         self.settings = settings
         self.myself = myself
         self.members = [:]
@@ -140,15 +139,15 @@ final class SWIMInstance {
     }
 
     @discardableResult
-    public func addMember(_ peer: Peer<SWIM.Message>, status: SWIM.Status) -> AddMemberDirective {
-        let maybeExistingMember = self.member(for: peer)
+    public func addMember(_ peer: SWIMPeerProtocol, status: SWIM.Status) -> AddMemberDirective {
+        let maybeExistingMember = self.member(for: peer.node)
         if let existingMember = maybeExistingMember, existingMember.status.supersedes(status) {
             // we already have a newer state for this member
             return .newerMemberAlreadyPresent(existingMember)
         }
 
         let member = SWIM.Member(peer: peer, status: status, protocolPeriod: self.protocolPeriod, suspicionStartedAt: self.timeSourceNanos())
-        self.members[peer] = member
+        self.members[member.node] = member
 
         if maybeExistingMember == nil, self.notMyself(member) {
             // Newly added members are inserted at a random spot in the list of members
@@ -173,7 +172,7 @@ final class SWIMInstance {
         return .added(member)
     }
 
-    enum AddMemberDirective {
+    public enum AddMemberDirective {
         case added(SWIM.Member)
         case newerMemberAlreadyPresent(SWIM.Member)
     }
@@ -189,7 +188,7 @@ final class SWIMInstance {
     ///   but in a round-robin fashion. Instead, a newly joining member is inserted in the membership list at
     ///   a position that is chosen uniformly at random. On completing a traversal of the entire list,
     ///   rearranges the membership list to a random reordering.
-    func nextMemberToPing() -> Peer<SWIM.Message>? {
+    func nextMemberToPing() -> SWIMPeerProtocol? {
         if self.membersToPing.isEmpty {
             return nil
         }
@@ -199,8 +198,8 @@ final class SWIMInstance {
     }
 
     /// Selects `settings.indirectProbeCount` members to send a `ping-req` to.
-    func membersToPingRequest(target: Peer<SWIM.Message>) -> ArraySlice<SWIM.Member> {
-        func notTarget(_ peer: Peer<SWIM.Message>) -> Bool {
+    func membersToPingRequest(target: SWIMPeerProtocol) -> ArraySlice<SWIM.Member> {
+        func notTarget(_ peer: SWIMPeerProtocol) -> Bool {
             peer.node != target.node
         }
         func isReachable(_ status: SWIM.Status) -> Bool {
@@ -215,7 +214,7 @@ final class SWIMInstance {
     }
 
     @discardableResult
-    func mark(_ peer: Peer<SWIM.Message>, as status: SWIM.Status) -> MarkedDirective {
+    func mark(_ peer: SWIMPeerProtocol, as status: SWIM.Status) -> MarkedDirective {
         let previousStatusOption = self.status(of: peer)
 
         var status = status
@@ -240,7 +239,7 @@ final class SWIMInstance {
         }
 
         let member = SWIM.Member(peer: peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: suspicionStartedAt)
-        self.members[peer] = member
+        self.members[peer.node] = member
         self.addToGossip(member: member)
 
         if status.isDead {
@@ -264,7 +263,7 @@ final class SWIMInstance {
     }
 
     func removeFromMembersToPing(_ member: SWIM.Member) {
-        if let index = self.membersToPing.firstIndex(where: { $0.peer == member.peer }) {
+        if let index = self.membersToPing.firstIndex(where: { $0.peer.node == member.peer.node }) {
             self.membersToPing.remove(at: index)
             if index < self.membersToPingIndex {
                 self._membersToPingIndex -= 1
@@ -325,7 +324,7 @@ final class SWIMInstance {
         deadline < self.timeSourceNanos()
     }
 
-    func makeGossipPayload(to target: Peer<SWIM.Message>?) -> SWIM.GossipPayload {
+    func makeGossipPayload(to target: SWIMPeerProtocol?) -> SWIM.GossipPayload {
         var members: [SWIM.Member] = []
         // buddy system will always send to a suspect its suspicion.
         // The reason for that to ensure the suspect will be notified it is being suspected,
@@ -366,7 +365,7 @@ final class SWIMInstance {
         for var gossip in gossipMessages {
             // We do NOT add gossip to payload if it's a gossip about self and self is a suspect,
             // this case was handled earlier and doing it here will lead to duplicate messages
-            if !(target == gossip.member.peer && targetIsSuspect) {
+            if !(target?.node == gossip.member.peer.node && targetIsSuspect) {
                 members.append(gossip.member)
             }
             gossip.numberOfTimesGossiped += 1
@@ -380,7 +379,7 @@ final class SWIMInstance {
 
     private func addToGossip(member: SWIM.Member) {
         // we need to remove old state before we add the new gossip, so we don't gossip out stale state
-        self._messagesToGossip.remove(where: { $0.member.peer == member.peer })
+        self._messagesToGossip.remove(where: { $0.member.peer.asAnyMember == member.peer.asAnyMember })
         self._messagesToGossip.append(.init(member: member, numberOfTimesGossiped: 0))
     }
 }
@@ -393,12 +392,12 @@ extension SWIM.Instance {
         !self.isMyself(member)
     }
 
-    func notMyself(_ peer: Peer<SWIM.Message>) -> Bool {
+    func notMyself(_ peer: SWIMPeerProtocol) -> Bool {
         self.notMyself(peer.node)
     }
 
     func notMyself(_ node: ClusterMembership.Node) -> Bool {
-        self.myNode == node
+        self.node == node
     }
 
     func isMyself(_ member: SWIM.Member) -> Bool {
@@ -406,36 +405,34 @@ extension SWIM.Instance {
     }
 
     func isMyself(_ node: Node) -> Bool {
-        self.myNode == node
+        self.node == node
     }
 
-    func status(of peer: Peer<SWIM.Message>) -> SWIM.Status? {
+    // TODO: ensure we actually store "us" in members; do we need this special handling if then at all?
+    func status(of peer: SWIMPeerProtocol) -> SWIM.Status? {
         if self.notMyself(peer) {
-            return self.members[peer]?.status
+            return self.members[peer.node]?.status
         } else {
+            // we consider ourselves always as alive (enables refuting others suspecting us)
             return .alive(incarnation: self.incarnation)
         }
     }
 
-    func member(for peer: Peer<SWIM.Message>) -> SWIM.Member? {
-        self.members[peer]
+    func member(for peer: SWIMPeerProtocol) -> SWIM.Member? {
+        self.members[peer.node]
     }
 
     func member(for node: ClusterMembership.Node) -> SWIM.Member? {
-        if self.myNode == node {
-            return self.member(for: self.myself)
-        }
-
-        return self.members.first(where: { key, _ in key.node == node })?.value
+        self.member(for: self.myself)
     }
 
     /// Counts non-dead members.
-    var memberCount: Int {
-        self.members.filter { !$0.value.isDead }.count
+    var notDeadMemberCount: Int {
+        self.members.lazy.filter { !$0.value.isDead }.count
     }
 
     // for testing; used to implement the data for the testing message in the shell: .getMembershipState
-    var _allMembersDict: [Peer<SWIM.Message>: SWIM.Status] {
+    var _allMembersDict: [Node: SWIM.Status] {
         self.members.mapValues { $0.status }
     }
 
@@ -452,11 +449,11 @@ extension SWIM.Instance {
         self.members.values
     }
 
-    func isMember(_ peer: Peer<SWIM.Message>) -> Bool {
+    func isMember(_ peer: SWIMPeerProtocol) -> Bool {
         // the peer could be either:
         // - "us" (i.e. the peer which hosts this SWIM instance, or
         // - a "known member"
-        peer.node == self.myNode || self.members[peer] != nil
+        peer.node == self.node || self.members[peer.node] != nil
     }
 }
 
@@ -465,7 +462,7 @@ extension SWIM.Instance {
 
 extension SWIM.Instance {
     func onPing() -> OnPingDirective {
-        .reply(.ack(target: self.myself, incarnation: self._incarnation, payload: self.makeGossipPayload(to: nil)))
+        .reply(.ack(target: self.myself.asAnyMember, incarnation: self._incarnation, payload: self.makeGossipPayload(to: nil)))
     }
 
     enum OnPingDirective {
@@ -473,7 +470,7 @@ extension SWIM.Instance {
     }
 
     /// React to an `Ack` (or lack thereof within timeout)
-    func onPingRequestResponse(_ result: Result<SWIM.PingResponse, Error>, pingedMember member: Peer<SWIM.Message>) -> OnPingRequestResponseDirective {
+    func onPingRequestResponse(_ result: Result<SWIM.PingResponse, Error>, pingedMember member: SWIMPeerProtocol) -> OnPingRequestResponseDirective {
         guard let lastKnownStatus = self.status(of: member) else {
             return .unknownMember
         }
@@ -600,7 +597,7 @@ extension SWIM.Instance {
     }
 
     private func onOtherMemberGossipPayload(member: SWIM.Member) -> SWIM.Instance.OnGossipPayloadDirective {
-        assert(self.myNode != member.node, "Attempted to process gossip as-if not-myself, but WAS same peer, was: \(member). Myself: \(self.myself, orElse: "nil")")
+        assert(self.node != member.node, "Attempted to process gossip as-if not-myself, but WAS same peer, was: \(member). Myself: \(self.myself, orElse: "nil")")
 
         if self.isMember(member.peer) {
             switch self.mark(member.peer, as: member.status) {

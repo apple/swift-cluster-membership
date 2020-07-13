@@ -22,7 +22,7 @@ public typealias ProtoNode = ClusterMembership.ProtoNode
 extension SWIM.Message: InternalProtobufRepresentable {
     typealias ProtobufRepresentation = ProtoSWIMRemoteMessage
 
-    func toProto() throws -> ProtobufRepresentation {
+    public func toProto() throws -> ProtobufRepresentation {
         guard case SWIM.Message.remote(let message) = self else {
             fatalError("SWIM.Message.local should never be sent remotely.")
         }
@@ -30,7 +30,7 @@ extension SWIM.Message: InternalProtobufRepresentable {
         return try message.toProto()
     }
 
-    init(fromProto proto: ProtobufRepresentation) throws {
+    public init(fromProto proto: ProtobufRepresentation) throws {
         self = try .remote(SWIM.RemoteMessage(fromProto: proto))
     }
 }
@@ -38,7 +38,7 @@ extension SWIM.Message: InternalProtobufRepresentable {
 extension SWIM.RemoteMessage: InternalProtobufRepresentable {
     typealias ProtobufRepresentation = ProtoSWIMRemoteMessage
 
-    func toProto() throws -> ProtobufRepresentation {
+    public func toProto() throws -> ProtobufRepresentation {
         var proto = ProtobufRepresentation()
         switch self {
         case .ping(let replyTo, let payload):
@@ -57,7 +57,7 @@ extension SWIM.RemoteMessage: InternalProtobufRepresentable {
         return proto
     }
 
-    init(fromProto proto: ProtobufRepresentation) throws {
+    public init(fromProto proto: ProtobufRepresentation) throws {
         switch proto.request {
         case .ping(let ping):
             let replyTo = try Peer<SWIM.PingResponse>(fromProto: ping.replyTo)
@@ -69,7 +69,7 @@ extension SWIM.RemoteMessage: InternalProtobufRepresentable {
             let payload = try SWIM.GossipPayload(fromProto: pingRequest.payload)
             self = .pingReq(target: target, replyTo: replyTo, payload: payload)
         case .none:
-            throw SerializationError.missingField("request", type: String(describing: SWIM.Message.self))
+            throw SWIMSerializationError.missingField("request", type: String(describing: SWIM.Message.self))
         }
     }
 }
@@ -110,9 +110,9 @@ extension SWIM.Status: InternalProtobufRepresentable {
         case .dead:
             self = .dead
         case .unspecified:
-            throw SerializationError.missingField("type", type: String(describing: SWIM.Status.self))
+            throw SWIMSerializationError.missingField("type", type: String(describing: SWIM.Status.self))
         case .UNRECOGNIZED(let num):
-            throw SerializationError.unknownEnumValue(num)
+            throw SWIMSerializationError.unknownEnumValue(num)
         }
     }
 }
@@ -179,7 +179,7 @@ extension SWIM.PingResponse: InternalProtobufRepresentable {
 
     init(fromProto proto: ProtoSWIMPingResponse) throws {
         guard let pingResponse = proto.pingResponse else {
-            throw SerializationError.missingField("pingResponse", type: String(describing: SWIM.PingResponse.self))
+            throw SWIMSerializationError.missingField("pingResponse", type: String(describing: SWIM.PingResponse.self))
         }
         switch pingResponse {
         case .ack(let ack):

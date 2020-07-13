@@ -39,7 +39,7 @@ internal struct Heap<T: Equatable> {
     internal private(set) var storage: ContiguousArray<T> = []
     private let comparator: (T, T) -> Bool
 
-    init(of type: T.Type, comparator: @escaping (T, T) -> Bool) {
+    init(of type: T.Type = T.self, comparator: @escaping (T, T) -> Bool) {
         self.comparator = comparator
     }
 

@@ -15,10 +15,10 @@
 import protocol Swift.Decoder // to prevent shadowing by the ones in SwiftProtobuf
 import protocol Swift.Encoder // to prevent shadowing by the ones in SwiftProtobuf
 
-extension Node: InternalProtobufRepresentable {
-    typealias ProtobufRepresentation = ProtoNode
+extension Node: ProtobufRepresentable {
+    public typealias ProtobufRepresentation = ProtoNode
 
-    func toProto() throws -> ProtobufRepresentation {
+    public func toProto() throws -> ProtobufRepresentation {
         var proto = ProtobufRepresentation()
         proto.protocol = self.protocol
         proto.host = self.host
@@ -29,18 +29,18 @@ extension Node: InternalProtobufRepresentable {
         return proto
     }
 
-    init(fromProto proto: ProtobufRepresentation) throws {
+    public init(fromProto proto: ProtobufRepresentation) throws {
         guard !proto.protocol.isEmpty else {
-            throw SerializationError.missingField("protocol", type: "String")
+            throw SWIMSerializationError.missingField("protocol", type: "String")
         }
         guard !proto.host.isEmpty else {
-            throw SerializationError.missingField("host", type: "String")
+            throw SWIMSerializationError.missingField("host", type: "String")
         }
         guard proto.port > 0 else {
-            throw SerializationError.missingField("port", type: "Int")
+            throw SWIMSerializationError.missingField("port", type: "Int")
         }
         guard proto.uid > 0 else {
-            throw SerializationError.missingField("port", type: "Int")
+            throw SWIMSerializationError.missingField("port", type: "Int")
         }
         self.protocol = proto.protocol
         self.host = proto.host

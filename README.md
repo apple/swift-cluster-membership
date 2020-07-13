@@ -1,6 +1,16 @@
 # Swift Cluster Membership
 
-A collection of Cluster Membership protocol implementations in Swift.
+Swift Cluster Membership provides implementations of distributed membership protocols, which are an important building block for building distributed systems with Swift.
+
+The core algorithm implementations _do not_ depend on any specific transport layer, although Proof-of-Concept implementations of using them with [swift-nio](https://github.com/apple/swift-nio) providing the networking and "interpreting" the algorithm state machines are provide in the repository.
+
+## Membership Protocols
+
+A membership protocol provides each process (“member”) of the group with a locally-maintained list of other **non-faulty** processes in the group. 
+Part of a membership protocol's responsilibities lies with determining faulty and non-faulty members in a reliable and predictable manner. 
+
+Members may join the membership at will, usually by contacting _any_ of the existing members, and become known to all other members in the cluster.
+Members may leave the membership gracefully or crash and be determined as dead and thus removed from the non-falutly membership list using distributed failure detection mechanisms.
 
 ## Modules
 

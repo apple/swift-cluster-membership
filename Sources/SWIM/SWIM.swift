@@ -33,39 +33,41 @@ import ClusterMembership
 public enum SWIM {
     public typealias Context = SWIMContext
     public typealias Incarnation = UInt64
-    public typealias Ref = Peer<SWIM.Message>
-    public typealias Shell = NIOSWIMShell
     public typealias Instance = SWIMInstance
     public typealias Members = [SWIM.Member]
 
-    internal typealias MembersValues = Dictionary<Peer<SWIM.Message>, SWIM.Member>.Values
+    // TODO: or index by just the Node?
+    internal typealias MembersValues = Dictionary<Node, SWIM.Member>.Values
 
-    public enum Message: Codable {
-        case remote(RemoteMessage)
-        case local(LocalMessage)
-        case _testing(TestingMessage)
-    }
+//    public enum Message: Codable {
+//        case remote(RemoteMessage)
+//        case local(LocalMessage)
+//    }
+//
+//    public enum RemoteMessage: Codable {
+//        case ping(replyTo: Peer<PingResponse>, payload: GossipPayload)
+//
+//        /// "Ping Request" requests a SWIM probe.
+//        case pingReq(target: Peer<Message>, replyTo: Peer<PingResponse>, payload: GossipPayload)
+//    }
 
-    public enum RemoteMessage: Codable {
-        case ping(replyTo: Peer<PingResponse>, payload: GossipPayload)
-
-        /// "Ping Request" requests a SWIM probe.
-        case pingReq(target: Peer<Message>, replyTo: Peer<PingResponse>, payload: GossipPayload)
-    }
-
-    /// A `SWIM.Ack` is sent always in reply to a `SWIM.RemoteMessage.ping`.
+    /// Message sent in reply to a `SWIM.RemoteMessage.ping`.
     ///
     /// The ack may be delivered directly in a request-response fashion between the probing and pinged members,
     /// or indirectly, as a result of a `pingReq` message.
-    ///
-    /// - parameter target: always contains the peer of the member that was the target of the `ping`.
-    public enum PingResponse: Codable {
-        case ack(target: Peer<Message>, incarnation: Incarnation, payload: GossipPayload)
-        case nack(target: Peer<Message>)
+    public enum PingResponse {
+        /// - parameter target: always contains the peer of the member that was the target of the `ping`.
+        /// - parameter incarnation: TODO: docs
+        /// - parameter payload: TODO: docs
+        case ack(target: AnyPeer, incarnation: Incarnation, payload: GossipPayload)
+        /// - parameter target: always contains the peer of the member that was the target of the `ping`.
+        /// - parameter incarnation: TODO: docs
+        /// - parameter payload: TODO: docs
+        case nack(target: AnyPeer)
     }
 
     internal struct MembershipState {
-        let membershipState: [Peer<SWIM.Message>: Status]
+        let membershipState: [AnyPeer: Status]
     }
 
     public enum LocalMessage {
@@ -112,11 +114,6 @@ public enum SWIM {
         case confirmDead(Node)
     }
 
-    public enum TestingMessage {
-        /// FOR TESTING: Expose the entire membership state
-        case getMembershipState(replyTo: Peer<MembershipState>)
-    }
-
     internal struct Gossip: Equatable {
         let member: SWIM.Member
         var numberOfTimesGossiped: Int
@@ -144,7 +141,7 @@ extension SWIM {
     /// - `alive | suspect | unreachable -> dead`
     ///
     /// - SeeAlso: `SWIM.Incarnation`
-    internal enum Status: Hashable {
+    public enum Status: Hashable {
         case alive(incarnation: Incarnation)
         case suspect(incarnation: Incarnation, suspectedBy: Set<Node>)
         case unreachable(incarnation: Incarnation)
@@ -153,7 +150,7 @@ extension SWIM {
 }
 
 extension SWIM.Status: Comparable {
-    static func < (lhs: SWIM.Status, rhs: SWIM.Status) -> Bool {
+    public static func < (lhs: SWIM.Status, rhs: SWIM.Status) -> Bool {
         switch (lhs, rhs) {
         case (.alive(let selfIncarnation), .alive(let rhsIncarnation)):
             return selfIncarnation < rhsIncarnation
@@ -243,11 +240,13 @@ extension SWIM.Status {
 // MARK: SWIM Member
 
 extension SWIM {
-    internal struct Member {
+    public struct Member {
         /// Peer reference, used to send messages to this cluster member.
         ///
         /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
-        let peer: Peer<SWIM.Message>
+        let peer: SWIMPeerProtocol
+
+        /// `Node` of the member's `peer`.
         var node: ClusterMembership.Node {
             self.peer.node
         }
@@ -263,7 +262,7 @@ extension SWIM {
         /// Having this in SWIM.Member ensures we never pass it on the wire and we can't make a mistake when merging suspicions.
         let suspicionStartedAt: Int64?
 
-        init(peer: Peer<SWIM.Message>, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
+        init(peer: SWIMPeerProtocol, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
             self.peer = peer
             self.status = status
             self.protocolPeriod = protocolPeriod
@@ -290,14 +289,14 @@ extension SWIM {
 
 /// Manual Hashable conformance since we omit suspicionStartedAt from identity
 extension SWIM.Member: Hashable, Equatable {
-    static func == (lhs: SWIM.Member, rhs: SWIM.Member) -> Bool {
-        lhs.peer == rhs.peer &&
+    public static func == (lhs: SWIM.Member, rhs: SWIM.Member) -> Bool {
+        lhs.peer.asAnyMember == rhs.peer.asAnyMember &&
             lhs.protocolPeriod == rhs.protocolPeriod &&
             lhs.status == rhs.status
     }
 
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(self.peer)
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(self.peer.asAnyMember)
         hasher.combine(self.protocolPeriod)
         hasher.combine(self.status)
     }
