@@ -24,6 +24,17 @@ extension SWIM {
             .init()
         }
 
+        public var logger: Logger = Logger(label: "swim")
+
+        public var logLevel: Logger.Level {
+            get {
+                self.logger.logLevel
+            }
+            set {
+                self.logger.logLevel = newValue
+            }
+        }
+
         /// Gossip settings
         public var gossip: SWIMGossipSettings = .default
 
@@ -44,10 +55,10 @@ extension SWIM {
         }
 
         /// Interval at which gossip messages should be issued.
-        /// This property sets only a base value of probe interval, which will later be multiplied by `SWIMInstance.localHealthMultiplier`.
+        /// This property sets only a base value of probe interval, which will later be multiplied by `SWIM.Instance.localHealthMultiplier`.
         /// - SeeAlso: `maxLocalHealthMultiplier`
         /// Every `interval` a `fan-out` number of gossip messages will be sent. // TODO which fanout, better docs
-        public var probeInterval: TimeAmount = .seconds(1)
+        public var probeInterval: SWIMTimeAmount = .seconds(1)
 
         /// Time amount after which a sent ping without ack response is considered timed-out.
         /// This drives how a node becomes a suspect, by missing such ping/ack rounds.
@@ -58,18 +69,16 @@ extension SWIM {
         /// which results in an `Cluster.MemberReachabilityChange` `Cluster.Event` which downing strategies may act upon.
         ///
         /// - SeeAlso: `lifeguard.maxLocalHealthMultiplier`
-        public var pingTimeout: TimeAmount = .milliseconds(300)
-
-        /// Optional "SWIM instance name" to be included in log statements,
-        /// useful when multiple instances of SWIM are run on the same node (e.g. for debugging).
-        internal var name: String?
+        public var pingTimeout: SWIMTimeAmount = .milliseconds(300)
 
         /// This is not a part of public API. SWIM is using time to schedule pings/calculate timeouts.
         /// When designing tests one may want to simulate scenarios when events are coming in particular order.
         /// Doing this will require some control over SWIM's notion of time.
         ///
-        /// This property allows to override the `.now` function.
-        var timeSourceNanos: () -> Int64 = { () -> Int64 in Int64(DispatchTime.now().uptimeNanoseconds) }
+        /// This property allows to override the `.now()` function.
+        var timeSourceNanos: () -> UInt64 = { () -> UInt64 in
+            DispatchTime.now().uptimeNanoseconds
+        }
 
         /// When enabled traces _all_ incoming SWIM protocol communication (remote messages).
         /// These logs will contain SWIM.Instance metadata, as offered by `SWIM.Instance.metadata`.
@@ -136,7 +145,7 @@ public struct SWIMLifeguardSettings {
     /// it will be marked `.dead` in SWIM, and `.down` in the high-level membership.
     ///
     /// - SeeAlso: [Lifeguard IV.B. Local Health Aware Suspicion (LHA-Suspicion)](https://arxiv.org/pdf/1707.00788.pdf)
-    public var suspicionTimeoutMax: TimeAmount = .seconds(10) {
+    public var suspicionTimeoutMax: SWIMTimeAmount = .seconds(10) {
         willSet {
             precondition(newValue >= self.suspicionTimeoutMin, "`suspicionTimeoutMax` MUST BE >= `suspicionTimeoutMin`")
         }
@@ -158,7 +167,7 @@ public struct SWIMLifeguardSettings {
     /// it will be marked `.dead` in swim, and `.down` in the high-level membership.
     ///
     /// - SeeAlso: [Lifeguard IV.B. Local Health Aware Suspicion (LHA-Suspicion)](https://arxiv.org/pdf/1707.00788.pdf)
-    public var suspicionTimeoutMin: TimeAmount = .seconds(3) {
+    public var suspicionTimeoutMin: SWIMTimeAmount = .seconds(3) {
         willSet {
             precondition(newValue <= self.suspicionTimeoutMax, "`suspicionTimeoutMin` MUST BE <= `suspicionTimeoutMax`")
         }

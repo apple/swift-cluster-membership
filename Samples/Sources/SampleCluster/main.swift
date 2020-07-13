@@ -15,23 +15,35 @@
 // tag::cluster-sample[]
 import ClusterMembership
 import SWIM
+import SWIMNIO
 import NIO
 import Logging
 // end::cluster-sample[]
 
 
+let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+defer {
+    try! group.syncShutdownGracefully()
+}
+
 func startNode(port: Int) {
     let logger = Logger(label: "swim-\(port)")
 
-    let elg = MultiThreadedEventLoopGroup(numberOfThreads: 3)
-    let node = ClusterMembership.Node(protocol: "tcp", host: "127.0.0.1", port: port, uid: .random(in: 0..<UInt64.max))
+    var settings = SWIM.Settings()
+    settings.logger = logger
 
-    NIOSWIMShell()
+    let bootstrap = ServerBootstrap(group: group)
+        .serverChannelOption(ChannelOptions.backlog, value: 256)
+        .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+        .childChannelInitializer { channel in
+            channel.pipeline.addHandler(BackPressureHandler()).flatMap { v in
+                channel.pipeline.addHandler(SWIMProtocolHandler(log: logger))
+            }
+        }
+        .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+        .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 16)
+        .childChannelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
 
-    let myself = Peer<SWIM.Message>(node: node)
-    let settings = SWIM.Settings()
-
-    SWIM.Instance(settings: settings, myself: myself)
 }
 
 startNode(7001)

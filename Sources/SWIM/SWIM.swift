@@ -33,7 +33,6 @@ import ClusterMembership
 public enum SWIM {
     public typealias Context = SWIMContext
     public typealias Incarnation = UInt64
-    public typealias Instance = SWIMInstance
     public typealias Members = [SWIM.Member]
 
     // TODO: or index by just the Node?
@@ -257,12 +256,15 @@ extension SWIM {
         // Period in which protocol period was this state set
         let protocolPeriod: Int
 
-        /// Indicates a time when suspicion was started. Only suspicion needs to have it, but having the actual field in SWIM.Member feels more natural.
-        /// Putting it inside `SWIM.Status` makes time management a huge mess: status can either be created internally in SWIM.Member or deserialised from protobuf.
-        /// Having this in SWIM.Member ensures we never pass it on the wire and we can't make a mistake when merging suspicions.
-        let suspicionStartedAt: Int64?
+        /// Indicates a time when suspicion was started.
+        ///
+        /// // FIXME: reword this paragraph
+        /// Only suspicion needs to have it, but having the actual field in SWIM.Member feels more natural.
+        /// Putting it inside `SWIM.Status` makes time management a huge mess: status can either be created internally in
+        /// SWIM.Member or deserialized from protobuf. Having this in SWIM.Member ensures we never pass it on the wire and we can't make a mistake when merging suspicions.
+        let suspicionStartedAt: UInt64?
 
-        init(peer: SWIMPeerProtocol, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
+        init(peer: SWIMPeerProtocol, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: UInt64? = nil) {
             self.peer = peer
             self.status = status
             self.protocolPeriod = protocolPeriod

@@ -20,12 +20,21 @@ option swift_prefix = "Proto";
 
 import "ClusterMembership/ClusterMembership.proto";
 
-message SWIMRemoteMessage {
-    oneof request {
+message SWIMMessage {
+    oneof message {
         SWIMPing ping = 1;
-        SWIMPingRequest pingRequest = 2;
+        SWIMPingRequest pingReq = 2;
+
+        SWIMPingResponse response = 3;
     }
 }
+
+//message SWIMRemoteMessage {
+//    oneof request {
+//        SWIMPing ping = 1;
+//        SWIMPingRequest pingRequest = 2;
+//    }
+//}
 
 message SWIMPing {
     Peer replyTo = 1;

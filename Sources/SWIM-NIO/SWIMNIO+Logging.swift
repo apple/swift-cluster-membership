@@ -15,6 +15,7 @@
 import ClusterMembership
 import Logging
 import NIO
+import SWIM
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Tracelog: SWIM [tracelog:SWIM]

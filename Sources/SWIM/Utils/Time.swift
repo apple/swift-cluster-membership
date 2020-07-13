@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import struct Dispatch.DispatchTime
-import struct Foundation.Date
 import struct NIO.TimeAmount
 
 // ==== ----------------------------------------------------------------------------------------------------------------
@@ -21,14 +20,16 @@ import struct NIO.TimeAmount
 
 /// Represents a time _interval_.
 ///
+/// Equivalent to `NIO.TimeAmount`.
+///
 /// - note: `TimeAmount` should not be used to represent a point in time.
-public struct TimeAmount: Codable {
+public struct SWIMTimeAmount: Codable {
     public typealias Value = Int64
 
     /// The nanoseconds representation of the `TimeAmount`.
     public let nanoseconds: Value
 
-    fileprivate init(_ nanoseconds: Value) { // FIXME: Needed the copy since this constructor
+    fileprivate init(_ nanoseconds: Value) {
         self.nanoseconds = nanoseconds
     }
 
@@ -37,11 +38,11 @@ public struct TimeAmount: Codable {
     /// - parameters:
     ///     - amount: the amount of nanoseconds this `TimeAmount` represents.
     /// - returns: the `TimeAmount` for the given amount.
-    public static func nanoseconds(_ amount: Value) -> TimeAmount {
-        TimeAmount(amount)
+    public static func nanoseconds(_ amount: Value) -> SWIMTimeAmount {
+        SWIMTimeAmount(amount)
     }
 
-    public static func nanoseconds(_ amount: Int) -> TimeAmount {
+    public static func nanoseconds(_ amount: Int) -> SWIMTimeAmount {
         self.nanoseconds(Value(amount))
     }
 
@@ -50,11 +51,11 @@ public struct TimeAmount: Codable {
     /// - parameters:
     ///     - amount: the amount of microseconds this `TimeAmount` represents.
     /// - returns: the `TimeAmount` for the given amount.
-    public static func microseconds(_ amount: Value) -> TimeAmount {
-        TimeAmount(amount * 1000)
+    public static func microseconds(_ amount: Value) -> SWIMTimeAmount {
+        SWIMTimeAmount(amount * 1000)
     }
 
-    public static func microseconds(_ amount: Int) -> TimeAmount {
+    public static func microseconds(_ amount: Int) -> SWIMTimeAmount {
         self.microseconds(Value(amount))
     }
 
@@ -63,11 +64,11 @@ public struct TimeAmount: Codable {
     /// - parameters:
     ///     - amount: the amount of milliseconds this `TimeAmount` represents.
     /// - returns: the `TimeAmount` for the given amount.
-    public static func milliseconds(_ amount: Value) -> TimeAmount {
-        TimeAmount(amount * 1000 * 1000)
+    public static func milliseconds(_ amount: Value) -> SWIMTimeAmount {
+        SWIMTimeAmount(amount * 1000 * 1000)
     }
 
-    public static func milliseconds(_ amount: Int) -> TimeAmount {
+    public static func milliseconds(_ amount: Int) -> SWIMTimeAmount {
         self.milliseconds(Value(amount))
     }
 
@@ -76,11 +77,11 @@ public struct TimeAmount: Codable {
     /// - parameters:
     ///     - amount: the amount of seconds this `TimeAmount` represents.
     /// - returns: the `TimeAmount` for the given amount.
-    public static func seconds(_ amount: Value) -> TimeAmount {
-        TimeAmount(amount * 1000 * 1000 * 1000)
+    public static func seconds(_ amount: Value) -> SWIMTimeAmount {
+        SWIMTimeAmount(amount * 1000 * 1000 * 1000)
     }
 
-    public static func seconds(_ amount: Int) -> TimeAmount {
+    public static func seconds(_ amount: Int) -> SWIMTimeAmount {
         self.seconds(Value(amount))
     }
 
@@ -89,11 +90,11 @@ public struct TimeAmount: Codable {
     /// - parameters:
     ///     - amount: the amount of minutes this `TimeAmount` represents.
     /// - returns: the `TimeAmount` for the given amount.
-    public static func minutes(_ amount: Value) -> TimeAmount {
-        TimeAmount(amount * 1000 * 1000 * 1000 * 60)
+    public static func minutes(_ amount: Value) -> SWIMTimeAmount {
+        SWIMTimeAmount(amount * 1000 * 1000 * 1000 * 60)
     }
 
-    public static func minutes(_ amount: Int) -> TimeAmount {
+    public static func minutes(_ amount: Int) -> SWIMTimeAmount {
         self.minutes(Value(amount))
     }
 
@@ -102,27 +103,27 @@ public struct TimeAmount: Codable {
     /// - parameters:
     ///     - amount: the amount of hours this `TimeAmount` represents.
     /// - returns: the `TimeAmount` for the given amount.
-    public static func hours(_ amount: Value) -> TimeAmount {
-        TimeAmount(amount * 1000 * 1000 * 1000 * 60 * 60)
+    public static func hours(_ amount: Value) -> SWIMTimeAmount {
+        SWIMTimeAmount(amount * 1000 * 1000 * 1000 * 60 * 60)
     }
 
-    public static func hours(_ amount: Int) -> TimeAmount {
+    public static func hours(_ amount: Int) -> SWIMTimeAmount {
         self.hours(Value(amount))
     }
 }
 
-extension TimeAmount: Comparable {
-    public static func < (lhs: TimeAmount, rhs: TimeAmount) -> Bool {
+extension SWIMTimeAmount: Comparable {
+    public static func < (lhs: SWIMTimeAmount, rhs: SWIMTimeAmount) -> Bool {
         lhs.nanoseconds < rhs.nanoseconds
     }
 
-    public static func == (lhs: TimeAmount, rhs: TimeAmount) -> Bool {
+    public static func == (lhs: SWIMTimeAmount, rhs: SWIMTimeAmount) -> Bool {
         lhs.nanoseconds == rhs.nanoseconds
     }
 }
 
 /// "Pretty" time amount rendering, useful for human readable durations in tests
-extension TimeAmount: CustomStringConvertible {
+extension SWIMTimeAmount: CustomStringConvertible {
     public var description: String {
         "TimeAmount(\(self.prettyDescription), nanoseconds: \(self.nanoseconds))"
     }
@@ -208,7 +209,7 @@ extension TimeAmount: CustomStringConvertible {
             }
         }
 
-        func timeAmount(_ amount: Int) -> TimeAmount {
+        func timeAmount(_ amount: Int) -> SWIMTimeAmount {
             switch self {
             case .nanoseconds: return .nanoseconds(Value(amount))
             case .microseconds: return .microseconds(Value(amount))
@@ -226,96 +227,98 @@ extension TimeAmount: CustomStringConvertible {
     }
 }
 
-public extension TimeAmount {
+public extension SWIMTimeAmount {
     /// The microseconds representation of the `TimeAmount`.
     var microseconds: Int64 {
-        self.nanoseconds / TimeAmount.TimeUnit.microseconds.rawValue
+        self.nanoseconds / SWIMTimeAmount.TimeUnit.microseconds.rawValue
     }
 
     /// The milliseconds representation of the `TimeAmount`.
     var milliseconds: Int64 {
-        self.nanoseconds / TimeAmount.TimeUnit.milliseconds.rawValue
+        self.nanoseconds / SWIMTimeAmount.TimeUnit.milliseconds.rawValue
     }
 
     /// The seconds representation of the `TimeAmount`.
     var seconds: Int64 {
-        self.nanoseconds / TimeAmount.TimeUnit.seconds.rawValue
+        self.nanoseconds / SWIMTimeAmount.TimeUnit.seconds.rawValue
     }
 
     /// The minutes representation of the `TimeAmount`.
     var minutes: Int64 {
-        self.nanoseconds / TimeAmount.TimeUnit.minutes.rawValue
+        self.nanoseconds / SWIMTimeAmount.TimeUnit.minutes.rawValue
     }
 
     /// The hours representation of the `TimeAmount`.
     var hours: Int64 {
-        self.nanoseconds / TimeAmount.TimeUnit.hours.rawValue
+        self.nanoseconds / SWIMTimeAmount.TimeUnit.hours.rawValue
     }
 
     /// The days representation of the `TimeAmount`.
     var days: Int64 {
-        self.nanoseconds / TimeAmount.TimeUnit.days.rawValue
+        self.nanoseconds / SWIMTimeAmount.TimeUnit.days.rawValue
     }
 
     /// Returns true if the time amount is "effectively infinite" (equal to `TimeAmount.effectivelyInfinite`)
     var isEffectivelyInfinite: Bool {
-        self == TimeAmount.effectivelyInfinite
+        self == SWIMTimeAmount.effectivelyInfinite
     }
 }
 
-public extension TimeAmount {
+public extension SWIMTimeAmount {
     /// Largest time amount expressible using this type.
     /// Roughly equivalent to 292 years, which for the intents and purposes of this type can serve as "infinite".
-    static var effectivelyInfinite: TimeAmount {
-        TimeAmount(Value.max)
+    static var effectivelyInfinite: SWIMTimeAmount {
+        SWIMTimeAmount(Value.max)
     }
 
     /// Smallest non-negative time amount.
-    static var zero: TimeAmount {
-        TimeAmount(0)
+    static var zero: SWIMTimeAmount {
+        SWIMTimeAmount(0)
     }
 }
 
-public extension TimeAmount {
-    static func + (lhs: TimeAmount, rhs: TimeAmount) -> TimeAmount {
+public extension SWIMTimeAmount {
+    static func + (lhs: SWIMTimeAmount, rhs: SWIMTimeAmount) -> SWIMTimeAmount {
         .nanoseconds(lhs.nanoseconds + rhs.nanoseconds)
     }
 
-    static func - (lhs: TimeAmount, rhs: TimeAmount) -> TimeAmount {
+    static func - (lhs: SWIMTimeAmount, rhs: SWIMTimeAmount) -> SWIMTimeAmount {
         .nanoseconds(lhs.nanoseconds - rhs.nanoseconds)
     }
 
-    static func * (lhs: TimeAmount, rhs: Int) -> TimeAmount {
-        TimeAmount(lhs.nanoseconds * Value(rhs))
+    static func * (lhs: SWIMTimeAmount, rhs: Int) -> SWIMTimeAmount {
+        SWIMTimeAmount(lhs.nanoseconds * Value(rhs))
     }
 
-    static func * (lhs: TimeAmount, rhs: Double) -> TimeAmount {
-        TimeAmount(Int64(Double(lhs.nanoseconds) * rhs))
+    static func * (lhs: SWIMTimeAmount, rhs: Double) -> SWIMTimeAmount {
+        SWIMTimeAmount(Int64(Double(lhs.nanoseconds) * rhs))
     }
 
-    static func / (lhs: TimeAmount, rhs: Int) -> TimeAmount {
-        TimeAmount(lhs.nanoseconds / Value(rhs))
+    static func / (lhs: SWIMTimeAmount, rhs: Int) -> SWIMTimeAmount {
+        SWIMTimeAmount(lhs.nanoseconds / Value(rhs))
     }
 
-    static func / (lhs: TimeAmount, rhs: Double) -> TimeAmount {
-        TimeAmount(Int64(Double(lhs.nanoseconds) / rhs))
+    static func / (lhs: SWIMTimeAmount, rhs: Double) -> SWIMTimeAmount {
+        SWIMTimeAmount(Int64(Double(lhs.nanoseconds) / rhs))
     }
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Deadline
 
-// TODO: Deadline based on https://github.com/apple/swift-nio/pull/770/files (removed our own), we need to decide what to do with these types. -- ktoso
+// TODO: Deadline based on https://github.com/apple/swift-nio/pull/770/files
 
 /// Represents a point in time.
 ///
+/// Equivalent to `NIO.Deadline`.
+///
 /// Stores the time in nanoseconds as returned by `DispatchTime.now().uptimeNanoseconds`
 ///
-/// `Deadline` allow chaining multiple tasks with the same deadline without needing to
+/// `SWIMDeadline` allow chaining multiple tasks with the same deadline without needing to
 /// compute new timeouts for each step
 ///
 /// ```
-/// func doSomething(deadline: Deadline) -> EventLoopFuture<Void> {
+/// func doSomething(deadline: SWIMDeadline) -> EventLoopFuture<Void> {
 ///     return step1(deadline: deadline).then {
 ///         step2(deadline: deadline)
 ///     }
@@ -323,8 +326,8 @@ public extension TimeAmount {
 /// doSomething(deadline: .now() + .seconds(5))
 /// ```
 ///
-/// - note: `Deadline` should not be used to represent a time interval
-public struct Deadline: Equatable, Hashable {
+/// - note: `SWIMDeadline` should not be used to represent a time interval
+public struct SWIMDeadline: Equatable, Hashable {
     public typealias Value = Int64
 
     /// The nanoseconds since boot representation of the `Deadline`.
@@ -334,58 +337,58 @@ public struct Deadline: Equatable, Hashable {
         self.uptimeNanoseconds = uptimeNanoseconds
     }
 
-    public static let distantPast = Deadline(0)
-    public static let distantFuture = Deadline(Value.max)
+    public static let distantPast = SWIMDeadline(0)
+    public static let distantFuture = SWIMDeadline(Value.max)
 
-    public static func now() -> Deadline {
-        uptimeNanoseconds(Deadline.Value(DispatchTime.now().uptimeNanoseconds))
+    public static func now() -> SWIMDeadline {
+        uptimeNanoseconds(SWIMDeadline.Value(DispatchTime.now().uptimeNanoseconds))
     }
 
-    public static func uptimeNanoseconds(_ nanoseconds: Value) -> Deadline {
-        Deadline(nanoseconds)
+    public static func uptimeNanoseconds(_ nanoseconds: Value) -> SWIMDeadline {
+        SWIMDeadline(nanoseconds)
     }
 }
 
-extension Deadline: Comparable {
-    public static func < (lhs: Deadline, rhs: Deadline) -> Bool {
+extension SWIMDeadline: Comparable {
+    public static func < (lhs: SWIMDeadline, rhs: SWIMDeadline) -> Bool {
         lhs.uptimeNanoseconds < rhs.uptimeNanoseconds
     }
 
-    public static func > (lhs: Deadline, rhs: Deadline) -> Bool {
+    public static func > (lhs: SWIMDeadline, rhs: SWIMDeadline) -> Bool {
         lhs.uptimeNanoseconds > rhs.uptimeNanoseconds
     }
 }
 
-extension Deadline: CustomStringConvertible {
+extension SWIMDeadline: CustomStringConvertible {
     public var description: String {
         self.uptimeNanoseconds.description
     }
 }
 
-extension Deadline {
-    public static func - (lhs: Deadline, rhs: Deadline) -> TimeAmount {
-        .nanoseconds(TimeAmount.Value(lhs.uptimeNanoseconds) - TimeAmount.Value(rhs.uptimeNanoseconds))
+extension SWIMDeadline {
+    public static func - (lhs: SWIMDeadline, rhs: SWIMDeadline) -> SWIMTimeAmount {
+        .nanoseconds(SWIMTimeAmount.Value(lhs.uptimeNanoseconds) - SWIMTimeAmount.Value(rhs.uptimeNanoseconds))
     }
 
-    public static func + (lhs: Deadline, rhs: TimeAmount) -> Deadline {
+    public static func + (lhs: SWIMDeadline, rhs: SWIMTimeAmount) -> SWIMDeadline {
         if rhs.nanoseconds < 0 {
-            return Deadline(lhs.uptimeNanoseconds - Deadline.Value(rhs.nanoseconds.magnitude))
+            return SWIMDeadline(lhs.uptimeNanoseconds - SWIMDeadline.Value(rhs.nanoseconds.magnitude))
         } else {
-            return Deadline(lhs.uptimeNanoseconds + Deadline.Value(rhs.nanoseconds.magnitude))
+            return SWIMDeadline(lhs.uptimeNanoseconds + SWIMDeadline.Value(rhs.nanoseconds.magnitude))
         }
     }
 
-    public static func - (lhs: Deadline, rhs: TimeAmount) -> Deadline {
+    public static func - (lhs: SWIMDeadline, rhs: SWIMTimeAmount) -> SWIMDeadline {
         if rhs.nanoseconds < 0 {
-            return Deadline(lhs.uptimeNanoseconds + Deadline.Value(rhs.nanoseconds.magnitude))
+            return SWIMDeadline(lhs.uptimeNanoseconds + SWIMDeadline.Value(rhs.nanoseconds.magnitude))
         } else {
-            return Deadline(lhs.uptimeNanoseconds - Deadline.Value(rhs.nanoseconds.magnitude))
+            return SWIMDeadline(lhs.uptimeNanoseconds - SWIMDeadline.Value(rhs.nanoseconds.magnitude))
         }
     }
 }
 
-public extension Deadline {
-    static func fromNow(_ amount: TimeAmount) -> Deadline {
+public extension SWIMDeadline {
+    static func fromNow(_ amount: SWIMTimeAmount) -> SWIMDeadline {
         .now() + amount
     }
 
@@ -394,7 +397,7 @@ public extension Deadline {
         self.hasTimeLeft(until: .now())
     }
 
-    func hasTimeLeft(until: Deadline) -> Bool {
+    func hasTimeLeft(until: SWIMDeadline) -> Bool {
         !self.isBefore(until)
     }
 
@@ -403,29 +406,29 @@ public extension Deadline {
         self.isBefore(.now())
     }
 
-    func isBefore(_ until: Deadline) -> Bool {
+    func isBefore(_ until: SWIMDeadline) -> Bool {
         self.uptimeNanoseconds < until.uptimeNanoseconds
     }
 
-    var timeLeft: TimeAmount {
-        .nanoseconds(self.uptimeNanoseconds - Deadline.now().uptimeNanoseconds)
+    var timeLeft: SWIMTimeAmount {
+        .nanoseconds(self.uptimeNanoseconds - SWIMDeadline.now().uptimeNanoseconds)
     }
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
-// MARK: Clock
+// MARK: Clocks
 
-/// A `Clock` implementation using `Date`.
-public struct WallTimeClock: Codable, Comparable, CustomStringConvertible {
-    internal let timestamp: Date
+public struct WallTimeClock: Comparable {
+    internal let timestamp: UInt64
 
-    public static let zero = WallTimeClock(timestamp: Date.distantPast)
+    public static let distantFuture: WallTimeClock = WallTimeClock(timestamp: DispatchTime.distantFuture.uptimeNanoseconds)
+    public static let distantPast: WallTimeClock = WallTimeClock(timestamp: 0)
 
-    public init() {
-        self.init(timestamp: Date())
+    public static func now() -> WallTimeClock {
+        self.init(timestamp: DispatchTime.now().uptimeNanoseconds)
     }
 
-    public init(timestamp: Date) {
+    init(timestamp: UInt64) {
         self.timestamp = timestamp
     }
 
@@ -435,10 +438,6 @@ public struct WallTimeClock: Codable, Comparable, CustomStringConvertible {
 
     public static func == (lhs: WallTimeClock, rhs: WallTimeClock) -> Bool {
         lhs.timestamp == rhs.timestamp
-    }
-
-    public var description: String {
-        "\(self.timestamp.description)"
     }
 }
 
@@ -464,7 +463,7 @@ public typealias TimeSpec = timespec
 
 /// :nodoc: Not intended for general use. TODO: Make internal if possible.
 public extension TimeSpec {
-    static func from(timeAmount amount: TimeAmount) -> timespec {
+    static func from(timeAmount amount: SWIMTimeAmount) -> timespec {
         let seconds = Int(amount.nanoseconds) / NANOS
         let nanos = Int(amount.nanoseconds) % NANOS
         var time = timespec()

@@ -13,7 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import Foundation
+import NIO
+import SWIM
 
 /// To make generated SWIM.pb.swift happy
 public typealias ProtoPeer = ClusterMembership.ProtoPeer
@@ -22,7 +23,7 @@ public typealias ProtoNode = ClusterMembership.ProtoNode
 extension SWIM.Message: InternalProtobufRepresentable {
     typealias ProtobufRepresentation = ProtoSWIMRemoteMessage
 
-    public func toProto() throws -> ProtobufRepresentation {
+    func toProto() throws -> ProtobufRepresentation {
         guard case SWIM.Message.remote(let message) = self else {
             fatalError("SWIM.Message.local should never be sent remotely.")
         }
@@ -30,7 +31,7 @@ extension SWIM.Message: InternalProtobufRepresentable {
         return try message.toProto()
     }
 
-    public init(fromProto proto: ProtobufRepresentation) throws {
+    init(fromProto proto: ProtobufRepresentation) throws {
         self = try .remote(SWIM.RemoteMessage(fromProto: proto))
     }
 }
@@ -38,7 +39,7 @@ extension SWIM.Message: InternalProtobufRepresentable {
 extension SWIM.RemoteMessage: InternalProtobufRepresentable {
     typealias ProtobufRepresentation = ProtoSWIMRemoteMessage
 
-    public func toProto() throws -> ProtobufRepresentation {
+    func toProto() throws -> ProtobufRepresentation {
         var proto = ProtobufRepresentation()
         switch self {
         case .ping(let replyTo, let payload):
@@ -57,7 +58,7 @@ extension SWIM.RemoteMessage: InternalProtobufRepresentable {
         return proto
     }
 
-    public init(fromProto proto: ProtobufRepresentation) throws {
+    init(fromProto proto: ProtobufRepresentation) throws {
         switch proto.request {
         case .ping(let ping):
             let replyTo = try Peer<SWIM.PingResponse>(fromProto: ping.replyTo)
@@ -86,7 +87,9 @@ extension SWIM.Status: InternalProtobufRepresentable {
         case .suspect(let incarnation, let suspectedBy):
             proto.type = .suspect
             proto.incarnation = incarnation
-            proto.suspectedBy = try suspectedBy.map { try $0.toProto() }
+            proto.suspectedBy = try suspectedBy.map {
+                try $0.toProto()
+            }
         case .unreachable(let incarnation):
             proto.type = .unreachable
             proto.incarnation = incarnation
@@ -103,7 +106,9 @@ extension SWIM.Status: InternalProtobufRepresentable {
         case .alive:
             self = .alive(incarnation: proto.incarnation)
         case .suspect:
-            let suspectedBy = try Set(proto.suspectedBy.map { try Node(fromProto: $0) })
+            let suspectedBy = try Set(proto.suspectedBy.map {
+                try Node(fromProto: $0)
+            })
             self = .suspect(incarnation: proto.incarnation, suspectedBy: suspectedBy)
         case .unreachable:
             self = .unreachable(incarnation: proto.incarnation)
@@ -123,7 +128,9 @@ extension SWIM.GossipPayload: InternalProtobufRepresentable {
     func toProto() throws -> ProtoSWIMPayload {
         var payload = ProtoSWIMPayload()
         if case .membership(let members) = self {
-            payload.member = try members.map { try $0.toProto() }
+            payload.member = try members.map {
+                try $0.toProto()
+            }
         }
 
         return payload
@@ -133,7 +140,9 @@ extension SWIM.GossipPayload: InternalProtobufRepresentable {
         if proto.member.isEmpty {
             self = .none
         } else {
-            let members = try proto.member.map { proto in try SWIM.Member(fromProto: proto) }
+            let members = try proto.member.map { proto in
+                try SWIM.Member(fromProto: proto)
+            }
             self = .membership(members)
         }
     }

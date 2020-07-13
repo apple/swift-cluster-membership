@@ -43,12 +43,11 @@ var targets: [PackageDescription.Target] = [
     ),
 
     .target(
-        name: "SWIM-NIO",
+        name: "SWIMNIO",
         dependencies: [
             "SWIM",
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "NIOFoundationCompat", package: "swift-nio"),
-            .product(name: "NIOSSL", package: "swift-nio-ssl"),
             .product(name: "NIOExtras", package: "swift-nio-extras"),
             .product(name: "SwiftProtobuf", package: "SwiftProtobuf"),
 
@@ -79,8 +78,8 @@ var targets: [PackageDescription.Target] = [
     ),
 
     .testTarget(
-        name: "SWIM-NIOTests",
-        dependencies: ["SWIM-NIO"]
+        name: "SWIMNIOTests",
+        dependencies: ["SWIMNIO"]
     ),
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -123,8 +122,8 @@ let products: [PackageDescription.Product] = [
         targets: ["SWIM"]
     ),
     .library(
-        name: "SWIM-NIO",
-        targets: ["SWIM-NIO"]
+        name: "SWIMNIO",
+        targets: ["SWIMNIO"]
     ),
 ]
 

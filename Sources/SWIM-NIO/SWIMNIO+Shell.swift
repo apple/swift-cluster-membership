@@ -13,60 +13,86 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import NIO
 import Logging
+import NIO
+import SWIM
 
 extension SWIM {
     public enum Message: Codable {
         case remote(RemoteMessage)
         case local(LocalMessage)
     }
-    
+
     public enum RemoteMessage: Codable {
-        case ping(replyTo: Peer<PingResponse>, payload: GossipPayload)
-        
+        // case ping(replyTo: SWIM.NIOPeer<PingResponse>, payload: GossipPayload) // FIXME accept only PingResponse here
+        case ping(replyTo: SWIM.NIOPeer, payload: GossipPayload)
+
         /// "Ping Request" requests a SWIM probe.
-        case pingReq(target: Peer<Message>, replyTo: Peer<PingResponse>, payload: GossipPayload)
+        // case pingReq(target: SWIM.NIOPeer<Message>, replyTo: SWIM.NIOPeer<PingResponse>, payload: GossipPayload) // FIXME: typed peers
+        case pingReq(target: SWIM.NIOPeer, replyTo: SWIM.NIOPeer, payload: GossipPayload)
     }
-    
 }
 
 /// The SWIM shell is responsible for driving all interactions of the `SWIM.Instance` with the outside world.
 ///
+/// All access MUST BE externally synchronized.
+///
 /// - SeeAlso: `SWIM.Instance` for detailed documentation about the SWIM protocol implementation.
-public struct NIOSWIMShell {
-    var swim: SWIM.Instance
-
-    let context: NIOSWIMContext
-    var eventLoop: EventLoop {
-        self.context.eventLoop
-    }
-
-    var peerConnections: [Node: Peer<SWIM.Message>]
-
-    var settings: SWIM.Settings {
+public final class NIOSWIMShell: SWIM.Context {
+    internal var swim: SWIM.Instance!
+    internal var settings: SWIM.Settings {
         self.swim.settings
     }
 
-    internal init(_ swim: SWIM.Instance, context: NIOSWIMContext) {
-        self.swim = swim
-        self.context = context
+    public var log: Logger
+    let eventLoop: EventLoop
 
+    public let myself: SWIM.NIOPeer
+    public var node: Node {
+        self.myself.node
+    }
+
+    public var peer: SWIMPeerProtocol {
+        self.myself
+    }
+
+    internal var peerConnections: [Node: SWIM.NIOPeer]
+
+    internal init(settings: SWIM.Settings, node: Node, channel: Channel) {
         self.peerConnections = [:]
+        let myself = SWIM.NIOPeer(node: node, log: settings.logger, channel: channel)
+        self.myself = myself
+        self.swim = SWIM.Instance(settings, myself: myself)
 
-        let probeInterval = settings.probeInterval
-        timers.startSingle(key: SWIM.Shell.periodicPingKey, message: .local(.pingRandomMember), delay: probeInterval)
+        _ = self.startTimer(key: NIOSWIMShell.periodicPingKey, delay: self.settings.probeInterval) {
+            self.pingRandomMember()
+        }
+    }
+
+//    internal init(_ swim: SWIM.Instance, context: SWIM.Context) {
+//        self.swim = swim
+//        self.context = context
+//
+//        self.peerConnections = [:]
+//        self.peer = .init(swim.)
+//
+//        let probeInterval = settings.probeInterval
+//        self.startSingle(key: SWIM.Shell.periodicPingKey, message: .local(.pingRandomMember), delay: probeInterval)
+//    }
+
+    public func peer(on node: Node) -> SWIMPeerProtocol {
+        fatalError("peer(on:) has not been implemented")
+    }
+
+    public func startTimer(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> Cancellable {
+        fatalError("startTimer(key:delay:_:) has not been implemented")
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
 
-    func receiveRemoteMessage(_ message: SWIM.RemoteMessage) {
+    func receiveRemoteMessage(_ message: SWIM.RemoteMessage) {}
 
-    }
-
-    public func receiveLocalMessage(_ message: SWIM.LocalMessage) {
-
-    }
+    public func receiveLocalMessage(_ message: SWIM.LocalMessage) {}
 
     internal func receiveTestingMessage(_ message: SWIM.TestingMessage) {
         switch message {
@@ -154,7 +180,7 @@ public struct NIOSWIMShell {
         context.log.trace("Sending ping to [\(target)] with payload [\(payload)]")
 
         // let startPing = metrics.uptimeNanoseconds() // FIXME: metrics
-        target.ping(from: context.peer, timeout: self.swim.dynamicLHMProtocolInterval) { (result: Result<Reply, Error>) in  }
+        target.ping(from: context.peer, timeout: self.swim.dynamicLHMProtocolInterval) { (_: Result<Reply, Error>) in }
 //        let response = target.ask(for: SWIM.PingResponse.self, timeout: self.swim.dynamicLHMPingTimeout) {
 //            let ping = SWIM.RemoteMessage.ping(replyTo: $0, payload: payload)
 //            self.tracelog(context, .ask(target), message: ping)
@@ -200,7 +226,7 @@ public struct NIOSWIMShell {
         // We are only interested in successful pings, as a single success tells us the node is
         // still alive. Therefore we propagate only the first success, but no failures.
         // The failure case is handled through the timeout of the whole operation.
-        let firstSuccessPromise = self.eventLoopGroup.next().makePromise(of: SWIM.PingResponse.self)
+        let firstSuccessPromise = self.eventLoop.makePromise(of: SWIM.PingResponse.self)
         let pingTimeout = self.swim.dynamicLHMPingTimeout
         for member: SWIM.Member in membersToPingRequest {
             let payload = self.swim.makeGossipPayload(to: toPing)
@@ -211,8 +237,11 @@ public struct NIOSWIMShell {
 //                fatalError("// FIXME: we need to connect there") // FIXME: we need to connect there
 //            }
 
-            member.peer.request(<#T##message: Message##SWIM.SWIM.Message#>, replyType: <#T##Reply.Type##Reply.Type#>, onComplete: <#T##@escaping (Result<Reply, Error>) -> ()##@escaping (Swift.Result<Reply, Swift.Error>) -> ()#>)
             // let startPingReq = metrics.uptimeNanoseconds() // FIXME: metrics
+            member.peer.pingReq(target: toPing, payload: payload, from: self.peer, timeout: pingTimeout) { _ in
+//              // metrics.recordSWIMPingPingResponseTime(since: startPingReq) // FIXME: metrics
+            }
+
 //            let answer = member.peer.request(SWIM.PingResponse.self, timeout: pingTimeout) {
 //                let pingReq = SWIM.RemoteMessage.pingReq(target: toPing, replyTo: $0, payload: payload)
 //                self.tracelog(context, .ask(member.peer), message: pingReq)
@@ -221,7 +250,6 @@ public struct NIOSWIMShell {
 //
 //
 //            answer._onComplete { result in
-//                // metrics.recordSWIMPingPingResponseTime(since: startPingReq) // FIXME: metrics
 //
 //                // We choose to cascade only successes;
 //                // While this has a slight timing implication on time timeout of the pings -- the node that is last
@@ -314,36 +342,36 @@ public struct NIOSWIMShell {
     // MARK: Handling local messages
 
     /// Scheduling a new protocol period and performing the actions for the current protocol period
-    func handleNewProtocolPeriod(_ context: SWIM.Context) {
-        self.pingRandomMember(context)
+    func handleNewProtocolPeriod() {
+        self.pingRandomMember()
 
-        context.startTimer(key: SWIM.Shell.periodicPingKey, delay: self.swim.dynamicLHMProtocolInterval) {
-            self.pingRandomMember(context)
+        self.startTimer(key: SWIM.Shell.periodicPingKey, delay: self.swim.dynamicLHMProtocolInterval) {
+            self.pingRandomMember()
         }
     }
 
-    func pingRandomMember(_ context: SWIM.Context) {
-        context.log.trace("Periodic ping random member, among: \(self.swim._allMembersDict.count)", metadata: self.swim.metadata)
+    func pingRandomMember() {
+        self.log.trace("Periodic ping random member, among: \(self.swim._allMembersDict.count)", metadata: self.swim.metadata)
 
         // needs to be done first, so we can gossip out the most up to date state
-        self.checkSuspicionTimeouts(context: context)
+        self.checkSuspicionTimeouts()
 
         if let toPing = swim.nextMemberToPing() {
-            self.sendPing(context: context, to: toPing, pingReqOrigin: nil)
+            self.sendPing(to: toPing, pingReqOrigin: nil)
         }
         self.swim.incrementProtocolPeriod()
     }
 
-    func handleMonitor(_ context: SWIM.Context, node: Node) {
-        guard context.node != node else { // FIXME: compare while ignoring the UUID
+    func handleMonitor(node: Node) {
+        guard self.node != node else { // FIXME: compare while ignoring the UUID
             return // no need to monitor ourselves, nor a replacement of us (if node is our replacement, we should have been dead already)
         }
 
-        self.sendFirstRemotePing(context, on: node)
+        self.sendFirstRemotePing(on: node)
     }
 
     // TODO: test in isolation
-    func handleConfirmDead(_ context: SWIM.Context, deadNode node: Node) {
+    func handleConfirmDead(deadNode node: Node) {
         if let member = self.swim.member(for: node) {
             // It is important to not infinitely loop cluster.down + confirmDead messages;
             // See: `.confirmDead` for more rationale
@@ -351,7 +379,7 @@ public struct NIOSWIMShell {
                 return // member is already dead, nothing else to do here.
             }
 
-            context.log.trace("Confirming .dead member \(reflecting: member.node)")
+            self.log.trace("Confirming .dead member \(reflecting: member.node)")
 
             // We are diverging from the SWIM paper here in that we store the `.dead` state, instead
             // of removing the node from the member list. We do that in order to prevent dead nodes
@@ -362,7 +390,7 @@ public struct NIOSWIMShell {
             switch self.swim.mark(member.peer, as: .dead) {
             case .applied(let .some(previousState), _):
                 if previousState.isSuspect || previousState.isUnreachable {
-                    context.log.warning(
+                    self.log.warning(
                         "Marked [\(member)] as [.dead]. Was marked \(previousState) in protocol period [\(member.protocolPeriod)]",
                         metadata: [
                             "swim/protocolPeriod": "\(self.swim.protocolPeriod)",
@@ -370,7 +398,7 @@ public struct NIOSWIMShell {
                         ]
                     )
                 } else {
-                    context.log.warning(
+                    self.log.warning(
                         "Marked [\(member)] as [.dead]. Node was previously [.alive], and now forced [.dead].",
                         metadata: [
                             "swim/protocolPeriod": "\(self.swim.protocolPeriod)",
@@ -380,7 +408,7 @@ public struct NIOSWIMShell {
                 }
             case .applied(nil, _):
                 // TODO: marking is more about "marking a node as dead" should we rather log addresses and not peer paths?
-                context.log.warning("Marked [\(member)] as [.dead]. Node was not previously known to SWIM.")
+                self.log.warning("Marked [\(member)] as [.dead]. Node was not previously known to SWIM.")
                 // TODO: should we not issue a escalateUnreachable here? depends how we learnt about that node...
 
             case .ignoredDueToOlderStatus:
@@ -389,12 +417,12 @@ public struct NIOSWIMShell {
             }
         } else {
             // TODO: would want to see if this happens when we fail these tests
-            context.log.warning("Attempted to .confirmDead(\(node)), yet no such member known to \(self)!")
+            self.log.warning("Attempted to .confirmDead(\(node)), yet no such member known to \(self)!")
         }
     }
 
-    func checkSuspicionTimeouts(context: SWIM.Context) {
-        context.log.trace(
+    func checkSuspicionTimeouts() {
+        self.log.trace(
             "Checking suspicion timeouts...",
             metadata: [
                 "swim/suspects": "\(self.swim.suspects)",
@@ -436,10 +464,10 @@ public struct NIOSWIMShell {
         // metrics.recordSWIM.Members(self.swim.allMembers) // FIXME metrics
     }
 
-    private func markMember(_ context: SWIM.Context, latest: SWIM.Member) {
+    private func markMember(latest: SWIM.Member) {
         switch self.swim.mark(latest.peer, as: latest.status) {
         case .applied(let previousStatus, _):
-            context.log.trace(
+            self.log.trace(
                 "Marked \(latest.node) as \(latest.status), announcing reachability change",
                 metadata: [
                     "swim/member": "\(latest)",
@@ -447,7 +475,7 @@ public struct NIOSWIMShell {
                 ]
             )
             let statusChange = SWIM.Instance.MemberStatusChange(fromStatus: previousStatus, member: latest)
-            self.tryAnnounceMemberReachability(context, change: statusChange)
+            self.tryAnnounceMemberReachability(change: statusChange)
         case .ignoredDueToOlderStatus:
             () // context.log.trace("No change \(latest), currentStatus remains [\(currentStatus)]. No reachability change to announce")
         }
@@ -491,7 +519,7 @@ public struct NIOSWIMShell {
     }
 
     /// Announce to the `ClusterShell` a change in reachability of a member.
-    private func tryAnnounceMemberReachability(_ context: SWIM.Context, change: SWIM.Instance.MemberStatusChange?) {
+    private func tryAnnounceMemberReachability(change: SWIM.MemberStatusChange?) {
         guard let change = change else {
             // this means it likely was a change to the same status or it was about us, so we do not need to announce anything
             return
@@ -506,7 +534,7 @@ public struct NIOSWIMShell {
         // Log the transition
         switch change.toStatus {
         case .unreachable:
-            context.log.info(
+            self.log.info(
                 """
                 Node \(change.member.node) determined [.unreachable]! \
                 The node is not yet marked [.down], a downing strategy or other Cluster.Event subscriber may act upon this information.
@@ -515,7 +543,7 @@ public struct NIOSWIMShell {
                 ]
             )
         default:
-            context.log.info(
+            self.log.info(
                 "Node \(change.member.node) determined [.\(change.toStatus)] (was [\(change.fromStatus, orElse: "nil")].",
                 metadata: [
                     "swim/member": "\(change.member)",
@@ -523,7 +551,7 @@ public struct NIOSWIMShell {
             )
         }
 
-        let reachability: Cluster.MemberReachability
+        let reachability: SWIM.MemberReachability
         switch change.toStatus {
         case .alive, .suspect:
             reachability = .reachable
@@ -536,10 +564,10 @@ public struct NIOSWIMShell {
 
     // TODO: remove or simplify; SWIM/Associations: Simplify/remove withEnsuredAssociation #601
     /// Use to ensure an association to given remote node exists.
-    func withEnsuredAssociation(_ context: SWIM.Context, remoteNode: Node?, continueWithAssociation: @escaping (Result<Node, Error>) -> Void) {
+    func withEnsuredAssociation(remoteNode: Node?, continueWithAssociation: @escaping (Result<Node, Error>) -> Void) {
         // this is a local node, so we don't need to connect first
         guard let remoteNode = remoteNode else {
-            continueWithAssociation(.success(context.node))
+            continueWithAssociation(.success(self.node))
             return
         }
 
@@ -556,8 +584,8 @@ public struct NIOSWIMShell {
     }
 
     /// This is effectively joining the SWIM membership of the other member.
-    func sendFirstRemotePing(_ context: SWIM.Context, on node: Node) {
-        let remotePeer = context.peer(on: node)
+    func sendFirstRemotePing(on node: Node) {
+        let remotePeer = self.peer(on: node)
 
         // We need to include the member immediately, rather than when we have ensured the association.
         // This is because if we're not able to establish the association, we still want to re-try soon (in the next ping round),
@@ -568,7 +596,7 @@ public struct NIOSWIMShell {
         self.swim.addMember(remotePeer, status: .alive(incarnation: 0))
 
         // TODO: we are sending the ping here to initiate cluster membership. Once available this should do a state sync instead
-        self.sendPing(context: context, to: remotePeer, pingReqOrigin: nil)
+        self.sendPing(to: remotePeer, pingReqOrigin: nil)
     }
 }
 
@@ -598,8 +626,8 @@ public enum MemberReachability: String, Equatable {
 // MARK: Internal "trace-logging" for debugging purposes
 
 internal enum TraceLogType: CustomStringConvertible {
-    case reply(to: Peer<SWIM.PingResponse>)
-    case receive(pinged: Peer<SWIM.Message>?)
+    case reply(to: SWIMPeerProtocol)
+    case receive(pinged: SWIMPeerProtocol?)
 
     static var receive: TraceLogType {
         .receive(pinged: nil)
