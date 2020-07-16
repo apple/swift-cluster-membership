@@ -14,7 +14,7 @@ Members may leave the membership gracefully or crash and be determined as dead a
 
 ## Modules
 
-### SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol
+### 🏊‍♂️🏊‍♀️SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol
 
 Implementation of the following papers:
 
