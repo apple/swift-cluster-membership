@@ -12,16 +12,14 @@ Part of a membership protocol's responsibilities lies with determining faulty an
 Members may join the membership at will, usually by contacting _any_ of the existing members, and become known to all other members in the cluster.
 Members may leave the membership gracefully or crash and be determined as dead and thus removed from the non-faulty membership list using distributed failure detection mechanisms.
 
-## Modules
-
-### SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol
+## SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol
 
 Implementation of the following papers:
 
 - [SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol](https://www.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf)
 - [Lifeguard: Local Health Awareness for More Accurate Failure Detection](https://arxiv.org/abs/1707.00788)
 
-### Other Algorithms
+## Other Algorithms
 
 We are open to accepting additional membership implementations.
 

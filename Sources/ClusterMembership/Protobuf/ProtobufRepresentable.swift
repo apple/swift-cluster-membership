@@ -23,8 +23,6 @@ import SwiftProtobuf
 
 public protocol AnyProtobufRepresentable: Codable {}
 
-extension AnyProtobufRepresentable {}
-
 public protocol AnyPublicProtobufRepresentable: AnyProtobufRepresentable {}
 
 /// A protocol that facilitates conversion between Swift and protobuf messages.

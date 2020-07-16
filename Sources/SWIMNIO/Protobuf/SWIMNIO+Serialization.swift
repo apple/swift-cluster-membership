@@ -206,11 +206,9 @@ extension SWIM.Member: ProtobufRepresentable {
     }
 
     public init(fromProto proto: ProtoSWIMMember) throws {
-        fatalError("XXX not done yet")
-//        let address = try PeerAddress(fromProto: proto.node)
-//        let peer = context.resolvePeer(SWIM.Message.self, identifiedBy: address)
-//        let status = try SWIM.Status(fromProto: proto.status)
-//        self.init(peer: peer, status: status, protocolPeriod: 0) // FIXME: is this 0 correct?
+        let peer = try SWIM.NIOPeer(fromProto: proto.peer)
+        let status = try SWIM.Status(fromProto: proto.status)
+        self.init(peer: peer, status: status, protocolPeriod: 0) // FIXME: why this?
     }
 }
 
