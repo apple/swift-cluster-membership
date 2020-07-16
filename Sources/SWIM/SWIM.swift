@@ -36,7 +36,7 @@ public enum SWIM {
     public typealias Members = [SWIM.Member]
 
     // TODO: or index by just the Node?
-    internal typealias MembersValues = Dictionary<Node, SWIM.Member>.Values
+    public typealias MembersValues = Dictionary<Node, SWIM.Member>.Values
 
 //    public enum Message: Codable {
 //        case remote(RemoteMessage)
@@ -58,11 +58,14 @@ public enum SWIM {
         /// - parameter target: always contains the peer of the member that was the target of the `ping`.
         /// - parameter incarnation: TODO: docs
         /// - parameter payload: TODO: docs
-        case ack(target: AnyPeer, incarnation: Incarnation, payload: GossipPayload)
+        // case ack(target: AnyPeer, incarnation: Incarnation, payload: GossipPayload)
+        case ack(target: Node, incarnation: Incarnation, payload: GossipPayload)
+
         /// - parameter target: always contains the peer of the member that was the target of the `ping`.
         /// - parameter incarnation: TODO: docs
         /// - parameter payload: TODO: docs
-        case nack(target: AnyPeer)
+        // case nack(target: AnyPeer)
+        case nack(target: Node)
     }
 
     internal struct MembershipState {
@@ -113,9 +116,9 @@ public enum SWIM {
         case confirmDead(Node)
     }
 
-    internal struct Gossip: Equatable {
-        let member: SWIM.Member
-        var numberOfTimesGossiped: Int
+    public struct Gossip: Equatable {
+        public let member: SWIM.Member
+        public internal(set) var numberOfTimesGossiped: Int
     }
 }
 
@@ -179,7 +182,7 @@ extension SWIM.Status: Comparable {
 
 extension SWIM.Status {
     /// Only `alive` or `suspect` members carry an incarnation number.
-    var incarnation: SWIM.Incarnation? {
+    public var incarnation: SWIM.Incarnation? {
         switch self {
         case .alive(let incarnation):
             return incarnation
@@ -192,7 +195,7 @@ extension SWIM.Status {
         }
     }
 
-    var isAlive: Bool {
+    public var isAlive: Bool {
         switch self {
         case .alive:
             return true
@@ -201,7 +204,7 @@ extension SWIM.Status {
         }
     }
 
-    var isSuspect: Bool {
+    public var isSuspect: Bool {
         switch self {
         case .suspect:
             return true
@@ -210,7 +213,7 @@ extension SWIM.Status {
         }
     }
 
-    var isUnreachable: Bool {
+    public var isUnreachable: Bool {
         switch self {
         case .unreachable:
             return true
@@ -219,7 +222,7 @@ extension SWIM.Status {
         }
     }
 
-    var isDead: Bool {
+    public var isDead: Bool {
         switch self {
         case .dead:
             return true
@@ -230,8 +233,31 @@ extension SWIM.Status {
 
     /// - Returns `true` if `self` is greater than or equal to `other` based on the
     ///   following ordering: `alive(N)` < `suspect(N)` < `alive(N+1)` < `suspect(N+1)` < `dead`
-    func supersedes(_ other: SWIM.Status) -> Bool {
+    public func supersedes(_ other: SWIM.Status) -> Bool {
         self >= other
+    }
+}
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: Extension: Reachability
+
+extension SWIM {
+    public enum MemberReachability: String, Equatable {
+        /// The member is reachable and responding to failure detector probing properly.
+        case reachable
+        /// Failure detector has determined this node as not reachable.
+        /// It may be a candidate to be downed.
+        case unreachable
+    }
+}
+
+extension SWIM.MemberReachability {
+    public var isReachable: Bool {
+        self == .reachable
+    }
+
+    public var isUnreachable: Bool {
+        self == .unreachable
     }
 }
 
@@ -243,18 +269,18 @@ extension SWIM {
         /// Peer reference, used to send messages to this cluster member.
         ///
         /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
-        let peer: SWIMPeerProtocol
+        public let peer: SWIMPeerProtocol
 
         /// `Node` of the member's `peer`.
-        var node: ClusterMembership.Node {
+        public var node: ClusterMembership.Node {
             self.peer.node
         }
 
         /// Membership status of this cluster member
-        var status: SWIM.Status
+        public var status: SWIM.Status
 
         // Period in which protocol period was this state set
-        let protocolPeriod: Int
+        public let protocolPeriod: Int
 
         /// Indicates a time when suspicion was started.
         ///
@@ -262,28 +288,28 @@ extension SWIM {
         /// Only suspicion needs to have it, but having the actual field in SWIM.Member feels more natural.
         /// Putting it inside `SWIM.Status` makes time management a huge mess: status can either be created internally in
         /// SWIM.Member or deserialized from protobuf. Having this in SWIM.Member ensures we never pass it on the wire and we can't make a mistake when merging suspicions.
-        let suspicionStartedAt: UInt64?
+        public let suspicionStartedAt: Int64?
 
-        init(peer: SWIMPeerProtocol, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: UInt64? = nil) {
+        public init(peer: SWIMPeerProtocol, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
             self.peer = peer
             self.status = status
             self.protocolPeriod = protocolPeriod
             self.suspicionStartedAt = suspicionStartedAt
         }
 
-        var isAlive: Bool {
+        public var isAlive: Bool {
             self.status.isAlive
         }
 
-        var isSuspect: Bool {
+        public var isSuspect: Bool {
             self.status.isSuspect
         }
 
-        var isUnreachable: Bool {
+        public var isUnreachable: Bool {
             self.status.isUnreachable
         }
 
-        var isDead: Bool {
+        public var isDead: Bool {
             self.status.isDead
         }
     }

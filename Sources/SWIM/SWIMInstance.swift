@@ -60,13 +60,13 @@ extension SWIM {
         /// The multiplier will be decreased when:
         /// - Ping succeeded with an ack.
         /// Events which cause the specified changes to the LHM counter are defined as `SWIM.LHModifierEvent`
-        var localHealthMultiplier = 0
+        public var localHealthMultiplier = 0
 
-        var dynamicLHMProtocolInterval: SWIMTimeAmount {
+        public var dynamicLHMProtocolInterval: SWIMTimeAmount {
             SWIMTimeAmount.nanoseconds(self.settings.probeInterval.nanoseconds * Int64(1 + self.localHealthMultiplier))
         }
 
-        var dynamicLHMPingTimeout: SWIMTimeAmount {
+        public var dynamicLHMPingTimeout: SWIMTimeAmount {
             SWIMTimeAmount.nanoseconds(self.settings.pingTimeout.nanoseconds * Int64(1 + self.localHealthMultiplier))
         }
 
@@ -75,15 +75,15 @@ extension SWIM {
         /// as outdated and we don't accidentally override state with older events. The incarnation can only
         /// be incremented by the respective node itself and will happen if that node receives a `.suspect` for
         /// itself, to which it will respond with an `.alive` with the incremented incarnation.
-        var incarnation: SWIM.Incarnation {
+        public var incarnation: SWIM.Incarnation {
             self._incarnation
         }
 
-        func makeSuspicion(incarnation: SWIM.Incarnation) -> SWIM.Status {
+        public func makeSuspicion(incarnation: SWIM.Incarnation) -> SWIM.Status {
             .suspect(incarnation: incarnation, suspectedBy: [self.node])
         }
 
-        func mergeSuspicions(suspectedBy: Set<ClusterMembership.Node>, previouslySuspectedBy: Set<ClusterMembership.Node>) -> Set<ClusterMembership.Node> {
+        public func mergeSuspicions(suspectedBy: Set<ClusterMembership.Node>, previouslySuspectedBy: Set<ClusterMembership.Node>) -> Set<ClusterMembership.Node> {
             var newSuspectedBy = previouslySuspectedBy
             for suspectedBy in suspectedBy.sorted() where newSuspectedBy.count < self.settings.lifeguard.maxIndependentSuspicions {
                 newSuspectedBy.update(with: suspectedBy)
@@ -92,7 +92,7 @@ extension SWIM {
         }
 
         // FIXME: docs
-        func adjustLHMultiplier(_ event: LHModifierEvent) {
+        public func adjustLHMultiplier(_ event: LHModifierEvent) {
             switch event {
             case .successfulProbe:
                 if self.localHealthMultiplier > 0 {
@@ -185,7 +185,7 @@ extension SWIM {
         ///   but in a round-robin fashion. Instead, a newly joining member is inserted in the membership list at
         ///   a position that is chosen uniformly at random. On completing a traversal of the entire list,
         ///   rearranges the membership list to a random reordering.
-        func nextMemberToPing() -> SWIMPeerProtocol? {
+        public func nextMemberToPing() -> SWIMPeerProtocol? {
             if self.membersToPing.isEmpty {
                 return nil
             }
@@ -197,7 +197,7 @@ extension SWIM {
         }
 
         /// Selects `settings.indirectProbeCount` members to send a `ping-req` to.
-        func membersToPingRequest(target: SWIMPeerProtocol) -> ArraySlice<SWIM.Member> {
+        public func membersToPingRequest(target: SWIMPeerProtocol) -> ArraySlice<SWIM.Member> {
             func notTarget(_ peer: SWIMPeerProtocol) -> Bool {
                 peer.node != target.node
             }
@@ -217,12 +217,12 @@ extension SWIM {
         }
 
         @discardableResult
-        func mark(_ peer: SWIMPeerProtocol, as status: SWIM.Status) -> MarkedDirective {
+        public func mark(_ peer: SWIMPeerProtocol, as status: SWIM.Status) -> MarkedDirective {
             let previousStatusOption = self.status(of: peer)
 
             var status = status
             var protocolPeriod = self.protocolPeriod
-            var suspicionStartedAt: UInt64?
+            var suspicionStartedAt: Int64?
 
             if case .suspect(let incomingIncarnation, let incomingSuspectedBy) = status,
                 case .suspect(let previousIncarnation, let previousSuspectedBy)? = previousStatusOption,
@@ -253,12 +253,12 @@ extension SWIM {
             return .applied(previousStatus: previousStatusOption, currentStatus: status)
         }
 
-        enum MarkedDirective: Equatable {
+        public enum MarkedDirective: Equatable {
             case ignoredDueToOlderStatus(currentStatus: SWIM.Status)
             case applied(previousStatus: SWIM.Status?, currentStatus: SWIM.Status)
         }
 
-        func incrementProtocolPeriod() {
+        public func incrementProtocolPeriod() { // TODO: make internal
             self._protocolPeriod += 1
         }
 
@@ -279,7 +279,7 @@ extension SWIM {
             }
         }
 
-        var protocolPeriod: Int {
+        public var protocolPeriod: Int {
             self._protocolPeriod
         }
 
@@ -317,22 +317,22 @@ extension SWIM {
         /// - `K` is the number of independent suspicions required to be received before setting the suspicion timeout to `Min`.
         ///   We default `K` to `3`.
         /// - `C` is the number of independent suspicions about that member received since the local suspicion was raised.
-        func suspicionTimeout(suspectedByCount: Int) -> SWIMTimeAmount {
+        public func suspicionTimeout(suspectedByCount: Int) -> SWIMTimeAmount {
             let minTimeout = self.settings.lifeguard.suspicionTimeoutMin
             let maxTimeout = self.settings.lifeguard.suspicionTimeoutMax
             return max(minTimeout, .nanoseconds(maxTimeout.nanoseconds - Int64(round(Double(maxTimeout.nanoseconds - minTimeout.nanoseconds) * (log2(Double(suspectedByCount + 1)) / log2(Double(self.settings.lifeguard.maxIndependentSuspicions + 1)))))))
         }
 
         /// Checks if a deadline is expired (relating to current time).
-        func isExpired(deadline: Int64) -> Bool {
+        public func isExpired(deadline: Int64) -> Bool {
             deadline < self.nowNanos()
         }
 
-        private func nowNanos() -> UInt64 {
+        private func nowNanos() -> Int64 {
             self.settings.timeSourceNanos()
         }
 
-        func makeGossipPayload(to target: SWIMPeerProtocol?) -> SWIM.GossipPayload {
+        public func makeGossipPayload(to target: SWIMPeerProtocol?) -> SWIM.GossipPayload {
             var members: [SWIM.Member] = []
             // buddy system will always send to a suspect its suspicion.
             // The reason for that to ensure the suspect will be notified it is being suspected,
@@ -418,7 +418,7 @@ extension SWIM.Instance {
     }
 
     // TODO: ensure we actually store "us" in members; do we need this special handling if then at all?
-    func status(of peer: SWIMPeerProtocol) -> SWIM.Status? {
+    public func status(of peer: SWIMPeerProtocol) -> SWIM.Status? {
         if self.notMyself(peer) {
             return self.members[peer.node]?.status
         } else {
@@ -427,16 +427,16 @@ extension SWIM.Instance {
         }
     }
 
-    func member(for peer: SWIMPeerProtocol) -> SWIM.Member? {
+    public func member(for peer: SWIMPeerProtocol) -> SWIM.Member? {
         self.members[peer.node]
     }
 
-    func member(for node: ClusterMembership.Node) -> SWIM.Member? {
+    public func member(for node: ClusterMembership.Node) -> SWIM.Member? {
         self.member(for: self.myself)
     }
 
     /// Counts non-dead members.
-    var notDeadMemberCount: Int {
+    public var notDeadMemberCount: Int {
         self.members.lazy.filter { !$0.value.isDead }.count
     }
 
@@ -446,7 +446,7 @@ extension SWIM.Instance {
     }
 
     /// Lists all suspect members.
-    var suspects: SWIM.Members {
+    public var suspects: SWIM.Members {
         self.members
             .lazy
             .map { $0.value }
@@ -454,11 +454,11 @@ extension SWIM.Instance {
     }
 
     /// Lists all members known to SWIM right now
-    var allMembers: SWIM.MembersValues {
+    public var allMembers: SWIM.MembersValues {
         self.members.values
     }
 
-    func isMember(_ peer: SWIMPeerProtocol) -> Bool {
+    public func isMember(_ peer: SWIMPeerProtocol) -> Bool {
         // the peer could be either:
         // - "us" (i.e. the peer which hosts this SWIM instance, or
         // - a "known member"
@@ -470,16 +470,16 @@ extension SWIM.Instance {
 // MARK: Handling SWIM protocol interactions
 
 extension SWIM.Instance {
-    func onPing() -> OnPingDirective {
-        .reply(.ack(target: self.myself.asAnyMember, incarnation: self._incarnation, payload: self.makeGossipPayload(to: nil)))
+    public func onPing() -> OnPingDirective {
+        .reply(.ack(target: self.myself.node, incarnation: self._incarnation, payload: self.makeGossipPayload(to: nil)))
     }
 
-    enum OnPingDirective {
+    public enum OnPingDirective {
         case reply(SWIM.PingResponse)
     }
 
     /// React to an `Ack` (or lack thereof within timeout)
-    func onPingRequestResponse(_ result: Result<SWIM.PingResponse, Error>, pingedMember member: SWIMPeerProtocol) -> OnPingRequestResponseDirective {
+    public func onPingRequestResponse(_ result: Result<SWIM.PingResponse, Error>, pingedMember member: SWIMPeerProtocol) -> OnPingRequestResponseDirective {
         guard let lastKnownStatus = self.status(of: member) else {
             return .unknownMember
         }
@@ -504,7 +504,7 @@ extension SWIM.Instance {
             }
 
         case .success(.ack(let target, let incarnation, let payload)):
-            assert(target.node == member.node, "The ack.from member [\(target)] MUST be equal to the pinged member \(member.node)]; The Ack message is being forwarded back to us from the pinged member.")
+            assert(target == member.node, "The ack.from member [\(target)] MUST be equal to the pinged member \(member.node)]; The Ack message is being forwarded back to us from the pinged member.")
             self.adjustLHMultiplier(.successfulProbe)
             switch self.mark(member, as: .alive(incarnation: incarnation)) {
             case .applied:
@@ -518,7 +518,7 @@ extension SWIM.Instance {
         }
     }
 
-    enum OnPingRequestResponseDirective {
+    public enum OnPingRequestResponseDirective {
         case alive(previous: SWIM.Status, payloadToProcess: SWIM.GossipPayload)
         case nackReceived
         case unknownMember
@@ -529,7 +529,7 @@ extension SWIM.Instance {
         case ignoredDueToOlderStatus(currentStatus: SWIM.Status)
     }
 
-    func onGossipPayload(about member: SWIM.Member) -> OnGossipPayloadDirective {
+    public func onGossipPayload(about member: SWIM.Member) -> OnGossipPayloadDirective {
         if self.isMyself(member) {
             return onMyselfGossipPayload(myself: member)
         } else {
@@ -645,7 +645,7 @@ extension SWIM.Instance {
         }
     }
 
-    enum OnGossipPayloadDirective {
+    public enum OnGossipPayloadDirective {
         case applied(change: SWIM.MemberStatusChange?, level: Logger.Level?, message: Logger.Message?)
         /// Ignoring a gossip update is perfectly fine: it may be "too old" or other reasons
         case ignored(level: Logger.Level?, message: Logger.Message?)
@@ -697,9 +697,9 @@ extension SWIM.Instance: CustomDebugStringConvertible {
 // MARK: MemberStatus Change
 
 extension SWIM {
-    struct MemberStatusChange {
-        let member: SWIM.Member
-        var toStatus: SWIM.Status {
+    public struct MemberStatusChange {
+        public let member: SWIM.Member
+        public var toStatus: SWIM.Status {
             // Note if the member is marked .dead, SWIM shall continue to gossip about it for a while
             // such that other nodes gain this information directly, and do not have to wait until they detect
             // it as such independently.
@@ -708,9 +708,9 @@ extension SWIM {
 
         /// Previous status of the member, needed in order to decide if the change is "effective" or if applying the
         /// member did not move it in such way that we need to inform the cluster about unreachability.
-        let fromStatus: SWIM.Status?
+        public let fromStatus: SWIM.Status?
 
-        init(fromStatus: SWIM.Status?, member: SWIM.Member) {
+        public init(fromStatus: SWIM.Status?, member: SWIM.Member) {
             if let from = fromStatus, from == .dead {
                 precondition(member.status == .dead, "Change MUST NOT move status 'backwards' from [.dead] state to anything else, but did so, was: \(member)")
             }
@@ -720,7 +720,7 @@ extension SWIM {
         }
 
         /// True if the directive was `applied` and the from/to statuses differ, meaning that a change notification has issued.
-        var isReachabilityChange: Bool {
+        public var isReachabilityChange: Bool {
             guard let fromStatus = self.fromStatus else {
                 // i.e. nil -> anything, is always an effective reachability affecting change
                 return true
@@ -753,7 +753,7 @@ extension SWIM {
 // MARK: SWIM Lifeguard Local Health Modifier event
 
 extension SWIM.Instance {
-    internal enum LHModifierEvent {
+    public enum LHModifierEvent {
         case successfulProbe
         case failedProbe
         case refutingSuspectMessageAboutSelf

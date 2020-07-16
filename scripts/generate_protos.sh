@@ -25,7 +25,7 @@ pushd $proto_path >> /dev/null
 declare -a public_protos
 public_protos=(
   -name 'ClusterMembership.proto'
-  -or -name 'SWIM.proto'
+  -or -name 'SWIMNIO.proto'
 )
 
 # There are two visibility options: Public, Internal (default)

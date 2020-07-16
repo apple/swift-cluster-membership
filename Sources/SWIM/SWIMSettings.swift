@@ -76,8 +76,8 @@ extension SWIM {
         /// Doing this will require some control over SWIM's notion of time.
         ///
         /// This property allows to override the `.now()` function.
-        var timeSourceNanos: () -> UInt64 = { () -> UInt64 in
-            DispatchTime.now().uptimeNanoseconds
+        var timeSourceNanos: () -> Int64 = { () -> Int64 in
+            Int64(min(UInt64(Int64.max), DispatchTime.now().uptimeNanoseconds))
         }
 
         /// When enabled traces _all_ incoming SWIM protocol communication (remote messages).

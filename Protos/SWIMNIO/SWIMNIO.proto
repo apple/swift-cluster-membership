@@ -49,12 +49,12 @@ message SWIMPingRequest {
 
 message SWIMPingResponse {
     message Ack {
-        Peer target = 1;
+        Node target = 1;
         uint64 incarnation = 2;
         SWIMPayload payload = 3;
     }
     message Nack {
-        Peer target = 1;
+        Node target = 1;
     }
     oneof pingResponse {
         Ack ack = 1;
@@ -82,5 +82,5 @@ message SWIMMember {
 }
 
 message SWIMPayload {
-    repeated SWIMMember member = 1;
+    repeated SWIMMember members = 1;
 }

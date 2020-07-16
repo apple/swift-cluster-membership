@@ -25,13 +25,13 @@ extension NIOSWIMShell {
     ///
     /// Enabled by `SWIM.Settings.traceLogLevel` or `-DTRACELOG_SWIM`
     func tracelog(
-        _ context: SWIMContext, _ type: TraceLogType, message: Any,
+        _ type: TraceLogType, message: @autoclosure () -> String,
         file: String = #file, function: String = #function, line: UInt = #line
     ) {
         if let level = self.settings.traceLogLevel {
-            context.log.log(
+            self.log.log(
                 level: level,
-                "\(type.description): \(message)",
+                "\(type.description): \(message())",
                 metadata: self.swim.metadata,
                 file: file, function: function, line: line
             )
@@ -39,21 +39,36 @@ extension NIOSWIMShell {
     }
 
     internal enum TraceLogType: CustomStringConvertible {
-        case reply(to: Peer<SWIM.PingResponse>)
-        case receive(pinged: Peer<SWIM.Message>?)
+        case send(to: Node) // <SWIM.Message>
+        case reply(to: Node) // <SWIM.PingResponse>
+        case receive(pinged: Node?) // <SWIM.Message>
 
         static var receive: TraceLogType {
             .receive(pinged: nil)
         }
 
+        static func send(to: SWIMPeerProtocol) -> TraceLogType {
+            .send(to: to.node)
+        }
+
+        static func reply(to: SWIMPeerProtocol) -> TraceLogType {
+            .reply(to: to.node)
+        }
+
+        static func receive(pinged: SWIMPeerProtocol) -> TraceLogType {
+            .receive(pinged: pinged.node)
+        }
+
         var description: String {
             switch self {
+            case .send(let to):
+                return "SEND(to:\(to))"
             case .receive(nil):
                 return "RECV"
             case .receive(let .some(pinged)):
-                return "RECV(pinged:\(pinged.node))"
+                return "RECV(pinged:\(pinged))"
             case .reply(let to):
-                return "REPL(to:\(to.node))"
+                return "REPL(to:\(to))"
             }
         }
     }

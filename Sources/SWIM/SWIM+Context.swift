@@ -20,7 +20,6 @@ public protocol SWIMContext {
     var log: Logger { get set }
 
     var peer: SWIMPeerProtocol { get }
-    func peer(on node: Node) -> SWIMPeerProtocol
 
     func startTimer(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> Cancellable
 }

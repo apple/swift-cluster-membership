@@ -22,10 +22,15 @@ extension SWIM {
     public struct NIOPeer: SWIMPeerProtocol {
         public let node: Node
 
-        let channel: Channel
+        var channel: Channel?
 
-        public init(node: Node, log: Logger, channel: Channel) {
+        public init(node: Node, channel: Channel?) {
             self.node = node
+            self.channel = channel
+        }
+
+        public mutating func associateWith(channel: Channel) {
+            assert(self.channel == nil, "Tried to associate \(channel) with already associated \(self)")
             self.channel = channel
         }
 
@@ -34,12 +39,20 @@ extension SWIM {
             from origin: SWIMPeerProtocol,
             timeout: SWIMTimeAmount,
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
-        ) throws {
-            let message = SWIM.Message.remote(.ping(replyTo: origin, payload: payload))
-            let proto = try message.toProto()
-            let data = try proto.serializedData()
+        ) {
+            guard let channel = self.channel else {
+                fatalError("\(#function) failed, channel was not initialized for \(self)!")
+            }
 
-            self.channel.write(data)
+            guard let nioOrigin = origin as? NIOPeer else {
+                fatalError("Can't support non NIOPeer as origin, was: [\(origin)]:\(String(reflecting: type(of: origin as Any)))")
+            }
+
+            let message = SWIM.RemoteMessage.ping(replyTo: nioOrigin, payload: payload)
+            let proto = try! message.toProto() // FIXME: fix the try!
+            let data = try! proto.serializedData() // FIXME: fix the try!
+
+            channel.write(data)
             // FIXME: make the onComplete work, we need some seq nr maybe...
         }
 
@@ -49,20 +62,38 @@ extension SWIM {
             from origin: SWIMPeerProtocol,
             timeout: SWIMTimeAmount, // FIXME: maybe deadlines?
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
-        ) throws {
-            let message = SWIM.Message.remote(.pingReq(target: target, replyTo: origin, payload: payload))
-            let proto = try message.toProto()
-            let data = try proto.serializedData()
+        ) {
+            guard let channel = self.channel else {
+                fatalError("\(#function) failed, channel was not initialized for \(self)!")
+            }
+            guard let nioTarget = target as? SWIM.NIOPeer else {
+                fatalError("\(#function) failed, `target` was not `NIOPeer`, was: \(target)")
+            }
+            guard let nioOrigin = origin as? SWIM.NIOPeer else {
+                fatalError("\(#function) failed, `origin` was not `NIOPeer`, was: \(origin)")
+            }
 
-            self.channel.write(data)
+            let message = SWIM.RemoteMessage.pingReq(target: nioTarget, replyTo: nioOrigin, payload: payload)
+            let proto = try! message.toProto() // FIXME: fix the try!
+            let data = try! proto.serializedData() // FIXME: fix the try!
+
+            channel.write(data)
             // FIXME: make the onComplete work, we need some seq nr maybe...
         }
 
-        public func ack(target: SWIMPeerProtocol, incarnation: Incarnation, payload: GossipPayload) throws {
+        public func ack(target: SWIMPeerProtocol, incarnation: Incarnation, payload: GossipPayload) {
+            guard let channel = self.channel else {
+                fatalError("\(#function) failed, channel was not initialized for \(self)!")
+            }
+
             fatalError()
         }
 
-        public func nack(target: SWIMPeerProtocol) throws {
+        public func nack(target: SWIMPeerProtocol) {
+            guard let channel = self.channel else {
+                fatalError("\(#function) failed, channel was not initialized for \(self)!")
+            }
+
             fatalError()
         }
     }

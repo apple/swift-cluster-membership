@@ -222,6 +222,7 @@ extension SWIMTimeAmount: CustomStringConvertible {
         }
     }
 
+    // TODO: move out, SWIM should not depend on NIO?
     public var toNIO: NIO.TimeAmount {
         NIO.TimeAmount.nanoseconds(Int64(self.nanoseconds))
     }

@@ -21,7 +21,7 @@ import SWIM
 final class SWIMProtocolHandler: ChannelDuplexHandler {
     typealias InboundIn = ByteBuffer
     typealias InboundOut = Never
-    typealias OutboundIn = SWIM.Message
+    typealias OutboundIn = SWIM.RemoteMessage
     typealias OutboundOut = ByteBuffer
 
     private let settings: SWIM.Settings
@@ -48,20 +48,28 @@ final class SWIMProtocolHandler: ChannelDuplexHandler {
         let message = self.unwrapOutboundIn(data)
 
         // serialize
-        let proto = message.toProto()
-        let data = proto.serializedData()
-        let bytes = data.withUnsafeBytes { bytes in
-            var buffer = context.channel.allocator.buffer(capacity: data.count)
-            buffer.writeBytes(bytes)
-            return buffer
-        }
+        do {
+            let buffer = try self.serialize(message: message, using: context.channel.allocator)
 
-        context.write() // FIXME: write type type manifest
-        context.write(self.wrapOutboundOut(bytes), promise: promise)
+            // context.write(buffer) // FIXME: write type type manifest
+            context.write(self.wrapOutboundOut(buffer), promise: promise)
+        } catch {
+            self.settings.logger.warning("Write failed: \(error)")
+        }
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let bytes = self.unwrapOutboundIn(data)
-        bytes.
+    }
+
+    private func serialize(message: SWIM.RemoteMessage, using allocator: ByteBufferAllocator) throws -> ByteBuffer {
+        let proto = try message.toProto()
+        let data = try proto.serializedData()
+        let buffer = data.withUnsafeBytes { bytes -> ByteBuffer in
+            var buffer = allocator.buffer(capacity: data.count)
+            buffer.writeBytes(bytes)
+            return buffer
+        }
+        return buffer
     }
 }

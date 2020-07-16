@@ -29,7 +29,7 @@ public protocol SWIMPeerProtocol {
         from origin: SWIMPeerProtocol,
         timeout: SWIMTimeAmount,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
-    ) throws
+    )
 
     /// "Ping Request" a SWIM peer.
     func pingReq(
@@ -38,13 +38,13 @@ public protocol SWIMPeerProtocol {
         from origin: SWIMPeerProtocol,
         timeout: SWIMTimeAmount,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
-    ) throws
+    )
 
-    /// "Ack"-nowledge a ping.
-    func ack(target: SWIMPeerProtocol, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload) throws
+    /// Acknowledge a ping.
+    func ack(target: SWIMPeerProtocol, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload)
 
     /// "NegativeAcknowledge" a ping.
-    func nack(target: SWIMPeerProtocol) throws
+    func nack(target: SWIMPeerProtocol)
 
     /// Type erase this member into an `AnySWIMMember`
     var asAnyMember: AnySWIMPeer { get }
@@ -72,8 +72,8 @@ public struct AnySWIMPeer: Hashable, SWIMPeerProtocol {
         from origin: SWIMPeerProtocol,
         timeout: SWIMTimeAmount,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
-    ) throws {
-        try self.peer.ping(payload: payload, from: origin, timeout: timeout, onComplete: onComplete)
+    ) {
+        self.peer.ping(payload: payload, from: origin, timeout: timeout, onComplete: onComplete)
     }
 
     public func pingReq(
@@ -82,16 +82,16 @@ public struct AnySWIMPeer: Hashable, SWIMPeerProtocol {
         from origin: SWIMPeerProtocol,
         timeout: SWIMTimeAmount,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
-    ) throws {
-        try self.peer.pingReq(target: target, payload: payload, from: origin, timeout: timeout, onComplete: onComplete)
+    ) {
+        self.peer.pingReq(target: target, payload: payload, from: origin, timeout: timeout, onComplete: onComplete)
     }
 
-    public func ack(target: SWIMPeerProtocol, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload) throws {
-        try self.peer.ack(target: target, incarnation: incarnation, payload: payload)
+    public func ack(target: SWIMPeerProtocol, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload) {
+        self.peer.ack(target: target, incarnation: incarnation, payload: payload)
     }
 
-    public func nack(target: SWIMPeerProtocol) throws {
-        try self.peer.nack(target: target)
+    public func nack(target: SWIMPeerProtocol) {
+        self.peer.nack(target: target)
     }
 
     public func hash(into hasher: inout Hasher) {

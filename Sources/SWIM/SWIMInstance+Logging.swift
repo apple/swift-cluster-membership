@@ -20,7 +20,7 @@ import Logging
 
 extension SWIM.Instance {
     /// While the SWIM.Instance is not meant to be logging by itself, it does offer metadata for loggers to use.
-    var metadata: Logger.Metadata {
+    public var metadata: Logger.Metadata {
         [
             "swim/protocolPeriod": "\(self.protocolPeriod)",
             "swim/timeoutSuspectsBeforePeriodMax": "\(self.timeoutSuspectsBeforePeriodMax)",

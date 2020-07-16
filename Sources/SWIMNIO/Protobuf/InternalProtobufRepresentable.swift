@@ -15,6 +15,7 @@
 import ClusterMembership
 import struct Foundation.Data
 import NIO
+import NIOFoundationCompat
 import protocol Swift.Decoder // to prevent shadowing by the ones in SwiftProtobuf
 import protocol Swift.Encoder // to prevent shadowing by the ones in SwiftProtobuf
 import SwiftProtobuf
@@ -33,4 +34,45 @@ internal protocol InternalProtobufRepresentable: AnyProtobufRepresentable {
 
     func toProto() throws -> ProtobufRepresentation
     init(fromProto proto: ProtobufRepresentation) throws
+}
+
+extension InternalProtobufRepresentable where Self: Codable {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        let data: Data = try container.decode(Data.self)
+        let proto = try ProtobufRepresentation(serializedData: data)
+
+        try self.init(fromProto: proto)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+
+        let proto = try self.toProto()
+        let data = try proto.serializedData()
+
+        try container.encode(data)
+    }
+}
+
+extension InternalProtobufRepresentable where Self: Codable {
+    init(from buffer: inout ByteBuffer) throws {
+        guard let data = buffer.readData(length: buffer.readableBytes) else {
+            throw SWIMSerializationError.missingData("Unable to read Data from \(buffer)")
+        }
+
+        let proto = try ProtobufRepresentation(serializedData: data)
+        try self.init(fromProto: proto)
+    }
+
+    func serialize(allocator: ByteBufferAllocator) throws -> ByteBuffer {
+        let data: Data = try self.toProto().serializedData()
+        let buffer = data.withUnsafeBytes { bytes -> ByteBuffer in
+            var buffer = allocator.buffer(capacity: data.count)
+            buffer.writeBytes(bytes)
+            return buffer
+        }
+        return buffer
+    }
 }
