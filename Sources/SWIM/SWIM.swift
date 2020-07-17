@@ -66,6 +66,10 @@ public enum SWIM {
         /// - parameter payload: TODO: docs
         // case nack(target: AnyPeer)
         case nack(target: Node)
+
+        //         pingedMember: ActorRef<SWIM.Message>,
+        //         pingReqOrigin: ActorRef<SWIM.PingResponse>?
+        case timeout(target: Node, pingReqOrigin: Node, timeout: SWIMTimeAmount)
     }
 
     internal struct MembershipState {
@@ -269,7 +273,7 @@ extension SWIM {
         /// Peer reference, used to send messages to this cluster member.
         ///
         /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
-        public let peer: SWIMPeerProtocol
+        public let peer: AddressableSWIMPeer
 
         /// `Node` of the member's `peer`.
         public var node: ClusterMembership.Node {
@@ -290,7 +294,7 @@ extension SWIM {
         /// SWIM.Member or deserialized from protobuf. Having this in SWIM.Member ensures we never pass it on the wire and we can't make a mistake when merging suspicions.
         public let suspicionStartedAt: Int64?
 
-        public init(peer: SWIMPeerProtocol, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
+        public init(peer: AddressableSWIMPeer, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
             self.peer = peer
             self.status = status
             self.protocolPeriod = protocolPeriod
@@ -318,13 +322,13 @@ extension SWIM {
 /// Manual Hashable conformance since we omit suspicionStartedAt from identity
 extension SWIM.Member: Hashable, Equatable {
     public static func == (lhs: SWIM.Member, rhs: SWIM.Member) -> Bool {
-        lhs.peer.asAnyMember == rhs.peer.asAnyMember &&
+        lhs.peer.node == rhs.peer.node &&
             lhs.protocolPeriod == rhs.protocolPeriod &&
             lhs.status == rhs.status
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(self.peer.asAnyMember)
+        hasher.combine(self.peer.node)
         hasher.combine(self.protocolPeriod)
         hasher.combine(self.status)
     }

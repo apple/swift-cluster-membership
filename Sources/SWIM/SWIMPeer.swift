@@ -19,39 +19,63 @@ extension SWIM {
     public typealias AnyPeer = AnySWIMPeer
 }
 
-public protocol SWIMPeerProtocol {
+public protocol AddressableSWIMPeer {
     /// Node that this peer is representing.
     var node: ClusterMembership.Node { get }
+}
 
+extension ClusterMembership.Node: AddressableSWIMPeer {
+    public var node: ClusterMembership.Node {
+        self
+    }
+}
+
+public protocol SWIMPeerReplyProtocol: AddressableSWIMPeer {
+    /// Acknowledge a ping.
+    func ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload)
+
+    /// "NegativeAcknowledge" a ping.
+    func nack(target: AddressableSWIMPeer)
+}
+
+public protocol SWIMPeerProtocol: SWIMPeerReplyProtocol {
     /// "Ping" another SWIM peer.
+    ///
+    /// - Parameters:
+    ///   - payload:
+    ///   - origin:
+    ///   - timeout:
+    ///   - onComplete:
     func ping(
         payload: SWIM.GossipPayload,
-        from origin: SWIMPeerProtocol,
+        from origin: AddressableSWIMPeer,
         timeout: SWIMTimeAmount,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     )
 
     /// "Ping Request" a SWIM peer.
+    ///
+    /// - Parameters:
+    ///   - target:
+    ///   - payload:
+    ///   - origin:
+    ///   - timeout: timeout during which we expect the other peer to have replied to us with a PingResponse about the pinged node.
+    ///     If we get no response about that peer in that time, this `pingReq` is considered failed.
+    ///   - onComplete:
     func pingReq(
-        target: SWIMPeerProtocol,
+        target: AddressableSWIMPeer,
         payload: SWIM.GossipPayload,
-        from origin: SWIMPeerProtocol,
+        from origin: AddressableSWIMPeer,
         timeout: SWIMTimeAmount,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     )
 
-    /// Acknowledge a ping.
-    func ack(target: SWIMPeerProtocol, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload)
-
-    /// "NegativeAcknowledge" a ping.
-    func nack(target: SWIMPeerProtocol)
-
     /// Type erase this member into an `AnySWIMMember`
-    var asAnyMember: AnySWIMPeer { get }
+    var asAnyPeer: AnySWIMPeer { get }
 }
 
-extension SWIM.Peer {
-    public var asAnyMember: AnySWIMPeer {
+extension SWIMPeerProtocol {
+    public var asAnyPeer: AnySWIMPeer {
         .init(peer: self)
     }
 }
@@ -69,7 +93,7 @@ public struct AnySWIMPeer: Hashable, SWIMPeerProtocol {
 
     public func ping(
         payload: SWIM.GossipPayload,
-        from origin: SWIMPeerProtocol,
+        from origin: AddressableSWIMPeer,
         timeout: SWIMTimeAmount,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     ) {
@@ -77,20 +101,20 @@ public struct AnySWIMPeer: Hashable, SWIMPeerProtocol {
     }
 
     public func pingReq(
-        target: SWIMPeerProtocol,
+        target: AddressableSWIMPeer,
         payload: SWIM.GossipPayload,
-        from origin: SWIMPeerProtocol,
+        from origin: AddressableSWIMPeer,
         timeout: SWIMTimeAmount,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     ) {
         self.peer.pingReq(target: target, payload: payload, from: origin, timeout: timeout, onComplete: onComplete)
     }
 
-    public func ack(target: SWIMPeerProtocol, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload) {
+    public func ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload) {
         self.peer.ack(target: target, incarnation: incarnation, payload: payload)
     }
 
-    public func nack(target: SWIMPeerProtocol) {
+    public func nack(target: AddressableSWIMPeer) {
         self.peer.nack(target: target)
     }
 

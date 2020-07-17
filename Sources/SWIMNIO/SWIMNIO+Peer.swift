@@ -36,9 +36,9 @@ extension SWIM {
 
         public func ping(
             payload: GossipPayload,
-            from origin: SWIMPeerProtocol,
+            from origin: AddressableSWIMPeer,
             timeout: SWIMTimeAmount,
-            onComplete: @escaping (Result<PingResponse, Error>) -> Void
+            onComplete: @escaping (Result<PingResponse, Error>) -> Void // FIXME: tricky, there is no real request reply here at all...
         ) {
             guard let channel = self.channel else {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")
@@ -48,18 +48,18 @@ extension SWIM {
                 fatalError("Can't support non NIOPeer as origin, was: [\(origin)]:\(String(reflecting: type(of: origin as Any)))")
             }
 
-            let message = SWIM.RemoteMessage.ping(replyTo: nioOrigin, payload: payload)
+            let message = SWIM.Message.ping(replyTo: nioOrigin, payload: payload)
             let proto = try! message.toProto() // FIXME: fix the try!
             let data = try! proto.serializedData() // FIXME: fix the try!
 
-            channel.write(data)
+            channel.writeAndFlush(data, promise: nil)
             // FIXME: make the onComplete work, we need some seq nr maybe...
         }
 
         public func pingReq(
-            target: SWIMPeerProtocol,
+            target: AddressableSWIMPeer,
             payload: GossipPayload,
-            from origin: SWIMPeerProtocol,
+            from origin: AddressableSWIMPeer,
             timeout: SWIMTimeAmount, // FIXME: maybe deadlines?
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
         ) {
@@ -73,23 +73,33 @@ extension SWIM {
                 fatalError("\(#function) failed, `origin` was not `NIOPeer`, was: \(origin)")
             }
 
-            let message = SWIM.RemoteMessage.pingReq(target: nioTarget, replyTo: nioOrigin, payload: payload)
+            let message = SWIM.Message.pingReq(target: nioTarget, replyTo: nioOrigin, payload: payload)
             let proto = try! message.toProto() // FIXME: fix the try!
             let data = try! proto.serializedData() // FIXME: fix the try!
 
-            channel.write(data)
+            // FIXME: HOW TO MAKE THE TIMEOUT
+            channel.eventLoop.scheduleTask(in: timeout.toNIO) {
+                onComplete(.failure(PingTimeoutError(timeout: timeout, message: "pingReq timed out, no reply from [\(self)], target: [\(target)]")))
+            }
+
+            channel.writeAndFlush(data, promise: nil)
             // FIXME: make the onComplete work, we need some seq nr maybe...
         }
 
-        public func ack(target: SWIMPeerProtocol, incarnation: Incarnation, payload: GossipPayload) {
+        public func ack(target: AddressableSWIMPeer, incarnation: Incarnation, payload: GossipPayload) {
             guard let channel = self.channel else {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")
             }
 
-            fatalError()
+            let message = SWIM.Message.response(.ack(target: target.node, incarnation: incarnation, payload: payload))
+            let proto = try! message.toProto() // FIXME: fix the try!
+            let data = try! proto.serializedData() // FIXME: fix the try!
+
+            channel.writeAndFlush(data, promise: nil)
+            // FIXME: make the onComplete work, we need some seq nr maybe...
         }
 
-        public func nack(target: SWIMPeerProtocol) {
+        public func nack(target: AddressableSWIMPeer) {
             guard let channel = self.channel else {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")
             }
@@ -106,5 +116,15 @@ extension SWIM.NIOPeer: Hashable {
 
     public static func == (lhs: SWIM.NIOPeer, rhs: SWIM.NIOPeer) -> Bool {
         lhs.node == rhs.node
+    }
+}
+
+struct PingTimeoutError: Error {
+    let timeout: SWIMTimeAmount
+    let message: String
+
+    init(timeout: SWIMTimeAmount, message: String) {
+        self.timeout = timeout
+        self.message = message
     }
 }

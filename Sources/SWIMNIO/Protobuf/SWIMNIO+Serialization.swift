@@ -51,10 +51,10 @@ extension SWIM.NIOPeer: ProtobufRepresentable {
 //    }
 // }
 
-extension SWIM.RemoteMessage: InternalProtobufRepresentable {
-    typealias ProtobufRepresentation = ProtoSWIMMessage
+extension SWIM.Message: ProtobufRepresentable {
+    public typealias ProtobufRepresentation = ProtoSWIMMessage
 
-    func toProto() throws -> ProtobufRepresentation {
+    public func toProto() throws -> ProtobufRepresentation {
         var proto = ProtobufRepresentation()
         switch self {
         case .ping(let replyTo, let payload):
@@ -75,7 +75,7 @@ extension SWIM.RemoteMessage: InternalProtobufRepresentable {
         return proto
     }
 
-    init(fromProto proto: ProtobufRepresentation) throws {
+    public init(fromProto proto: ProtobufRepresentation) throws {
         switch proto.message {
         case .ping(let ping):
             let replyTo = try SWIM.NIOPeer(fromProto: ping.replyTo) // <SWIM.PingResponse>
@@ -114,7 +114,7 @@ extension SWIM.RemoteMessage: InternalProtobufRepresentable {
             }
 
         case .none:
-            throw SWIMSerializationError.missingField("request", type: String(describing: SWIM.RemoteMessage.self))
+            throw SWIMSerializationError.missingField("request", type: String(describing: SWIM.Message.self))
         }
     }
 }

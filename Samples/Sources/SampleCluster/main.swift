@@ -12,42 +12,62 @@
 //
 //===----------------------------------------------------------------------===//
 
-// tag::cluster-sample[]
 import ClusterMembership
 import SWIM
 import SWIMNIO
+import Lifecycle
 import NIO
 import Logging
-// end::cluster-sample[]
 
+let lifecycle = ServiceLifecycle()
 
 let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
-defer {
-    try! group.syncShutdownGracefully()
-}
+lifecycle.registerShutdown(
+    label: "eventLoopGroup",
+    .sync(group.syncShutdownGracefully)
+)
+
+let log = Logger(label: "SampleCluster")
 
 func startNode(port: Int) {
-    let logger = Logger(label: "swim-\(port)")
-
     var settings = SWIM.Settings()
-    settings.logger = logger
+    settings.logger = Logger(label: "swim-\(port)")
+    settings.logger.logLevel = .trace
+    settings.initialContactPoints = [
+        Node(protocol: "udp", host: "127.0.0.1", port: 7001, uid: nil)
+    ]
 
-    let bootstrap = ServerBootstrap(group: group)
-        .serverChannelOption(ChannelOptions.backlog, value: 256)
-        .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-        .childChannelInitializer { channel in
-            channel.pipeline.addHandler(BackPressureHandler()).flatMap { v in
-                channel.pipeline.addHandler(SWIMProtocolHandler(log: logger))
-            }
+    let bootstrap = DatagramBootstrap(group: group)
+        .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+        .channelInitializer { channel in
+            channel.pipeline.addHandler(SWIMProtocolHandler(settings: settings, group: group))
         }
-        .childChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-        .childChannelOption(ChannelOptions.maxMessagesPerRead, value: 16)
-        .childChannelOption(ChannelOptions.recvAllocator, value: AdaptiveRecvByteBufferAllocator())
 
+    lifecycle.register(
+        label: "swim-\(port)",
+        start: .async { complete in
+            bootstrap.bind(host: "127.0.0.1", port: port).whenComplete { result in
+                switch result {
+                case .failure(let error): complete(error)
+                default: complete(nil)
+                }
+            }
+        },
+        shutdown: .sync { } // TODO: allow the start to pass through the value here
+    )
 }
 
-startNode(7001)
-startNode(7002)
-startNode(7003)
-startNode(7004)
+startNode(port: 7001)
+startNode(port: 7002)
+startNode(port: 7003)
+startNode(port: 7004)
 
+lifecycle.start { error in
+    if let error = error {
+        log.error("failed to start ☠️: \(error)")
+    } else {
+        log.info("started successfully 🚀")
+    }
+}
+
+lifecycle.wait()

@@ -136,8 +136,9 @@ extension SWIM {
         }
 
         @discardableResult
-        public func addMember(_ peer: SWIMPeerProtocol, status: SWIM.Status) -> AddMemberDirective {
-            let maybeExistingMember = self.member(for: peer.node)
+        func addMember(_ peer: AddressableSWIMPeer, status: SWIM.Status) -> AddMemberDirective {
+            let maybeExistingMember = self.member(for: peer)
+
             if let existingMember = maybeExistingMember, existingMember.status.supersedes(status) {
                 // we already have a newer state for this member
                 return .newerMemberAlreadyPresent(existingMember)
@@ -174,6 +175,26 @@ extension SWIM {
             case newerMemberAlreadyPresent(SWIM.Member)
         }
 
+        public func onPingRequest(target: SWIMPeerProtocol, replyTo: SWIMPeerProtocol, payload: SWIM.GossipPayload) -> PingRequestDirective {
+            guard self.notMyself(target) else {
+                print("Received ping request about myself, ignoring; target: \(target), replyTo: \(replyTo)") // TODO: log?
+                return .ignore
+            }
+
+            if !self.isMember(target) {
+                // The case when member is a suspect is already handled in `processGossipPayload`, since
+                // payload will always contain suspicion about target member
+                self.addMember(target, status: .alive(incarnation: 0))
+            }
+
+            return .sendPing(target: target, pingReqOrigin: replyTo)
+        }
+
+        public enum PingRequestDirective {
+            case ignore
+            case sendPing(target: SWIMPeerProtocol, pingReqOrigin: SWIMPeerProtocol)
+        }
+
         /// Implements the round-robin yet shuffled member to probe selection as proposed in the SWIM paper.
         ///
         /// This mechanism should reduce the time until state is spread across the whole cluster,
@@ -185,7 +206,7 @@ extension SWIM {
         ///   but in a round-robin fashion. Instead, a newly joining member is inserted in the membership list at
         ///   a position that is chosen uniformly at random. On completing a traversal of the entire list,
         ///   rearranges the membership list to a random reordering.
-        public func nextMemberToPing() -> SWIMPeerProtocol? {
+        public func nextMemberToPing() -> AddressableSWIMPeer? {
             if self.membersToPing.isEmpty {
                 return nil
             }
@@ -197,8 +218,8 @@ extension SWIM {
         }
 
         /// Selects `settings.indirectProbeCount` members to send a `ping-req` to.
-        public func membersToPingRequest(target: SWIMPeerProtocol) -> ArraySlice<SWIM.Member> {
-            func notTarget(_ peer: SWIMPeerProtocol) -> Bool {
+        public func membersToPingRequest(target: AddressableSWIMPeer) -> ArraySlice<SWIM.Member> {
+            func notTarget(_ peer: AddressableSWIMPeer) -> Bool {
                 peer.node != target.node
             }
 
@@ -217,7 +238,7 @@ extension SWIM {
         }
 
         @discardableResult
-        public func mark(_ peer: SWIMPeerProtocol, as status: SWIM.Status) -> MarkedDirective {
+        public func mark(_ peer: AddressableSWIMPeer, as status: SWIM.Status) -> MarkedDirective {
             let previousStatusOption = self.status(of: peer)
 
             var status = status
@@ -332,13 +353,15 @@ extension SWIM {
             self.settings.timeSourceNanos()
         }
 
-        public func makeGossipPayload(to target: SWIMPeerProtocol?) -> SWIM.GossipPayload {
+        public func makeGossipPayload(to target: AddressableSWIMPeer?) -> SWIM.GossipPayload {
             var members: [SWIM.Member] = []
             // buddy system will always send to a suspect its suspicion.
             // The reason for that to ensure the suspect will be notified it is being suspected,
             // even if the suspicion has already been disseminated more than `numberOfTimesGossiped` times.
             let targetIsSuspect: Bool
-            if let target = target, let member = self.member(for: target), member.isSuspect {
+            if let target = target,
+                let member = self.member(for: target),
+                member.isSuspect {
                 // the member is suspect, and we must inform it about this, thus including in gossip payload:
                 members.append(member)
                 targetIsSuspect = true
@@ -385,9 +408,12 @@ extension SWIM {
             return .membership(members)
         }
 
+        /// Adds `Member` to gossip messages.
+        ///
+        /// It will be gossiped at most `settings.gossip.maxGossipCountPerMessage` times. // TODO: confirm this
         private func addToGossip(member: SWIM.Member) {
             // we need to remove old state before we add the new gossip, so we don't gossip out stale state
-            self._messagesToGossip.remove(where: { $0.member.peer.asAnyMember == member.peer.asAnyMember })
+            self._messagesToGossip.remove(where: { $0.member.peer.node == member.peer.node })
             self._messagesToGossip.append(.init(member: member, numberOfTimesGossiped: 0))
         }
     }
@@ -401,24 +427,20 @@ extension SWIM.Instance {
         !self.isMyself(member)
     }
 
-    func notMyself(_ peer: SWIMPeerProtocol) -> Bool {
-        self.notMyself(peer.node)
-    }
-
-    func notMyself(_ node: ClusterMembership.Node) -> Bool {
-        self.node == node
+    func notMyself(_ peer: AddressableSWIMPeer) -> Bool {
+        self.node == peer.node
     }
 
     func isMyself(_ member: SWIM.Member) -> Bool {
-        self.isMyself(member.peer.node)
+        self.isMyself(member.peer)
     }
 
-    func isMyself(_ node: Node) -> Bool {
-        self.node == node
+    func isMyself(_ peer: AddressableSWIMPeer) -> Bool {
+        self.node == peer.node
     }
 
     // TODO: ensure we actually store "us" in members; do we need this special handling if then at all?
-    public func status(of peer: SWIMPeerProtocol) -> SWIM.Status? {
+    public func status(of peer: AddressableSWIMPeer) -> SWIM.Status? {
         if self.notMyself(peer) {
             return self.members[peer.node]?.status
         } else {
@@ -427,7 +449,14 @@ extension SWIM.Instance {
         }
     }
 
-    public func member(for peer: SWIMPeerProtocol) -> SWIM.Member? {
+    public func isMember(_ peer: AddressableSWIMPeer) -> Bool {
+        // the peer could be either:
+        // - "us" (i.e. the peer which hosts this SWIM instance, or
+        // - a "known member"
+        peer.node == self.node || self.members[peer.node] != nil
+    }
+
+    public func member(for peer: AddressableSWIMPeer) -> SWIM.Member? {
         self.members[peer.node]
     }
 
@@ -457,13 +486,6 @@ extension SWIM.Instance {
     public var allMembers: SWIM.MembersValues {
         self.members.values
     }
-
-    public func isMember(_ peer: SWIMPeerProtocol) -> Bool {
-        // the peer could be either:
-        // - "us" (i.e. the peer which hosts this SWIM instance, or
-        // - a "known member"
-        peer.node == self.node || self.members[peer.node] != nil
-    }
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
@@ -479,13 +501,13 @@ extension SWIM.Instance {
     }
 
     /// React to an `Ack` (or lack thereof within timeout)
-    public func onPingRequestResponse(_ result: Result<SWIM.PingResponse, Error>, pingedMember member: SWIMPeerProtocol) -> OnPingRequestResponseDirective {
+    public func onPingRequestResponse(_ result: SWIM.PingResponse, pingedMember member: SWIMPeerProtocol) -> OnPingRequestResponseDirective {
         guard let lastKnownStatus = self.status(of: member) else {
             return .unknownMember
         }
 
         switch result {
-        case .failure:
+        case .timeout:
             // missed pingReq's nack may indicate a problem with local health
             self.adjustLHMultiplier(.probeWithMissedNack)
 
@@ -503,7 +525,7 @@ extension SWIM.Instance {
                 return .alreadyDead
             }
 
-        case .success(.ack(let target, let incarnation, let payload)):
+        case .ack(let target, let incarnation, let payload):
             assert(target == member.node, "The ack.from member [\(target)] MUST be equal to the pinged member \(member.node)]; The Ack message is being forwarded back to us from the pinged member.")
             self.adjustLHMultiplier(.successfulProbe)
             switch self.mark(member, as: .alive(incarnation: incarnation)) {
@@ -513,7 +535,7 @@ extension SWIM.Instance {
             case .ignoredDueToOlderStatus(let currentStatus):
                 return .ignoredDueToOlderStatus(currentStatus: currentStatus)
             }
-        case .success(.nack):
+        case .nack:
             return .nackReceived
         }
     }
@@ -630,17 +652,20 @@ extension SWIM.Instance {
                 )
             }
         } else {
-            // it's a remote member
+            self.addMember(member.peer, status: member.status) // we assume the best
+
+            // ask the shell to eagerly prep a connection with it
             return .connect(
-                node: member.node,
-                onceConnected: {
-                    switch $0 {
-                    case .success:
-                        self.addMember(member.peer, status: member.status)
-                    case .failure:
-                        self.addMember(member.peer, status: self.makeSuspicion(incarnation: 0)) // connecting failed, so we immediately mark it as suspect (!)
-                    }
-                }
+                node: member.node
+//                ,
+//                onceConnected: { // FIXME: once connected os not neccessary
+//                    switch $0 {
+//                    case .success:
+//                        self.addMember(member.peer, status: member.status)
+//                    case .failure:
+//                        self.addMember(member.peer, status: self.makeSuspicion(incarnation: 0)) // connecting failed, so we immediately mark it as suspect (!)
+//                    }
+//                }
             )
         }
     }
@@ -656,7 +681,11 @@ extension SWIM.Instance {
         /// and do not have a connection to it either (e.g. we joined only seed nodes, and more nodes joined them later
         /// we could get information through the seed nodes about the new members; but we still have never talked to them,
         /// thus we need to ensure we have a connection to them, before we consider adding them to the membership).
-        case connect(node: ClusterMembership.Node, onceConnected: (Result<ClusterMembership.Node, Error>) -> Void)
+        case connect(
+            node: ClusterMembership.Node
+            // ,
+            // onceConnected: (Result<ClusterMembership.Node, Error>) -> Void
+        )
 
         static func applied(change: SWIM.MemberStatusChange?) -> SWIM.Instance.OnGossipPayloadDirective {
             .applied(change: change, level: nil, message: nil)

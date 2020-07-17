@@ -9,7 +9,11 @@ var targets: [PackageDescription.Target] = [
 
     .target(
         name: "SampleCluster",
-        dependencies: ["SWIM"],
+        dependencies: [
+            "SWIM",
+            "SWIMNIO",
+            "Lifecycle",
+        ],
         path: "Sources/SampleCluster"
     ),
 
@@ -31,12 +35,14 @@ var dependencies: [Package.Dependency] = [
 
     // ~~~~~~~ only for samples ~~~~~~~
 
-    // for metrics examples:
-    .package(url: "https://github.com/MrLotU/SwiftPrometheus", from: "1.0.0-alpha.5"), // Apache v2 license
+    .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "1.0.0-alpha"),
 ]
 
 let package = Package(
     name: "swift-cluster-membership-samples",
+    platforms: [
+        .macOS(.v10_12)
+    ],
     products: [
         /* ---  samples --- */
 

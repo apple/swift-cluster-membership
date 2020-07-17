@@ -21,17 +21,19 @@ public protocol SWIMContext {
 
     var peer: SWIMPeerProtocol { get }
 
-    func startTimer(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> Cancellable
+    @discardableResult
+    func startTimer(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> SWIMCancellable
 }
 
-public struct Cancellable {
+/// Simple cancelation construct
+public struct SWIMCancellable {
     private var _cancel: () -> Void
 
-    init(_ _cancel: @escaping () -> Void) {
+    public init(_ _cancel: @escaping () -> Void) {
         self._cancel = _cancel
     }
 
-    func cancel() {
+    public func cancel() {
         self._cancel()
     }
 }

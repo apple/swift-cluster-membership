@@ -24,9 +24,9 @@ var targets: [PackageDescription.Target] = [
     .target(
         name: "ClusterMembership",
         dependencies: [
-            .product(name: "NIO", package: "swift-nio"),
-            .product(name: "NIOFoundationCompat", package: "swift-nio"),
-            .product(name: "NIOSSL", package: "swift-nio-ssl"),
+//            .product(name: "NIO", package: "swift-nio"),
+//            .product(name: "NIOFoundationCompat", package: "swift-nio"),
+//            .product(name: "NIOSSL", package: "swift-nio-ssl"),
             .product(name: "SwiftProtobuf", package: "SwiftProtobuf"),
         ]
     ),

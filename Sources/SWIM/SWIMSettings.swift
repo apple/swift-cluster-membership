@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import ClusterMembership
 import struct Dispatch.DispatchTime // for time source overriding
 import Logging
 
@@ -20,9 +21,7 @@ import Logging
 
 extension SWIM {
     public struct Settings {
-        public static var `default`: Settings {
-            .init()
-        }
+        public init() {}
 
         public var logger: Logger = Logger(label: "swim")
 
@@ -35,13 +34,11 @@ extension SWIM {
             }
         }
 
-        /// Gossip settings
-        public var gossip: SWIMGossipSettings = .default
+        /// Gossip settings, configures how the protocol period time intervals and gossip characteristics.
+        public var gossip: SWIMGossipSettings = .init()
 
         /// Settings of the Lifeguard extensions to the SWIM protocol.
-        ///
-        /// - SeeAlso: `SWIMLifeguardSettings` for in depth documentation about it.
-        public var lifeguard: SWIMLifeguardSettings = .default
+        public var lifeguard: SWIMLifeguardSettings = .init()
 
         /// Number of indirect probes that will be issued once a direct ping probe has failed to reply in time with an ack.
         ///
@@ -53,6 +50,11 @@ extension SWIM {
                 precondition(newValue >= 0, "`indirectChecks` MUST be >= 0. It is recommended to have it be no lower than 3.")
             }
         }
+
+        /// When the instance is first started, it may attempt to reach out to a few "known" nodes in an attempt to join an existing cluster.
+        ///
+        /// It is up to a Shell to interpret and initiate these contacts, as it is responsible for the IO / messaging.
+        public var initialContactPoints: [ClusterMembership.Node] = []
 
         /// Interval at which gossip messages should be issued.
         /// This property sets only a base value of probe interval, which will later be multiplied by `SWIM.Instance.localHealthMultiplier`.
@@ -95,9 +97,7 @@ extension SWIM {
 // MARK: SWIM Gossip Settings
 
 public struct SWIMGossipSettings {
-    public static var `default`: SWIMGossipSettings {
-        .init()
-    }
+    public init() {}
 
     // TODO: investigate size of messages and find good default
     /// Max number of messages included in any gossip payload
@@ -113,9 +113,7 @@ public struct SWIMGossipSettings {
 ///
 /// - SeeAlso: [Lifeguard: Local Health Awareness for More Accurate Failure Detection](https://arxiv.org/pdf/1707.00788.pdf)
 public struct SWIMLifeguardSettings {
-    public static var `default`: SWIMLifeguardSettings {
-        .init()
-    }
+    public init() {}
 
     /// Local health multiplier is a part of Lifeguard extensions to SWIM.
     /// It will increase local probe interval and probe timeout if the instance is not processing messages in timely manner.

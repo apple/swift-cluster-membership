@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import struct Dispatch.DispatchTime
-import struct NIO.TimeAmount
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: TimeAmount
@@ -220,11 +219,6 @@ extension SWIMTimeAmount: CustomStringConvertible {
             case .days: return .hours(Value(amount) * 24)
             }
         }
-    }
-
-    // TODO: move out, SWIM should not depend on NIO?
-    public var toNIO: NIO.TimeAmount {
-        NIO.TimeAmount.nanoseconds(Int64(self.nanoseconds))
     }
 }
 
@@ -450,8 +444,6 @@ import Darwin
 #else
 import Glibc
 #endif
-
-import NIO
 
 // MARK: utilities to convert between TimeAmount and C timespec
 

@@ -39,36 +39,24 @@ extension NIOSWIMShell {
     }
 
     internal enum TraceLogType: CustomStringConvertible {
-        case send(to: Node) // <SWIM.Message>
-        case reply(to: Node) // <SWIM.PingResponse>
-        case receive(pinged: Node?) // <SWIM.Message>
+        case send(to: AddressableSWIMPeer) // <SWIM.Message>
+        case reply(to: AddressableSWIMPeer) // <SWIM.PingResponse>
+        case receive(pinged: AddressableSWIMPeer?) // <SWIM.Message>
 
         static var receive: TraceLogType {
             .receive(pinged: nil)
         }
 
-        static func send(to: SWIMPeerProtocol) -> TraceLogType {
-            .send(to: to.node)
-        }
-
-        static func reply(to: SWIMPeerProtocol) -> TraceLogType {
-            .reply(to: to.node)
-        }
-
-        static func receive(pinged: SWIMPeerProtocol) -> TraceLogType {
-            .receive(pinged: pinged.node)
-        }
-
         var description: String {
             switch self {
             case .send(let to):
-                return "SEND(to:\(to))"
+                return "SEND(to:\(to.node))"
             case .receive(nil):
                 return "RECV"
             case .receive(let .some(pinged)):
-                return "RECV(pinged:\(pinged))"
+                return "RECV(pinged:\(pinged.node))"
             case .reply(let to):
-                return "REPL(to:\(to))"
+                return "REPL(to:\(to.node))"
             }
         }
     }
