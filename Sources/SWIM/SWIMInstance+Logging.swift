@@ -19,6 +19,12 @@ import Logging
 // MARK: SWIM Logging Metadata
 
 extension SWIM.Instance {
+    public func metadata(_ additional: Logger.Metadata) -> Logger.Metadata {
+        var metadata = self.metadata
+        metadata.merge(additional, uniquingKeysWith: { _, r in r })
+        return metadata
+    }
+
     /// While the SWIM.Instance is not meant to be logging by itself, it does offer metadata for loggers to use.
     public var metadata: Logger.Metadata {
         [

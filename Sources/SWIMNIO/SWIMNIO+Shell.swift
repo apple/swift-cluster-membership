@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2018-2020 Apple Inc. and the Swift Cluster Membership project authors
+// Copyright (c) 2020 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -81,7 +81,7 @@ public final class NIOSWIMShell: SWIM.Context {
     private func onStart() {
         // Immediately attempt to connect to initial contact points
         self.settings.initialContactPoints.forEach { node in
-            let peer = self.peer(on: node) // "connect"
+            self.resolvePeer(on: node) { _ in () } // "connect"
         }
 
         // Kick off timer for periodically pinging random cluster member (i.e. the periodic Gossip)
@@ -90,22 +90,38 @@ public final class NIOSWIMShell: SWIM.Context {
         }
     }
 
+    public func resolvePeer(_ addressable: AddressableSWIMPeer, _ whenResolved: @escaping (SWIM.NIOPeer) -> Void) {
+        if let readyPeer = addressable as? SWIM.NIOPeer, readyPeer.channel != nil {
+            whenResolved(readyPeer)
+        } else {
+            self.resolvePeer(on: addressable.node, whenResolved)
+        }
+    }
+
     /// Returns existing `NIOPeer` (associated with a Channel) or establishes a new outbound channel and returns once connected.
-    public func peer(on node: Node) -> EventLoopFuture<SWIM.NIOPeer> {
-        if let peer = self._peerConnections[node] {
-            return self.eventLoop.makeSucceededFuture(peer)
+    ///
+    /// - Parameters:
+    ///   - node:
+    ///   - whenResolved: callback is ensure to run on `self.eventLoop`
+    public func resolvePeer(on node: Node, _ whenResolved: @escaping (SWIM.NIOPeer) -> Void) {
+        if let peer = self._peerConnections[node], peer.channel != nil {
+            whenResolved(peer)
         } else {
             self.log.trace("New peer: \(node), creating NIOPeer (and Channel)", metadata: [
                 "swim/node": "\(node)",
             ])
 
-            return self.makeClient(node).hop(to: self.eventLoop).map { channel in
+            self.makeClient(node).hop(to: self.eventLoop).map { channel in
                 let peer = SWIM.NIOPeer(node: node, channel: channel)
                 self.log.trace("Established new peer: \(node)", metadata: [
                     "swim/node": "\(node)",
                     "swim/nio/channel": "\(channel)",
                 ])
                 self._peerConnections[node] = peer
+            }.whenFailure { error in
+                self.log.error("Failed resolving peer for \(node)", metadata: [
+                    "error": "\(error)",
+                ])
             }
         }
     }
@@ -125,11 +141,7 @@ public final class NIOSWIMShell: SWIM.Context {
     func receiveMessage(message: SWIM.Message, from senderNode: Node) {
         self.tracelog(.receive, message: "\(message)")
 
-        let senderELF = self.peer(on: senderNode)
-        senderELF.whenFailure { error in
-            self.log.warning("Failed to resolve \(senderNode) as SWIM.NIOPeer, error: \(error)")
-        }
-        senderELF.whenSuccess { sender in
+        self.resolvePeer(on: senderNode) { _ in
             switch message {
             case .ping(let replyTo, let payload):
                 self.handlePing(replyTo: replyTo, payload: payload)
@@ -138,7 +150,7 @@ public final class NIOSWIMShell: SWIM.Context {
                 self.handlePingReq(target: target, replyTo: replyTo, payload: payload)
 
             case .response(let pingResponse):
-                self.handlePingResponse(result: .success(pingResponse), pingedNode: targetNode, pingReqOriginPeer: sender) // FIXME:
+                self.handlePingResponse(result: pingResponse, pingReqOriginPeer: nil) // FIXME!!!!! we MUST be able to know if this was a response to a ping req CAUSED ping or not; we need request/reply basically
             }
         }
     }
@@ -152,14 +164,17 @@ public final class NIOSWIMShell: SWIM.Context {
 
             switch reply {
             case .ack(let targetNode, let incarnation, let payload):
-                self.peer(on: targetNode).whenSuccess { target in
+                self.resolvePeer(on: targetNode) { target in
                     replyTo.ack(target: target, incarnation: incarnation, payload: payload) // FIXME: is the self.peer() needed?
                 }
 
             case .nack(let targetNode):
-                self.peer(on: targetNode).whenSuccess { target in // TODO: consider withPeer pattern
+                self.resolvePeer(on: targetNode) { target in // TODO: consider withPeer pattern
                     replyTo.nack(target: target)
                 }
+
+            case .timeout, .error:
+                fatalError("FIXME this should not happen")
             }
 
             // TODO: push the process gossip into SWIM as well?
@@ -173,8 +188,10 @@ public final class NIOSWIMShell: SWIM.Context {
         self.processGossipPayload(payload: payload) // TODO: push into swim
 
         switch self.swim.onPingRequest(target: target, replyTo: replyTo, payload: payload) {
+        case .ignore:
+            self.log.trace("Ignoring ping request", metadata: self.swim.metadata)
         case .sendPing:
-            self.sendPing(to: target, pingReqOrigin: replyTo)
+            self.sendPing(to: target, pingReqOriginPeer: replyTo)
         }
 
 //        if !self.swim.isMember(target) {
@@ -211,29 +228,37 @@ public final class NIOSWIMShell: SWIM.Context {
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Sending ping, ping-req and friends
 
+    // FIXME: make sendPing and a sendPingReq separately perhaps?
+
     /// - parameter pingReqOrigin: is set only when the ping that this is a reply to was originated as a `pingReq`.
     func sendPing(
-        to target: SWIMPeerProtocol, // SWIM.NIOPeer, // <SWIM.Message>
-        pingReqOrigin: SWIM.NIOPeer? // <SWIM.PingResponse>
+        to target: AddressableSWIMPeer, // SWIM.NIOPeer, // <SWIM.Message>
+        pingReqOriginPeer: SWIM.NIOPeer? // <SWIM.PingResponse>
     ) {
         let payload = self.swim.makeGossipPayload(to: target)
 
         self.log.trace("Sending ping to [\(target)] with payload [\(payload)]")
+        self.resolvePeer(target) { targetPeer in
+            // let startPing = metrics.uptimeNanoseconds() // FIXME: metrics
+            let replyPromise = self.eventLoop.makePromise(of: SWIM.PingResponse.self)
+            let timeout: SWIMTimeAmount = self.swim.dynamicLHMProtocolInterval // FIXME: WE MUST HANDLE THE TIMEOUT ON THE FUTURE INSTEAD HERE SINCE WE HAVE NO REQUEST/REPLY FACILITY
+            self.eventLoop.scheduleTask(deadline: .now() + timeout.toNIO) {
+                replyPromise.fail(TimeoutError(task: "\(#function)", timeout: timeout))
+            }
 
-        // let startPing = metrics.uptimeNanoseconds() // FIXME: metrics
-        let replyPromise = self.eventLoop.makePromise(of: SWIM.PingResponse.self)
-        let timeout: SWIMTimeAmount = self.swim.dynamicLHMProtocolInterval // FIXME: WE MUST HANDLE THE TIMEOUT ON THE FUTURE INSTEAD HERE SINCE WE HAVE NO REQUEST/REPLY FACILITY
-        self.eventLoop.scheduleTask(deadline: .now() + timeout.toNIO) {
-            replyPromise.fail(TimeoutError(task: "\(#function)", timeout: timeout))
-        }
+            targetPeer.ping(payload: payload, from: self.peer, timeout: timeout) { (result: Result<SWIM.PingResponse, Error>) in
+                replyPromise.completeWith(result)
+            }
 
-        target.ping(payload: payload, from: self.peer, timeout: timeout) { (result: Result<SWIM.PingResponse, Error>) in
-            replyPromise.completeWith(result)
-        }
-
-        // we're guaranteed on "our" EL
-        replyPromise.futureResult.whenComplete { pingResponse in
-            self.handlePingResponse(result: pingResponse, pingedNode: target, pingReqOriginPeer: pingReqOrigin)
+            // we're guaranteed on "our" EL
+            replyPromise.futureResult.whenComplete { result in
+                switch result {
+                case .success(let response):
+                    self.handlePingResponse(result: response, pingReqOriginPeer: pingReqOriginPeer)
+                case .failure(let error):
+                    self.log.error("Failed reply promise: \(error)")
+                }
+            }
         }
     }
 
@@ -282,44 +307,71 @@ public final class NIOSWIMShell: SWIM.Context {
 
             // let startPingReq = metrics.uptimeNanoseconds() // FIXME: metrics
             // self.tracelog(.send(to: member.peer), message: ".pingReq(target: \(toPing), payload: \(payload), from: \(self.peer))")
-            memberToPingRequestThrough.peer.pingReq(target: toPing, payload: payload, from: self.peer, timeout: pingTimeout) { result in
-                // metrics.recordSWIMPingPingResponseTime(since: startPingReq) // FIXME: metrics
+            self.resolvePeer(memberToPingRequestThrough.peer) { peerToPingRequestThrough in
+                peerToPingRequestThrough.pingReq(target: toPing, payload: payload, from: self.peer, timeout: pingTimeout) { result in
+                    // metrics.recordSWIMPingPingResponseTime(since: startPingReq) // FIXME: metrics
 
-                // We choose to cascade only successes;
-                // While this has a slight timing implication on time timeout of the pings -- the node that is last
-                // in the list that we ping, has slightly less time to fulfil the "total ping timeout"; as we set a total timeout on the entire `firstSuccess`.
-                // In practice those timeouts will be relatively large (seconds) and the few millis here should not have a large impact on correctness.
-                switch result {
-                case .success(let response):
-                    firstSuccessPromise.succeed(response)
-                case .failure(let error):
-                    // these are generally harmless thus we do not want to log them on higher levels
-                    self.log.trace("pingReq failed", metadata: [
-                        "swim/target": "\(toPing)",
-                        "swim/payload": "\(payload)",
-                        "swim/pingTimeout": "\(pingTimeout)",
-                        "error": "\(error)",
-                    ])
+                    // We choose to cascade only successes;
+                    // While this has a slight timing implication on time timeout of the pings -- the node that is last
+                    // in the list that we ping, has slightly less time to fulfil the "total ping timeout"; as we set a total timeout on the entire `firstSuccess`.
+                    // In practice those timeouts will be relatively large (seconds) and the few millis here should not have a large impact on correctness.
+                    switch result {
+                    case .success(let response):
+                        firstSuccessPromise.succeed(response)
+                    case .failure(let error):
+                        // these are generally harmless thus we do not want to log them on higher levels
+                        self.log.trace("pingReq failed", metadata: [
+                            "swim/target": "\(toPing)",
+                            "swim/payload": "\(payload)",
+                            "swim/pingTimeout": "\(pingTimeout)",
+                            "error": "\(error)",
+                        ])
+                    }
                 }
             }
         }
 
         // guaranteed to be on "our" EL
-        firstSuccessPromise.futureResult.whenComplete { result in
-            self.handlePingRequestResponse(result: result, pingedMember: toPing)
+        firstSuccessPromise.futureResult.whenComplete {
+            switch $0 {
+            case .success(let response):
+                self.handlePingRequestResponse(result: response, pingedMember: toPing)
+            case .failure(let error):
+                self.handlePingRequestResponse(result: .error(error, target: toPing.node), pingedMember: toPing)
+            }
         }
     }
 
     /// - parameter pingReqOrigin: is set only when the ping that this is a reply to was originated as a `pingReq`.
     func handlePingResponse(
         result: SWIM.PingResponse,
-        pingedNode: AddressableSWIMPeer, // SWIM.NIOPeer, // <SWIM.Message>
-        pingReqOriginPeer: SWIM.NIOPeer? // <SWIM.PingResponse>
+        pingReqOriginPeer: SWIM.NIOPeer?
     ) {
-        self.tracelog(.receive(pinged: pingedNode), message: "\(result)")
-
         switch result {
-        case .timeout:
+        case .ack(let pingedNode, let incarnation, let payload):
+            self.tracelog(.receive(pinged: pingedNode), message: "\(result)")
+
+            // We're proxying an ack payload from ping target back to ping source.
+            // If ping target was a suspect, there'll be a refutation in a payload
+            // and we probably want to process it asap. And since the data is already here,
+            // processing this payload will just make gossip convergence faster.
+            self.processGossipPayload(payload: payload)
+            self.log.debug("Received ack from [\(pingedNode)] with incarnation [\(incarnation)] and payload [\(payload)]", metadata: self.swim.metadata)
+            self.markMember(latest: SWIM.Member(peer: pingedNode, status: .alive(incarnation: incarnation), protocolPeriod: self.swim.protocolPeriod)) // FIXME: adding should be done in the instance...
+            if let pingReqOrigin = pingReqOriginPeer {
+                pingReqOrigin.ack(target: pingedNode, incarnation: incarnation, payload: payload)
+            } else {
+                // LHA-probe multiplier for pingReq responses is handled separately `handlePingRequestResult`
+                self.swim.adjustLHMultiplier(.successfulProbe)
+            }
+
+        case .nack(let pingedNode):
+            self.tracelog(.receive(pinged: pingedNode), message: "\(result)")
+            () // TODO: docs
+
+        case .timeout(let pingedNode, let pingReqOriginNode, let timeout):
+            self.tracelog(.receive(pinged: pingedNode), message: "\(result)")
+
 //            if let timeoutError = err as? TimeoutError {
 //                self.log.debug(
 //                    """
@@ -340,6 +392,7 @@ public final class NIOSWIMShell: SWIM.Context {
             // TODO: timeout details here (!)
             self.log.debug("Did not receive ack from \(pingedNode) within configured timeout. Sending ping requests to other members.")
             if let pingReqOrigin = pingReqOriginPeer {
+                // Meaning we were doing a ping on behalf of the pingReq origin, and we need to report back to it.
                 self.swim.adjustLHMultiplier(.probeWithMissedNack)
                 pingReqOrigin.nack(target: pingedNode)
             } else {
@@ -347,27 +400,15 @@ public final class NIOSWIMShell: SWIM.Context {
                 self.sendPingRequests(toPing: pingedNode)
             }
 
-        case .ack(let pingedNode, let incarnation, let payload):
-            // We're proxying an ack payload from ping target back to ping source.
-            // If ping target was a suspect, there'll be a refutation in a payload
-            // and we probably want to process it asap. And since the data is already here,
-            // processing this payload will just make gossip convergence faster.
-            self.processGossipPayload(payload: payload)
-            self.log.debug("Received ack from [\(pingedNode)] with incarnation [\(incarnation)] and payload [\(payload)]", metadata: self.swim.metadata)
-            self.markMember(latest: SWIM.Member(peer: pinged, status: .alive(incarnation: incarnation), protocolPeriod: self.swim.protocolPeriod))
-            if let pingReqOrigin = pingReqOriginPeer {
-                pingReqOrigin.ack(target: pingedNode, incarnation: incarnation, payload: payload)
-            } else {
-                // LHA-probe multiplier for pingReq responses is handled separately `handlePingRequestResult`
-                self.swim.adjustLHMultiplier(.successfulProbe)
-            }
-
-        case .nack:
-            () // TODO: docs
+        case .error(let error, let targetNode):
+            self.log.warning("Failed ping response, error: \(error)", metadata: [
+                "swim/target": "\(targetNode)",
+                "swim/pingReqOrigin": "\(pingReqOriginPeer, orElse: "nil")",
+            ])
         }
     }
 
-    func handlePingRequestResponse(result: Result<SWIM.PingResponse, Error>, pingedMember: SWIMPeerProtocol /* <SWIM.Message> */ ) {
+    func handlePingRequestResponse(result: SWIM.PingResponse, pingedMember: AddressableSWIMPeer /* <SWIM.Message> */ ) {
         self.tracelog(.receive(pinged: pingedMember.node), message: "\(result)")
         // TODO: do we know here WHO replied to us actually? We know who they told us about (with the ping-req), could be useful to know
 
@@ -404,8 +445,8 @@ public final class NIOSWIMShell: SWIM.Context {
         // needs to be done first, so we can gossip out the most up to date state
         self.checkSuspicionTimeouts()
 
-        if let toPing = swim.nextMemberToPing() { // TODO: Push into SWIM
-            self.sendPing(to: toPing, pingReqOrigin: nil)
+        if let toPing = self.swim.nextMemberToPing() { // TODO: Push into SWIM
+            self.sendPing(to: toPing, pingReqOriginPeer: nil)
         }
         self.swim.incrementProtocolPeriod()
     }
@@ -546,17 +587,8 @@ public final class NIOSWIMShell: SWIM.Context {
     func processGossipedMembership(members: SWIM.Members) {
         for member in members {
             switch self.swim.onGossipPayload(about: member) {
-            case .connect(let node, let continueAddingMember):
-                // ensuring a connection is asynchronous, but executes callback in context
-                self.____withEnsuredConnection(remoteNode: node) { uniqueAddressResult in
-                    switch uniqueAddressResult {
-                    case .success(let uniqueAddress):
-                        continueAddingMember(.success(uniqueAddress))
-                    case .failure(let error):
-                        continueAddingMember(.failure(error))
-                        self.log.warning("Unable ensure association with \(node), could it have been tombstoned? Error: \(error)")
-                    }
-                }
+            case .connect(let node): // FIXME: remove this
+                self.resolvePeer(on: node) { _ in () } // "connect"
 
             case .ignored(let level, let message):
                 if let level = level, let message = message {
@@ -617,16 +649,16 @@ public final class NIOSWIMShell: SWIM.Context {
     // TODO: remove or simplify; SWIM/Associations: Simplify/remove withEnsuredAssociation #601
     /// Use to ensure an association to given remote node exists.
     // FIXME: this should go away, we don't need it at all
-    func ____withEnsuredConnection(remoteNode: Node?, continueWithAssociation: @escaping (Result<Node, Error>) -> Void) {
-        // this is a local node, so we don't need to connect first
-        guard let remoteNode = remoteNode else {
-            continueWithAssociation(.success(self.node))
-            return
-        }
-
-        // handle kicking off associations automatically when attempting to send to them; so we do nothing here (!!!)
-        continueWithAssociation(.success(remoteNode))
-    }
+//    func ____withEnsuredConnection(remoteNode: Node?, continueWithAssociation: @escaping (Result<Node, Error>) -> Void) {
+//        // this is a local node, so we don't need to connect first
+//        guard let remoteNode = remoteNode else {
+//            continueWithAssociation(.success(self.node))
+//            return
+//        }
+//
+//        // handle kicking off associations automatically when attempting to send to them; so we do nothing here (!!!)
+//        continueWithAssociation(.success(remoteNode))
+//    }
 
     struct EnsureAssociationError: Error {
         let message: String
@@ -638,7 +670,7 @@ public final class NIOSWIMShell: SWIM.Context {
 
     /// This is effectively joining the SWIM membership of the other member.
     func sendFirstRemotePing(on node: Node) {
-        self.peer(on: node).whenSuccess { peer in
+        self.resolvePeer(on: node) { peer in
             // We need to include the member immediately, rather than when we have ensured the association.
             // This is because if we're not able to establish the association, we still want to re-try soon (in the next ping round),
             // and perhaps then the other node would accept the association (perhaps some transient network issues occurred OR the node was
@@ -648,7 +680,7 @@ public final class NIOSWIMShell: SWIM.Context {
             self.swim.addMember(peer, status: .alive(incarnation: 0))
 
             // TODO: we are sending the ping here to initiate cluster membership. Once available this should do a state sync instead
-            self.sendPing(to: peer, pingReqOrigin: nil)
+            self.sendPing(to: peer, pingReqOriginPeer: nil)
         }
     }
 }

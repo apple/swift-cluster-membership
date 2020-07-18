@@ -69,7 +69,10 @@ public enum SWIM {
 
         //         pingedMember: ActorRef<SWIM.Message>,
         //         pingReqOrigin: ActorRef<SWIM.PingResponse>?
-        case timeout(target: Node, pingReqOrigin: Node, timeout: SWIMTimeAmount)
+        case timeout(target: Node, pingReqOrigin: Node?, timeout: SWIMTimeAmount)
+
+        /// Other error
+        case error(Error, target: Node)
     }
 
     internal struct MembershipState {

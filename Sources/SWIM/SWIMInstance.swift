@@ -135,8 +135,9 @@ extension SWIM {
             self.addMember(myself, status: .alive(incarnation: 0))
         }
 
+        // FIXME: should not be public
         @discardableResult
-        func addMember(_ peer: AddressableSWIMPeer, status: SWIM.Status) -> AddMemberDirective {
+        public func addMember(_ peer: AddressableSWIMPeer, status: SWIM.Status) -> AddMemberDirective {
             let maybeExistingMember = self.member(for: peer)
 
             if let existingMember = maybeExistingMember, existingMember.status.supersedes(status) {
@@ -501,13 +502,13 @@ extension SWIM.Instance {
     }
 
     /// React to an `Ack` (or lack thereof within timeout)
-    public func onPingRequestResponse(_ result: SWIM.PingResponse, pingedMember member: SWIMPeerProtocol) -> OnPingRequestResponseDirective {
+    public func onPingRequestResponse(_ result: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) -> OnPingRequestResponseDirective {
         guard let lastKnownStatus = self.status(of: member) else {
             return .unknownMember
         }
 
         switch result {
-        case .timeout:
+        case .timeout, .error:
             // missed pingReq's nack may indicate a problem with local health
             self.adjustLHMultiplier(.probeWithMissedNack)
 
@@ -681,11 +682,7 @@ extension SWIM.Instance {
         /// and do not have a connection to it either (e.g. we joined only seed nodes, and more nodes joined them later
         /// we could get information through the seed nodes about the new members; but we still have never talked to them,
         /// thus we need to ensure we have a connection to them, before we consider adding them to the membership).
-        case connect(
-            node: ClusterMembership.Node
-            // ,
-            // onceConnected: (Result<ClusterMembership.Node, Error>) -> Void
-        )
+        case connect(node: ClusterMembership.Node) // FIXME: should be able to remove this
 
         static func applied(change: SWIM.MemberStatusChange?) -> SWIM.Instance.OnGossipPayloadDirective {
             .applied(change: change, level: nil, message: nil)

@@ -228,6 +228,10 @@ extension SWIM.PingResponse: ProtobufRepresentable {
             var nack = ProtoSWIMPingResponse.Nack()
             nack.target = try target.toProto()
             proto.nack = nack
+        case .timeout:
+            throw SWIMSerializationError.notSerializable(".timeout is not to be sent as remote message, was: \(self)")
+        case .error:
+            throw SWIMSerializationError.notSerializable(".error is not to be sent as remote message, was: \(self)")
         }
         return proto
     }
