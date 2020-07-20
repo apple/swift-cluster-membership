@@ -27,11 +27,17 @@ lifecycle.registerShutdown(
     .sync(group.syncShutdownGracefully)
 )
 
+LoggingSystem.bootstrap(_PrettyMetadataLogHandler.init)
+
 let log = Logger(label: "SampleCluster")
 
 func startNode(port: Int) {
     var settings = SWIM.Settings()
-    settings.logger = Logger(label: "swim-\(port)")
+    if port == 7002 {
+        settings.logger = Logger(label: "swim-\(port)")
+    } else {
+        settings.logger = Logger(label: "swim-\(port)", factory: { _ in SwiftLogNoOpLogHandler() })
+    }
     settings.logger.logLevel = .trace
     settings.initialContactPoints = [
         Node(protocol: "udp", host: "127.0.0.1", port: 7001, uid: nil)

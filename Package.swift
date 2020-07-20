@@ -24,9 +24,6 @@ var targets: [PackageDescription.Target] = [
     .target(
         name: "ClusterMembership",
         dependencies: [
-//            .product(name: "NIO", package: "swift-nio"),
-//            .product(name: "NIOFoundationCompat", package: "swift-nio"),
-//            .product(name: "NIOSSL", package: "swift-nio-ssl"),
             .product(name: "SwiftProtobuf", package: "SwiftProtobuf"),
         ]
     ),
@@ -107,7 +104,7 @@ var dependencies: [Package.Dependency] = [
 
     // ~~~ SSWG APIs ~~~
 
-    .package(url: "https://github.com/apple/swift-log.git", from: "1.3.0"),
+    .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
     // swift-metrics 1.x and 2.x are almost API compatible, so most clients should use
     .package(url: "https://github.com/apple/swift-metrics.git", "1.0.0" ..< "3.0.0"),
 ]

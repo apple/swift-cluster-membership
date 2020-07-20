@@ -19,7 +19,7 @@ import SWIM
 import struct SWIM.SWIMTimeAmount
 
 extension SWIM {
-    public struct NIOPeer: SWIMPeerProtocol {
+    public struct NIOPeer: SWIMPeerProtocol, CustomStringConvertible {
         public let node: Node
 
         var channel: Channel?
@@ -108,6 +108,10 @@ extension SWIM {
             let data = try! proto.serializedData() // FIXME: fix the try!
 
             channel.writeAndFlush(data, promise: nil)
+        }
+
+        public var description: String {
+            "NIOPeer(node: \(self.node), channel: \(self.channel))"
         }
     }
 }

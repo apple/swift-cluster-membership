@@ -36,6 +36,7 @@ var dependencies: [Package.Dependency] = [
     // ~~~~~~~ only for samples ~~~~~~~
 
     .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "1.0.0-alpha"),
+    .package(url: "https://github.com/apple/swift-argument-parser", from: "0.2.0"),
 ]
 
 let package = Package(

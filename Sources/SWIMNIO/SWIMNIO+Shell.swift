@@ -18,11 +18,6 @@ import NIO
 import SWIM
 
 extension SWIM {
-//    enum Message: Codable {
-//        case remote(RemoteMessage)
-//        case local(LocalMessage) // TODO: remove?
-//    }
-
     public enum Message: Codable {
         // case ping(replyTo: SWIM.NIOPeer<PingResponse>, payload: GossipPayload) // FIXME accept only PingResponse here
         case ping(replyTo: NIOPeer, payload: GossipPayload)
@@ -85,7 +80,7 @@ public final class NIOSWIMShell: SWIM.Context {
         }
 
         // Kick off timer for periodically pinging random cluster member (i.e. the periodic Gossip)
-        _ = self.startTimer(key: NIOSWIMShell.periodicPingKey, delay: self.settings.probeInterval) {
+        _ = self.schedule(key: NIOSWIMShell.periodicPingKey, delay: self.settings.probeInterval) {
             self.periodicPingRandomMember()
         }
     }
@@ -107,13 +102,13 @@ public final class NIOSWIMShell: SWIM.Context {
         if let peer = self._peerConnections[node], peer.channel != nil {
             whenResolved(peer)
         } else {
-            self.log.trace("New peer: \(node), creating NIOPeer (and Channel)", metadata: [
+            self.log.trace("Resolving new SWIM.NIOPeer: \(node)", metadata: [
                 "swim/node": "\(node)",
             ])
 
             self.makeClient(node).hop(to: self.eventLoop).map { channel in
                 let peer = SWIM.NIOPeer(node: node, channel: channel)
-                self.log.trace("Established new peer: \(node)", metadata: [
+                self.log.trace("Successfully resolved new SWIM.NIOPeer", metadata: [
                     "swim/node": "\(node)",
                     "swim/nio/channel": "\(channel)",
                 ])
@@ -128,7 +123,7 @@ public final class NIOSWIMShell: SWIM.Context {
 
     /// Start a *single* timer, to run the passed task after given delay.
     @discardableResult
-    public func startTimer(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> SWIMCancellable {
+    public func schedule(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> SWIMCancellable {
         self.eventLoop.assertInEventLoop()
 
         let scheduled: Scheduled<Void> = self.eventLoop.scheduleTask(in: delay.toNIO) { () in task() }
@@ -431,7 +426,7 @@ public final class NIOSWIMShell: SWIM.Context {
     func handleNewProtocolPeriod() {
         self.periodicPingRandomMember()
 
-        self.startTimer(key: NIOSWIMShell.periodicPingKey, delay: self.swim.dynamicLHMProtocolInterval) {
+        self.schedule(key: NIOSWIMShell.periodicPingKey, delay: self.swim.dynamicLHMProtocolInterval) {
             self.periodicPingRandomMember()
         }
     }
@@ -516,7 +511,7 @@ public final class NIOSWIMShell: SWIM.Context {
             "Checking suspicion timeouts...",
             metadata: [
                 "swim/suspects": "\(self.swim.suspects)",
-                "swim/all": "\(self.swim.allMembers)",
+                "swim/all": Logger.MetadataValue.array(self.swim.allMembers.map { "\($0)" }),
                 "swim/protocolPeriod": "\(self.swim.protocolPeriod)",
             ]
         )
