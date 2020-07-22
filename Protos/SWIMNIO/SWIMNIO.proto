@@ -22,55 +22,59 @@ import "ClusterMembership/ClusterMembership.proto";
 
 message SWIMMessage {
     oneof message {
-        SWIMPing ping = 1;
-        SWIMPingRequest pingReq = 2;
+        SWIMPing ping             = 1;
+        SWIMPingRequest pingReq   = 2;
 
         SWIMPingResponse response = 3;
     }
 }
 
 message SWIMPing {
-    Peer replyTo = 1;
-    SWIMPayload payload = 2;
+    int32 sequenceNr    = 1;
+    Peer replyTo        = 2;
+    SWIMPayload payload = 3;
 }
 
 message SWIMPingRequest {
-    Peer target = 1;
-    Peer replyTo = 2;
-    SWIMPayload payload = 3;
+    int32 sequenceNr    = 1;
+    Peer target         = 2;
+    Peer replyTo        = 3;
+    SWIMPayload payload = 4;
 }
 
 message SWIMPingResponse {
     message Ack {
-        Node target = 1;
-        uint64 incarnation = 2;
-        SWIMPayload payload = 3;
+        int32 sequenceNr    = 1;
+        Node target         = 2;
+        uint64 incarnation  = 3;
+        SWIMPayload payload = 4;
     }
     message Nack {
-        Node target = 1;
+        int32 sequenceNr = 1;
+        Node target      = 2;
     }
     oneof pingResponse {
-        Ack ack = 1;
-        Nack nack = 2;
+        Ack ack          = 1;
+        Nack nack        = 2;
     }
 }
 
 message SWIMStatus {
     enum Type {
         UNSPECIFIED = 0;
-        ALIVE = 1;
-        SUSPECT = 2;
+        ALIVE       = 1;
+        SUSPECT     = 2;
         UNREACHABLE = 3;
-        DEAD = 4;
+        DEAD        = 4;
     }
 
-    Type type = 1;
-    uint64 incarnation = 2;
+    Type type                 = 1;
+    uint64 incarnation        = 2;
     repeated Node suspectedBy = 3;
 }
 
 message SWIMMember {
-    Peer peer = 1;
+    Peer peer         = 1;
     SWIMStatus status = 2;
 }
 
