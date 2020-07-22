@@ -470,6 +470,10 @@ extension SWIM.Instance {
         self.members.lazy.filter { !$0.value.isDead }.count
     }
 
+    public var otherMemberCount: Int {
+        max(0, self.members.count - 1)
+    }
+
     // for testing; used to implement the data for the testing message in the shell: .getMembershipState
     var _allMembersDict: [Node: SWIM.Status] {
         self.members.mapValues { $0.status }

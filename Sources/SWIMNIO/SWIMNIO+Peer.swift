@@ -15,6 +15,7 @@
 import ClusterMembership
 import Logging
 import NIO
+import NIOConcurrencyHelpers
 import SWIM
 import struct SWIM.SWIMTimeAmount
 
@@ -24,8 +25,13 @@ extension SWIM {
 
         var channel: Channel?
 
+        /// When sending messages we generate sequence numbers which allow us to match their replies
+        /// with corresponding completion handlers
+        private let sequenceNumberSource: NIOAtomic<UInt32>
+
         public init(node: Node, channel: Channel?) {
             self.node = node
+            self.sequenceNumberSource = .makeAtomic(value: 0)
             self.channel = channel
         }
 
@@ -48,11 +54,27 @@ extension SWIM {
                 fatalError("Can't support non NIOPeer as origin, was: [\(origin)]:\(String(reflecting: type(of: origin as Any)))")
             }
 
-            let message = SWIM.Message.ping(replyTo: nioOrigin, payload: payload)
-            let proto = try! message.toProto() // FIXME: fix the try!
-            let data = try! proto.serializedData() // FIXME: fix the try!
+            let sequenceNr = self.sequenceNumberSource.add(1)
+            let message = SWIM.Message.ping(replyTo: nioOrigin, payload: payload, sequenceNr: sequenceNr)
+            print("""
+            >>> sending ping = \(message)
+                TO: \(self)
+            """)
 
-            channel.writeAndFlush(data, promise: nil)
+            let command = WriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
+                switch reply {
+                case .success(.response(let pingResponse, let gotSequenceNr)):
+                    assert(sequenceNr == gotSequenceNr, "callback invoked with not matching sequence number! Submitted with \(sequenceNr) but invoked with \(gotSequenceNr)!")
+                    onComplete(.success(pingResponse))
+                case .failure(let error):
+                    onComplete(.failure(error))
+
+                case .success(let other):
+                    fatalError("Unexpected message, got: \(other) while expected \(PingResponse.self)")
+                }
+            })
+
+            channel.writeAndFlush(command, promise: nil)
             // FIXME: make the onComplete work, we need some seq nr maybe...
         }
 
@@ -73,16 +95,23 @@ extension SWIM {
                 fatalError("\(#function) failed, `origin` was not `NIOPeer`, was: \(origin)")
             }
 
-            let message = SWIM.Message.pingReq(target: nioTarget, replyTo: nioOrigin, payload: payload)
-            let proto = try! message.toProto() // FIXME: fix the try!
-            let data = try! proto.serializedData() // FIXME: fix the try!
+            let sequenceNr = self.sequenceNumberSource.add(1)
+            let message = SWIM.Message.pingReq(target: nioTarget, replyTo: nioOrigin, payload: payload, sequenceNr: sequenceNr)
 
-            // FIXME: HOW TO MAKE THE TIMEOUT
-            channel.eventLoop.scheduleTask(in: timeout.toNIO) {
-                onComplete(.failure(PingTimeoutError(timeout: timeout, message: "pingReq timed out, no reply from [\(self)], target: [\(target)]")))
-            }
+            let command = WriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
+                switch reply {
+                case .success(.response(let pingResponse, let gotSequenceNr)):
+                    assert(sequenceNr == gotSequenceNr, "callback invoked with not matching sequence number! Submitted with \(sequenceNr) but invoked with \(gotSequenceNr)!")
+                    onComplete(.success(pingResponse))
+                case .failure(let error):
+                    onComplete(.failure(error))
 
-            channel.writeAndFlush(data, promise: nil)
+                case .success(let other):
+                    fatalError("Unexpected message, got: \(other) while expected \(PingResponse.self)")
+                }
+            })
+
+            channel.writeAndFlush(command, promise: nil)
             // FIXME: make the onComplete work, we need some seq nr maybe...
         }
 
@@ -91,27 +120,31 @@ extension SWIM {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")
             }
 
-            let message = SWIM.Message.response(.ack(target: target.node, incarnation: incarnation, payload: payload))
-            let proto = try! message.toProto() // FIXME: fix the try!
-            let data = try! proto.serializedData() // FIXME: fix the try!
+            fatalError("GET THE SEQUENCE NR WE're replying to")
+            let sequenceNr: UInt32 = 1111 // FIXME:
 
-            channel.writeAndFlush(data, promise: nil)
+            let message = SWIM.Message.response(.ack(target: target.node, incarnation: incarnation, payload: payload), sequenceNr: sequenceNr)
+            let command = WriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)
+
+            channel.writeAndFlush(command, promise: nil)
         }
 
-        public func nack(target: AddressableSWIMPeer) {
+        public func nack(target: AddressableSWIMPeer) { // TODO: inReplyTo ...
             guard let channel = self.channel else {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")
             }
 
-            let message = SWIM.Message.response(.nack(target: target.node))
-            let proto = try! message.toProto() // FIXME: fix the try!
-            let data = try! proto.serializedData() // FIXME: fix the try!
+            fatalError("GET THE SEQUENCE NR WE're replying to")
+            let sequenceNr: UInt32 = 11111 // FIXME:
 
-            channel.writeAndFlush(data, promise: nil)
+            let message = SWIM.Message.response(.nack(target: target.node), sequenceNr: sequenceNr)
+            let command = WriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)
+
+            channel.writeAndFlush(command, promise: nil)
         }
 
         public var description: String {
-            "NIOPeer(node: \(self.node), channel: \(self.channel, orElse: "nil"))"
+            "NIOPeer(node: \(self.node), channel: \(self.channel != nil ? "<channel>" : "<nil>"))"
         }
     }
 }
@@ -126,11 +159,11 @@ extension SWIM.NIOPeer: Hashable {
     }
 }
 
-struct PingTimeoutError: Error {
-    let timeout: SWIMTimeAmount
+public struct NIOSWIMTimeoutError: Error {
+    let timeout: NIO.TimeAmount
     let message: String
 
-    init(timeout: SWIMTimeAmount, message: String) {
+    init(timeout: NIO.TimeAmount, message: String) {
         self.timeout = timeout
         self.message = message
     }

@@ -30,6 +30,8 @@ extension ClusterMembership.Node: AddressableSWIMPeer {
     }
 }
 
+// public protocol SWIMMessageProtocol {}
+
 public protocol SWIMPeerReplyProtocol: AddressableSWIMPeer {
     /// Acknowledge a ping.
     func ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload)

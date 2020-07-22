@@ -35,40 +35,29 @@ extension SWIM.NIOPeer: ProtobufRepresentable {
     }
 }
 
-// extension SWIM.Message: InternalProtobufRepresentable {
-//    typealias ProtobufRepresentation = ProtoSWIMMessage
-//
-//    func toProto() throws -> ProtobufRepresentation {
-//        guard case SWIM.Message.remote(let message) = self else {
-//            fatalError("SWIM.Message.local should never be sent remotely.")
-//        }
-//
-//        return try message.toProto()
-//    }
-//
-//    init(fromProto proto: ProtobufRepresentation) throws {
-//        self = try .remote(SWIM.RemoteMessage(fromProto: proto))
-//    }
-// }
-
 extension SWIM.Message: ProtobufRepresentable {
     public typealias ProtobufRepresentation = ProtoSWIMMessage
 
     public func toProto() throws -> ProtobufRepresentation {
         var proto = ProtobufRepresentation()
         switch self {
-        case .ping(let replyTo, let payload):
+        case .ping(let replyTo, let payload, let sequenceNr):
             var ping = ProtoSWIMPing()
-            ping.replyTo = try replyTo.toProto() // FIXME:
+            ping.replyTo = try replyTo.toProto()
             ping.payload = try payload.toProto()
+            proto.sequenceNr = sequenceNr
             proto.ping = ping
-        case .pingReq(let target, let replyTo, let payload):
+
+        case .pingReq(let target, let replyTo, let payload, let sequenceNr):
             var pingRequest = ProtoSWIMPingRequest()
-            pingRequest.target = try target.toProto() // FIXME:
-            pingRequest.replyTo = try replyTo.toProto() // FIXME:
+            pingRequest.target = try target.toProto()
+            pingRequest.replyTo = try replyTo.toProto()
             pingRequest.payload = try payload.toProto()
+            proto.sequenceNr = sequenceNr
             proto.pingReq = pingRequest
-        case .response(let response):
+
+        case .response(let response, let sequenceNr):
+            proto.sequenceNr = sequenceNr
             proto.response = try response.toProto()
         }
 
@@ -78,15 +67,17 @@ extension SWIM.Message: ProtobufRepresentable {
     public init(fromProto proto: ProtobufRepresentation) throws {
         switch proto.message {
         case .ping(let ping):
-            let replyTo = try SWIM.NIOPeer(fromProto: ping.replyTo) // <SWIM.PingResponse>
+            let replyTo = try SWIM.NIOPeer(fromProto: ping.replyTo)
             let payload = try SWIM.GossipPayload(fromProto: ping.payload)
-            self = .ping(replyTo: replyTo, payload: payload)
+            let sequenceNr = proto.sequenceNr
+            self = .ping(replyTo: replyTo, payload: payload, sequenceNr: sequenceNr)
 
         case .pingReq(let pingRequest):
-            let target = try SWIM.NIOPeer(fromProto: pingRequest.target) // <SWIM.Message>
-            let replyTo = try SWIM.NIOPeer(fromProto: pingRequest.replyTo) // <SWIM.PingResponse>
+            let target = try SWIM.NIOPeer(fromProto: pingRequest.target)
+            let replyTo = try SWIM.NIOPeer(fromProto: pingRequest.replyTo)
             let payload = try SWIM.GossipPayload(fromProto: pingRequest.payload)
-            self = .pingReq(target: target, replyTo: replyTo, payload: payload)
+            let sequenceNr = proto.sequenceNr
+            self = .pingReq(target: target, replyTo: replyTo, payload: payload, sequenceNr: sequenceNr)
 
         case .response(let response):
             switch response.pingResponse {
@@ -102,13 +93,17 @@ extension SWIM.Message: ProtobufRepresentable {
                 } else {
                     payload = .none
                 }
-                self = .response(.ack(target: target, incarnation: incarnation, payload: payload))
+                let sequenceNr = proto.sequenceNr
+                self = .response(.ack(target: target, incarnation: incarnation, payload: payload), sequenceNr: sequenceNr)
+
             case .nack:
                 guard response.nack.hasTarget else {
                     throw SWIMSerializationError.missingField("target", type: "\(type(of: Node.self))")
                 }
-                let target: Node = try .init(fromProto: response.ack.target)
-                self = .response(.nack(target: target))
+                let target: Node = try .init(fromProto: response.nack.target)
+                let sequenceNr = proto.sequenceNr
+                self = .response(.nack(target: target), sequenceNr: sequenceNr)
+
             case .none:
                 throw SWIMSerializationError.missingField("response", type: "PingResponse")
             }
@@ -224,12 +219,15 @@ extension SWIM.PingResponse: ProtobufRepresentable {
             ack.incarnation = incarnation
             ack.payload = try payload.toProto()
             proto.ack = ack
+
         case .nack(let target):
             var nack = ProtoSWIMPingResponse.Nack()
             nack.target = try target.toProto()
             proto.nack = nack
+
         case .timeout:
             throw SWIMSerializationError.notSerializable(".timeout is not to be sent as remote message, was: \(self)")
+
         case .error:
             throw SWIMSerializationError.notSerializable(".error is not to be sent as remote message, was: \(self)")
         }
@@ -245,6 +243,7 @@ extension SWIM.PingResponse: ProtobufRepresentable {
             let target = try Node(fromProto: ack.target)
             let payload = try SWIM.GossipPayload(fromProto: ack.payload)
             self = .ack(target: target, incarnation: ack.incarnation, payload: payload)
+
         case .nack(let nack):
             let target = try Node(fromProto: nack.target)
             self = .nack(target: target)

@@ -38,18 +38,6 @@ public enum SWIM {
     // TODO: or index by just the Node?
     public typealias MembersValues = Dictionary<Node, SWIM.Member>.Values
 
-//    public enum Message: Codable {
-//        case remote(RemoteMessage)
-//        case local(LocalMessage)
-//    }
-//
-//    public enum RemoteMessage: Codable {
-//        case ping(replyTo: Peer<PingResponse>, payload: GossipPayload)
-//
-//        /// "Ping Request" requests a SWIM probe.
-//        case pingReq(target: Peer<Message>, replyTo: Peer<PingResponse>, payload: GossipPayload)
-//    }
-
     /// Message sent in reply to a `SWIM.RemoteMessage.ping`.
     ///
     /// The ack may be delivered directly in a request-response fashion between the probing and pinged members,

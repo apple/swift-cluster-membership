@@ -19,10 +19,10 @@ import NIOFoundationCompat
 import SWIM
 
 public final class SWIMProtocolHandler: ChannelDuplexHandler {
-    public typealias InboundIn = ByteBuffer
+    public typealias InboundIn = AddressedEnvelope<ByteBuffer>
     public typealias InboundOut = Never
-    public typealias OutboundIn = SWIM.Message
-    public typealias OutboundOut = ByteBuffer
+    public typealias OutboundIn = WriteCommand
+    public typealias OutboundOut = AddressedEnvelope<ByteBuffer>
 
     private let settings: SWIM.Settings
     private var log: Logger {
@@ -32,10 +32,13 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
     private let group: EventLoopGroup!
     private var shell: NIOSWIMShell!
 
+    private var pendingReplyCallbacks: [SWIM.SequenceNr: (Result<SWIM.Message, Error>) -> Void]
+
     public init(settings: SWIM.Settings, group: EventLoopGroup, shell: NIOSWIMShell? = nil) {
         self.settings = settings
         self.group = group
         self.shell = shell
+        self.pendingReplyCallbacks = [:]
     }
 
     public func channelActive(context: ChannelHandlerContext) {
@@ -68,43 +71,83 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
                 return channel // FIXME?
             }
         )
+
+        self.log.warning("channel active", metadata: [
+            "channel": "\(context.channel)",
+        ])
     }
 
     public func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
-        let message = self.unwrapOutboundIn(data)
+        let writeCommand = self.unwrapOutboundIn(data)
 
-        // serialize
+        self.log.warning("write command", metadata: [
+            "writeCommand": "\(writeCommand)",
+        ])
+
         do {
-            let buffer = try self.serialize(message: message, using: context.channel.allocator)
+            // TODO: note that this impl does not handle "new node on same host/port" yet
 
-            // context.write(buffer) // FIXME: write type type manifest
-            context.write(self.wrapOutboundOut(buffer), promise: promise)
-            context.flush()
+            // register and manage reply callback ------------------------------
+            if let replyCallback = writeCommand.replyCallback {
+                let sequenceNr = writeCommand.message.sequenceNr
+
+                let timeoutTask = context.eventLoop.scheduleTask(in: writeCommand.replyTimeout) {
+                    self.log.trace("Timeout, no reply from [\(writeCommand.recipient)] after [\(writeCommand.replyTimeout.prettyDescription())]", metadata: [
+                        "swim/request": "\(writeCommand.message)",
+                        "timeout/nanos": "\(writeCommand.replyTimeout.nanoseconds)",
+                    ])
+                    if let callback = self.pendingReplyCallbacks.removeValue(forKey: writeCommand.message.sequenceNr) {
+                        callback(.failure(NIOSWIMTimeoutError(timeout: writeCommand.replyTimeout, message: "No reply to [\(type(of: writeCommand.message as Any))] after \(writeCommand.replyTimeout.prettyDescription())"))) // FIXME: avoid strings here
+                    }
+                }
+
+                self.pendingReplyCallbacks[sequenceNr] = { reply in
+                    timeoutTask.cancel() // when we trigger the callback, we should also cancel the timeout task
+                    replyCallback(reply) // successful reply received
+                }
+            }
+
+            // serialize & send message ----------------------------------------
+            let buffer = try self.serialize(message: writeCommand.message, using: context.channel.allocator)
+            let envelope = AddressedEnvelope(remoteAddress: writeCommand.recipient, data: buffer)
+
+            context.writeAndFlush(self.wrapOutboundOut(envelope), promise: promise)
         } catch {
-            self.settings.logger.warning("Write failed: \(error)")
+            self.log.warning("Write failed: \(error)")
         }
     }
 
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        guard let remoteAddress = context.remoteAddress else {
-            fatalError("No remote address during channelRead! Context: \(context)")
-        }
+        let addressedEnvelope = self.unwrapInboundIn(data)
+
+        // TODO: sanity check we are the recipient? UIDs...
+        let remoteAddress = addressedEnvelope.remoteAddress
+
+        self.log.warning("channel read", metadata: [
+            "nio/remoteAddress": "\(remoteAddress)",
+            "channel": "\(context.channel)",
+        ])
 
         do {
-            var bytes = self.unwrapInboundIn(data)
-            // FIXME: framing!!!!
+            var bytes = addressedEnvelope.data
             var proto = ProtoSWIMMessage()
-
             try proto.merge(serializedData: bytes.readData(length: bytes.readableBytes)!) // FIXME: fix the !
             let message = try SWIM.Message(fromProto: proto)
 
-            let node: Node = Node(protocol: "udp", host: remoteAddress.ipAddress!, port: remoteAddress.port!, uid: nil) // FIXME: fix the ! // FIXME: has no concept of UUIDs
-            self.shell.eventLoop.scheduleTask(in: .seconds(0)) { // FIXME: a bit ugly
-                self.shell.receiveMessage(message: message, from: node)
-            }
+            self.shell.receiveMessage(message: message)
         } catch {
-            self.log.error("Failure: \(error)")
+            self.log.error("Read failed: \(error)", metadata: [
+                "error": "\(error)",
+            ])
         }
+    }
+
+    public func errorCaught(context: ChannelHandlerContext, error: Error) {
+        self.log.error("Error caught: \(error)", metadata: [
+            "nio/channel": "\(context.channel)",
+            "swim/shell": "\(self.shell, orElse: "nil")",
+            "error": "\(error)",
+        ])
     }
 
     private func serialize(message: SWIM.Message, using allocator: ByteBufferAllocator) throws -> ByteBuffer {
@@ -116,5 +159,22 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
             return buffer
         }
         return buffer
+    }
+}
+
+/// Used to a command to the channel pipeline to write the message,
+/// and install a reply handler for the specific sequence number associated with the message (along with a timeout) when a callback is provided.
+public struct WriteCommand {
+    public let message: SWIM.Message
+    public let recipient: SocketAddress
+
+    public let replyTimeout: NIO.TimeAmount
+    public let replyCallback: ((Result<SWIM.Message, Error>) -> Void)?
+
+    public init(message: SWIM.Message, to recipient: Node, replyTimeout: TimeAmount, replyCallback: ((Result<SWIM.Message, Error>) -> Void)?) {
+        self.message = message
+        self.recipient = try! .init(ipAddress: recipient.host, port: recipient.port) // FIXME: try!
+        self.replyTimeout = replyTimeout
+        self.replyCallback = replyCallback
     }
 }

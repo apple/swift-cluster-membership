@@ -21,37 +21,35 @@ option swift_prefix = "Proto";
 import "ClusterMembership/ClusterMembership.proto";
 
 message SWIMMessage {
-    oneof message {
-        SWIMPing ping             = 1;
-        SWIMPingRequest pingReq   = 2;
+    uint32 sequenceNr              = 1;
 
-        SWIMPingResponse response = 3;
+    oneof message {
+        SWIMPing ping             = 2;
+        SWIMPingRequest pingReq   = 3;
+
+        SWIMPingResponse response = 4;
     }
 }
 
 message SWIMPing {
-    int32 sequenceNr    = 1;
+    Peer replyTo        = 1;
+    SWIMPayload payload = 2;
+}
+
+message SWIMPingRequest {
+    Peer target         = 1;
     Peer replyTo        = 2;
     SWIMPayload payload = 3;
 }
 
-message SWIMPingRequest {
-    int32 sequenceNr    = 1;
-    Peer target         = 2;
-    Peer replyTo        = 3;
-    SWIMPayload payload = 4;
-}
-
 message SWIMPingResponse {
     message Ack {
-        int32 sequenceNr    = 1;
-        Node target         = 2;
-        uint64 incarnation  = 3;
-        SWIMPayload payload = 4;
+        Node target         = 1;
+        uint64 incarnation  = 2;
+        SWIMPayload payload = 3;
     }
     message Nack {
-        int32 sequenceNr = 1;
-        Node target      = 2;
+        Node target      = 1;
     }
     oneof pingResponse {
         Ack ack          = 1;

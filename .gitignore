@@ -11,6 +11,7 @@
 .xcode
 *.app
 /*.xcodeproj
+Samples/swift-cluster-membership-samples.xcodeproj
 .xcode
 .idea
 Samples/swift-cluster-membership-samples.xcodeproj

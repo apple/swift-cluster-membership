@@ -33,11 +33,11 @@ let log = Logger(label: "SampleCluster")
 
 func startNode(port: Int) {
     var settings = SWIM.Settings()
-    if port == 7002 {
+//    if port == 7002 {
         settings.logger = Logger(label: "swim-\(port)")
-    } else {
-        settings.logger = Logger(label: "swim-\(port)", factory: { _ in SwiftLogNoOpLogHandler() })
-    }
+//    } else {
+//        settings.logger = Logger(label: "swim-\(port)", factory: { _ in SwiftLogNoOpLogHandler() })
+//    }
     settings.logger.logLevel = .trace
     settings.initialContactPoints = [
         Node(protocol: "udp", host: "127.0.0.1", port: 7001, uid: nil)
@@ -65,8 +65,8 @@ func startNode(port: Int) {
 
 startNode(port: 7001)
 startNode(port: 7002)
-startNode(port: 7003)
-startNode(port: 7004)
+//startNode(port: 7003)
+//startNode(port: 7004)
 
 lifecycle.start { error in
     if let error = error {
