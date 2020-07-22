@@ -65,7 +65,7 @@ public final class NIOSWIMShell: SWIM.Context {
 
         let myself = SWIM.NIOPeer(node: node, channel: channel)
         self.myself = myself
-        self.swim = SWIM.Instance(settings, myself: myself)
+        self.swim = SWIM.Instance(settings: settings, myself: myself)
 
         self.makeClient = makeClient
 
@@ -80,8 +80,8 @@ public final class NIOSWIMShell: SWIM.Context {
         }
 
         // Kick off timer for periodically pinging random cluster member (i.e. the periodic Gossip)
-        _ = self.schedule(key: NIOSWIMShell.periodicPingKey, delay: self.settings.probeInterval) {
-            self.periodicPingRandomMember()
+        self.schedule(key: NIOSWIMShell.periodicPingKey, delay: self.settings.probeInterval) {
+            self.handleNewProtocolPeriod()
         }
     }
 
@@ -209,9 +209,6 @@ public final class NIOSWIMShell: SWIM.Context {
 
     func receiveLocalMessage(context: SWIM.Context, message: SWIM.LocalMessage) {
         switch message {
-        case .pingRandomMember:
-            self.handleNewProtocolPeriod()
-
         case .monitor(let node):
             self.handleMonitor(node: node)
 
