@@ -29,13 +29,6 @@ message SWIMMessage {
     }
 }
 
-//message SWIMRemoteMessage {
-//    oneof request {
-//        SWIMPing ping = 1;
-//        SWIMPingRequest pingRequest = 2;
-//    }
-//}
-
 message SWIMPing {
     Peer replyTo = 1;
     SWIMPayload payload = 2;

@@ -46,7 +46,7 @@ public struct _PrettyMetadataLogHandler: LogHandler {
                     function: String,
                     line: UInt) {
         var metadataString: String = ""
-        if var metadata = metadata {
+        if let metadata = metadata {
             if !metadata.isEmpty {
                 metadataString = "\n// metadata:\n"
                 for key in metadata.keys.sorted() {

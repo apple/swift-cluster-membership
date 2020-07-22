@@ -79,6 +79,14 @@ extension SWIM {
             self._incarnation
         }
 
+        public init(settings: SWIM.Settings, myself: SWIMPeerProtocol) {
+            self.settings = settings
+            self.myself = myself
+            self.members = [:]
+            self.membersToPing = []
+            self.addMember(myself, status: .alive(incarnation: 0))
+        }
+
         public func makeSuspicion(incarnation: SWIM.Incarnation) -> SWIM.Status {
             .suspect(incarnation: incarnation, suspectedBy: [self.node])
         }
@@ -126,14 +134,6 @@ extension SWIM {
                 $0.numberOfTimesGossiped < $1.numberOfTimesGossiped
             }
         )
-
-        public init(_ settings: SWIM.Settings, myself: SWIMPeerProtocol) {
-            self.settings = settings
-            self.myself = myself
-            self.members = [:]
-            self.membersToPing = []
-            self.addMember(myself, status: .alive(incarnation: 0))
-        }
 
         // FIXME: should not be public
         @discardableResult
@@ -429,7 +429,7 @@ extension SWIM.Instance {
     }
 
     func notMyself(_ peer: AddressableSWIMPeer) -> Bool {
-        self.node == peer.node
+        !self.isMyself(peer)
     }
 
     func isMyself(_ member: SWIM.Member) -> Bool {
