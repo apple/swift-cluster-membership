@@ -45,7 +45,7 @@ final class TestPeer: Hashable, SWIMPeerProtocol {
         self.messages.append(.ping(payload: payload, origin: origin, timeout: timeout, onComplete: onComplete))
     }
 
-    func pingReq(
+    func pingRequest(
         target: AddressableSWIMPeer,
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,

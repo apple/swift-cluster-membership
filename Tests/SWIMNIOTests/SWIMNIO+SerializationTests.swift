@@ -17,7 +17,7 @@ import SWIM
 @testable import SWIMNIO
 import XCTest
 
-final class SWIMSerializationTests: XCTestCase {
+final class SWIMNIOSerializationTests: XCTestCase {
     lazy var nioPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "localhost", port: 1111, uid: 12121), channel: nil)
     lazy var nioPeerOther = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324), channel: nil)
 

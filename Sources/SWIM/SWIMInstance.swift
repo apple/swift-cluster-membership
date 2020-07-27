@@ -522,7 +522,8 @@ extension SWIM.Instance {
 
         // 2) Prepare reply
         let reply = OnPingDirective.reply(
-            .ack(target: self.myself.node,
+            .ack(
+                target: self.myself.node,
                 incarnation: self._incarnation,
                 payload: self.makeGossipPayload(to: nil)
             )

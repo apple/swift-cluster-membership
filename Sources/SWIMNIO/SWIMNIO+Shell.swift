@@ -202,10 +202,10 @@ public final class NIOSWIMShell: SWIM.Context {
                 case .timeout, .error:
                     fatalError("FIXME this should not happen")
                 }
-    //
-    //            // TODO: push the process gossip into SWIM as well?
-    //            // TODO: the payloadToProcess is the same as `payload` here... but showcasing
-    //            self.processGossipPayload(payload: payload)
+                //
+                //            // TODO: push the process gossip into SWIM as well?
+                //            // TODO: the payloadToProcess is the same as `payload` here... but showcasing
+                //            self.processGossipPayload(payload: payload)
             }
         }
     }
@@ -334,7 +334,7 @@ public final class NIOSWIMShell: SWIM.Context {
             // let startPingReq = metrics.uptimeNanoseconds() // FIXME: metrics
             // self.tracelog(.send(to: member.peer), message: ".pingReq(target: \(toPing), payload: \(payload), from: \(self.peer))")
             self.resolvePeer(memberToPingRequestThrough.peer) { peerToPingRequestThrough in
-                peerToPingRequestThrough.pingReq(target: toPing, payload: payload, from: self.peer, timeout: pingTimeout) { result in
+                peerToPingRequestThrough.pingRequest(target: toPing, payload: payload, from: self.peer, timeout: pingTimeout) { result in
                     // metrics.recordSWIMPingPingResponseTime(since: startPingReq) // FIXME: metrics
 
                     // We choose to cascade only successes;

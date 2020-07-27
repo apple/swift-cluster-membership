@@ -27,11 +27,11 @@ extension SWIM {
 
         /// When sending messages we generate sequence numbers which allow us to match their replies
         /// with corresponding completion handlers
-        private let sequenceNumberSource: NIOAtomic<UInt32>
+        private let nextSequenceNumber: NIOAtomic<UInt32>
 
         public init(node: Node, channel: Channel?) {
             self.node = node
-            self.sequenceNumberSource = .makeAtomic(value: 0)
+            self.nextSequenceNumber = .makeAtomic(value: 0)
             self.channel = channel
         }
 
@@ -54,7 +54,7 @@ extension SWIM {
                 fatalError("Can't support non NIOPeer as origin, was: [\(origin)]:\(String(reflecting: type(of: origin as Any)))")
             }
 
-            let sequenceNr = self.sequenceNumberSource.add(1)
+            let sequenceNr = self.nextSequenceNumber.add(1)
             let message = SWIM.Message.ping(replyTo: nioOrigin, payload: payload, sequenceNr: sequenceNr)
             print("""
             >>> sending ping = \(message)
@@ -78,7 +78,7 @@ extension SWIM {
             // FIXME: make the onComplete work, we need some seq nr maybe...
         }
 
-        public func pingReq(
+        public func pingRequest(
             target: AddressableSWIMPeer,
             payload: GossipPayload,
             from origin: AddressableSWIMPeer,
@@ -95,7 +95,7 @@ extension SWIM {
                 fatalError("\(#function) failed, `origin` was not `NIOPeer`, was: \(origin)")
             }
 
-            let sequenceNr = self.sequenceNumberSource.add(1)
+            let sequenceNr = self.nextSequenceNumber.add(1)
             let message = SWIM.Message.pingReq(target: nioTarget, replyTo: nioOrigin, payload: payload, sequenceNr: sequenceNr)
 
             let command = WriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
