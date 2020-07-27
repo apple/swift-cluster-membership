@@ -33,28 +33,47 @@ final class TestPeer: Hashable, SWIMPeerProtocol {
         self.node = node
     }
 
-    func ping(payload: SWIM.GossipPayload, from origin: AddressableSWIMPeer, timeout: SWIMTimeAmount, onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void) {
+    func ping(
+        payload: SWIM.GossipPayload,
+        from origin: AddressableSWIMPeer,
+        timeout: SWIMTimeAmount,
+        onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
+    ) {
         self.lock.lock()
         defer { self.lock.unlock() }
 
         self.messages.append(.ping(payload: payload, origin: origin, timeout: timeout, onComplete: onComplete))
     }
 
-    func pingReq(target: AddressableSWIMPeer, payload: SWIM.GossipPayload, from origin: AddressableSWIMPeer, timeout: SWIMTimeAmount, onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void) {
+    func pingReq(
+        target: AddressableSWIMPeer,
+        payload: SWIM.GossipPayload,
+        from origin: AddressableSWIMPeer,
+        timeout: SWIMTimeAmount,
+        onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
+    ) {
         self.lock.lock()
         defer { self.lock.unlock() }
 
         self.messages.append(.pingReq(target: target, payload: payload, origin: origin, timeout: timeout, onComplete: onComplete))
     }
 
-    func ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload) {
+    func ack(
+        acknowledging: SWIM.SequenceNr,
+        target: AddressableSWIMPeer,
+        incarnation: SWIM.Incarnation,
+        payload: SWIM.GossipPayload
+    ) {
         self.lock.lock()
         defer { self.lock.unlock() }
 
         self.messages.append(.ack(target: target, incarnation: incarnation, payload: payload))
     }
 
-    func nack(target: AddressableSWIMPeer) {
+    func nack(
+        acknowledging: SWIM.SequenceNr,
+        target: AddressableSWIMPeer
+    ) {
         self.lock.lock()
         defer { self.lock.unlock() }
 

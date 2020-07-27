@@ -18,8 +18,6 @@ import NIO
 import SWIM
 
 extension SWIM {
-    public typealias SequenceNr = UInt32
-
     public enum Message: Codable {
         case ping(replyTo: NIOPeer, payload: GossipPayload, sequenceNr: SequenceNr)
 
@@ -172,38 +170,43 @@ public final class NIOSWIMShell: SWIM.Context {
         }
     }
 
-    private func handlePing(replyTo: SWIMPeerProtocol /* <SWIM.PingResponse> */, payload: SWIM.GossipPayload, sequenceNr: SWIM.SequenceNr) {
+    private func handlePing(replyTo: SWIMPeerReplyProtocol /* <SWIM.PingResponse> */, payload: SWIM.GossipPayload, sequenceNr: SWIM.SequenceNr) {
         self.log.trace("Received ping", metadata: self.swim.metadata([
             "swim/replyTo": "\(replyTo.node)",
             "swim/gossip/payload": "\(payload)",
             "swim/sequenceNr": "\(sequenceNr)",
         ]))
-        self.processGossipPayload(payload: payload)
 
-        switch self.swim.onPing() { // TODO: accept payload
-        case .reply(let reply):
-            self.tracelog(.reply(to: replyTo), message: "\(reply)")
+        let directives: [SWIM.Instance.OnPingDirective] = self.swim.onPing(payload: payload)
+        directives.forEach { directive in
+            switch directive {
+            case .gossipProcessed(let gossipDirective):
+                self.handleGossipPayloadProcessedDirective(directive: gossipDirective)
 
-            switch reply {
-            case .ack(let targetNode, let incarnation, let payload):
-                assert(targetNode == self.node, "Since we are replying to a ping, the target has to be myself node")
-                self.resolvePeer(replyTo) { peer in
-                    peer.ack(target: self.myself, incarnation: incarnation, payload: payload)
+            case .reply(let reply):
+                self.tracelog(.reply(to: replyTo), message: "\(reply)")
+
+                switch reply {
+                case .ack(let targetNode, let incarnation, let payload):
+                    assert(targetNode == self.node, "Since we are replying to a ping, the target has to be myself node")
+                    self.resolvePeer(replyTo) { peer in
+                        peer.ack(acknowledging: sequenceNr, target: self.myself, incarnation: incarnation, payload: payload)
+                    }
+
+                case .nack(let targetNode):
+                    assert(targetNode == self.node, "Since we are replying to a ping, the target has to be myself node")
+                    self.resolvePeer(replyTo) { peer in
+                        peer.nack(acknowledging: sequenceNr, target: self.myself)
+                    }
+
+                case .timeout, .error:
+                    fatalError("FIXME this should not happen")
                 }
-
-            case .nack(let targetNode):
-                assert(targetNode == self.node, "Since we are replying to a ping, the target has to be myself node")
-                self.resolvePeer(replyTo) { peer in
-                    peer.nack(target: self.myself)
-                }
-
-            case .timeout, .error:
-                fatalError("FIXME this should not happen")
+    //
+    //            // TODO: push the process gossip into SWIM as well?
+    //            // TODO: the payloadToProcess is the same as `payload` here... but showcasing
+    //            self.processGossipPayload(payload: payload)
             }
-
-            // TODO: push the process gossip into SWIM as well?
-            // TODO: the payloadToProcess is the same as `payload` here... but showcasing
-            self.processGossipPayload(payload: payload)
         }
     }
 
@@ -383,7 +386,7 @@ public final class NIOSWIMShell: SWIM.Context {
             self.log.debug("Received ack from [\(pingedNode)] with incarnation [\(incarnation)] and payload [\(payload)]", metadata: self.swim.metadata)
             self.markMember(latest: SWIM.Member(peer: pingedNode, status: .alive(incarnation: incarnation), protocolPeriod: self.swim.protocolPeriod)) // FIXME: adding should be done in the instance...
             if let pingReqOrigin = pingReqOriginPeer {
-                pingReqOrigin.ack(target: pingedNode, incarnation: incarnation, payload: payload)
+                pingReqOrigin.ack(acknowledging: sequenceNr, target: pingedNode, incarnation: incarnation, payload: payload)
             } else {
                 // LHA-probe multiplier for pingReq responses is handled separately `handlePingRequestResult`
                 self.swim.adjustLHMultiplier(.successfulProbe)
@@ -418,7 +421,7 @@ public final class NIOSWIMShell: SWIM.Context {
             if let pingReqOrigin = pingReqOriginPeer {
                 // Meaning we were doing a ping on behalf of the pingReq origin, and we need to report back to it.
                 self.swim.adjustLHMultiplier(.probeWithMissedNack)
-                pingReqOrigin.nack(target: pingedNode)
+                pingReqOrigin.nack(acknowledging: sequenceNr, target: pingedNode)
             } else {
                 self.swim.adjustLHMultiplier(.failedProbe)
                 self.sendPingRequests(toPing: pingedNode)
@@ -598,30 +601,45 @@ public final class NIOSWIMShell: SWIM.Context {
 
     // TODO: since this is applying payload to SWIM... can we do this in SWIM itself rather?
     func processGossipPayload(payload: SWIM.GossipPayload) {
-        switch payload {
-        case .membership(let members):
-            self.processGossipedMembership(members: members)
-
-        case .none:
-            return // ok
-        }
+        fatalError("SHOULD NOT DO processGossipPayload raw: \(payload)")
+//        switch payload {
+//        case .membership(let members):
+//            self.handleGossipPayloadProcessedDirective(members: members)
+//
+//        case .none:
+//            return // ok
+//        }
     }
 
-    // TODO: move into swim
-    func processGossipedMembership(members: SWIM.Members) {
-        for member in members {
-            switch self.swim.onGossipPayload(about: member) {
-            case .connect(let node): // FIXME: remove this
-                self.resolvePeer(on: node) { _ in () } // "connect"
+//    func processGossipedMembership(members: SWIM.Members) {
+//        for member in members {
+//            switch self.swim.onGossipPayload(about: member) {
+//            case .connect(let node): // FIXME: remove this
+//                self.resolvePeer(on: node) { _ in () } // "connect"
+//
+//            case .ignored(let level, let message):
+//                if let level = level, let message = message {
+//                    self.log.log(level: level, message, metadata: self.swim.metadata)
+//                }
+//
+//            case .applied(let change, _, _):
+//                self.tryAnnounceMemberReachability(change: change)
+//            }
+//        }
+//    }
 
-            case .ignored(let level, let message):
-                if let level = level, let message = message {
-                    self.log.log(level: level, message, metadata: self.swim.metadata)
-                }
+    func handleGossipPayloadProcessedDirective(directive: SWIM.Instance.GossipProcessedDirective) {
+        switch directive {
+        case .connect(let node): // FIXME: remove this?
+            self.resolvePeer(on: node) { _ in () } // "connect"
 
-            case .applied(let change, _, _):
-                self.tryAnnounceMemberReachability(change: change)
+        case .ignored(let level, let message): // TODO:
+            if let level = level, let message = message {
+                self.log.log(level: level, message, metadata: self.swim.metadata)
             }
+
+        case .applied(let change, _, _):
+            self.tryAnnounceMemberReachability(change: change)
         }
     }
 

@@ -223,7 +223,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         swim.addMember(secondPeer, status: .alive(incarnation: 0))
 
-        let res = swim.onPing()
+        let res = swim.onPing(payload: .none).first!
 
         switch res {
         case .reply(.ack(let pinged, _, _)):
@@ -244,7 +244,7 @@ final class SWIMInstanceTests: XCTestCase {
         // Imagine: thirdPeer pings us, it suspects us (!)
         // we (p1) receive the ping and want to refute the suspicion, we are Still Alive:
         // (thirdPeer has heard from someone that we are suspect in incarnation 10 (for some silly reason))
-        let res = swim.onPing()
+        let res = swim.onPing(payload: .none).first!
 
         switch res {
         case .reply(.ack(_, let incarnation, _)):

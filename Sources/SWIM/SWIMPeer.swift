@@ -34,10 +34,18 @@ extension ClusterMembership.Node: AddressableSWIMPeer {
 
 public protocol SWIMPeerReplyProtocol: AddressableSWIMPeer {
     /// Acknowledge a ping.
-    func ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload)
+    func ack(
+        acknowledging: SWIM.SequenceNr,
+        target: AddressableSWIMPeer,
+        incarnation: SWIM.Incarnation,
+        payload: SWIM.GossipPayload
+    )
 
     /// "NegativeAcknowledge" a ping.
-    func nack(target: AddressableSWIMPeer)
+    func nack(
+        acknowledging: SWIM.SequenceNr,
+        target: AddressableSWIMPeer
+    )
 }
 
 public protocol SWIMPeerProtocol: SWIMPeerReplyProtocol {
@@ -112,12 +120,20 @@ public struct AnySWIMPeer: Hashable, SWIMPeerProtocol {
         self.peer.pingReq(target: target, payload: payload, from: origin, timeout: timeout, onComplete: onComplete)
     }
 
-    public func ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload) {
-        self.peer.ack(target: target, incarnation: incarnation, payload: payload)
+    public func ack(
+        acknowledging: SWIM.SequenceNr,
+        target: AddressableSWIMPeer,
+        incarnation: SWIM.Incarnation,
+        payload: SWIM.GossipPayload
+    ) {
+        self.peer.ack(acknowledging: acknowledging, target: target, incarnation: incarnation, payload: payload)
     }
 
-    public func nack(target: AddressableSWIMPeer) {
-        self.peer.nack(target: target)
+    public func nack(
+        acknowledging: SWIM.SequenceNr,
+        target: AddressableSWIMPeer
+    ) {
+        self.peer.nack(acknowledging: acknowledging, target: target)
     }
 
     public func hash(into hasher: inout Hasher) {

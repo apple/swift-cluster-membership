@@ -35,6 +35,10 @@ public enum SWIM {
     public typealias Incarnation = UInt64
     public typealias Members = [SWIM.Member]
 
+    /// A Sequence Number may be associated with message sends in order to establish a request/response relationship
+    /// between ping/pingRequest and their corresponding ack/nack messages.
+    public typealias SequenceNr = UInt32
+
     // TODO: or index by just the Node?
     public typealias MembersValues = Dictionary<Node, SWIM.Member>.Values
 

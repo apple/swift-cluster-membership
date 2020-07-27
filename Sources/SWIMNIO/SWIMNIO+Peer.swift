@@ -112,31 +112,34 @@ extension SWIM {
             })
 
             channel.writeAndFlush(command, promise: nil)
-            // FIXME: make the onComplete work, we need some seq nr maybe...
         }
 
-        public func ack(target: AddressableSWIMPeer, incarnation: Incarnation, payload: GossipPayload) {
+        public func ack(
+            acknowledging: SWIM.SequenceNr,
+            target: AddressableSWIMPeer,
+            incarnation: Incarnation,
+            payload: GossipPayload
+        ) {
             guard let channel = self.channel else {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")
             }
 
-            fatalError("GET THE SEQUENCE NR WE're replying to")
-            let sequenceNr: UInt32 = 1111 // FIXME:
-
+            let sequenceNr = acknowledging
             let message = SWIM.Message.response(.ack(target: target.node, incarnation: incarnation, payload: payload), sequenceNr: sequenceNr)
             let command = WriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)
 
             channel.writeAndFlush(command, promise: nil)
         }
 
-        public func nack(target: AddressableSWIMPeer) { // TODO: inReplyTo ...
+        public func nack(
+            acknowledging: SWIM.SequenceNr,
+            target: AddressableSWIMPeer
+        ) {
             guard let channel = self.channel else {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")
             }
 
-            fatalError("GET THE SEQUENCE NR WE're replying to")
-            let sequenceNr: UInt32 = 11111 // FIXME:
-
+            let sequenceNr = acknowledging
             let message = SWIM.Message.response(.nack(target: target.node), sequenceNr: sequenceNr)
             let command = WriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)
 

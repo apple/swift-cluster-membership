@@ -176,6 +176,9 @@ extension SWIM {
             case newerMemberAlreadyPresent(SWIM.Member)
         }
 
+        /// Shell API
+        ///
+        /// Must be invoked when a `pingRequest` is received.
         public func onPingRequest(target: SWIMPeerProtocol, replyTo: SWIMPeerProtocol, payload: SWIM.GossipPayload) -> PingRequestDirective {
             guard self.notMyself(target) else {
                 print("Received ping request about myself, ignoring; target: \(target), replyTo: \(replyTo)") // TODO: log?
@@ -497,15 +500,46 @@ extension SWIM.Instance {
 // MARK: Handling SWIM protocol interactions
 
 extension SWIM.Instance {
-    public func onPing() -> OnPingDirective {
-        .reply(.ack(target: self.myself.node, incarnation: self._incarnation, payload: self.makeGossipPayload(to: nil)))
+    /// Shell API
+    ///
+    /// Must be invoked whenever a `Ping` message is received.
+    ///
+    /// A specific shell implementation must the returned directives by acting on them.
+    /// The order of interpreting the events should be as returned by the onPing invocation.
+    public func onPing(payload: SWIM.GossipPayload) -> [OnPingDirective] {
+        var directives: [OnPingDirective] = []
+
+        // 1) Process gossip
+        switch payload {
+        case .membership(let members):
+            directives = members.map { member in
+                let directive = self.onGossipPayload(about: member)
+                return .gossipProcessed(directive)
+            }
+        case .none:
+            () // ok, no gossip payload
+        }
+
+        // 2) Prepare reply
+        let reply = OnPingDirective.reply(
+            .ack(target: self.myself.node,
+                incarnation: self._incarnation,
+                payload: self.makeGossipPayload(to: nil)
+            )
+        )
+        directives.append(reply)
+
+        return directives
     }
 
     public enum OnPingDirective {
+        case gossipProcessed(GossipProcessedDirective)
         case reply(SWIM.PingResponse)
     }
 
-    /// React to an `Ack` (or lack thereof within timeout)
+    /// Shell API
+    ///
+    /// Must be invoked whenever a response to a `pingRequest` (an ack, nack or lack response i.e. a timeout) happens.
     public func onPingRequestResponse(_ result: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) -> OnPingRequestResponseDirective {
         guard let lastKnownStatus = self.status(of: member) else {
             return .unknownMember
@@ -556,7 +590,7 @@ extension SWIM.Instance {
         case ignoredDueToOlderStatus(currentStatus: SWIM.Status)
     }
 
-    public func onGossipPayload(about member: SWIM.Member) -> OnGossipPayloadDirective {
+    internal func onGossipPayload(about member: SWIM.Member) -> GossipProcessedDirective {
         if self.isMyself(member) {
             return onMyselfGossipPayload(myself: member)
         } else {
@@ -564,7 +598,7 @@ extension SWIM.Instance {
         }
     }
 
-    private func onMyselfGossipPayload(myself incoming: SWIM.Member) -> SWIM.Instance.OnGossipPayloadDirective {
+    private func onMyselfGossipPayload(myself incoming: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
         assert(self.myself.node == incoming.peer.node, "Attempted to process gossip as-if about myself, but was not the same peer, was: \(incoming). Myself: \(self.myself, orElse: "nil")")
 
         // Note, we don't yield changes for myself node observations, thus the self node will never be reported as unreachable,
@@ -632,7 +666,7 @@ extension SWIM.Instance {
         }
     }
 
-    private func onOtherMemberGossipPayload(member: SWIM.Member) -> SWIM.Instance.OnGossipPayloadDirective {
+    private func onOtherMemberGossipPayload(member: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
         assert(self.node != member.node, "Attempted to process gossip as-if not-myself, but WAS same peer, was: \(member). Myself: \(self.myself, orElse: "nil")")
 
         if self.isMember(member.peer) {
@@ -675,7 +709,7 @@ extension SWIM.Instance {
         }
     }
 
-    public enum OnGossipPayloadDirective {
+    public enum GossipProcessedDirective {
         case applied(change: SWIM.MemberStatusChange?, level: Logger.Level?, message: Logger.Message?)
         /// Ignoring a gossip update is perfectly fine: it may be "too old" or other reasons
         case ignored(level: Logger.Level?, message: Logger.Message?)
@@ -688,11 +722,11 @@ extension SWIM.Instance {
         /// thus we need to ensure we have a connection to them, before we consider adding them to the membership).
         case connect(node: ClusterMembership.Node) // FIXME: should be able to remove this
 
-        static func applied(change: SWIM.MemberStatusChange?) -> SWIM.Instance.OnGossipPayloadDirective {
+        static func applied(change: SWIM.MemberStatusChange?) -> SWIM.Instance.GossipProcessedDirective {
             .applied(change: change, level: nil, message: nil)
         }
 
-        static var ignored: SWIM.Instance.OnGossipPayloadDirective {
+        static var ignored: SWIM.Instance.GossipProcessedDirective {
             .ignored(level: nil, message: nil)
         }
     }
