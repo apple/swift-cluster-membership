@@ -75,7 +75,6 @@ extension SWIM {
             })
 
             channel.writeAndFlush(command, promise: nil)
-            // FIXME: make the onComplete work, we need some seq nr maybe...
         }
 
         public func pingRequest(

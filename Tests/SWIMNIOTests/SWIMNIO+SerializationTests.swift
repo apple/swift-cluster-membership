@@ -18,7 +18,7 @@ import SWIM
 import XCTest
 
 final class SWIMNIOSerializationTests: XCTestCase {
-    lazy var nioPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "localhost", port: 1111, uid: 12121), channel: nil)
+    lazy var nioPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121), channel: nil)
     lazy var nioPeerOther = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324), channel: nil)
 
     lazy var memberOne: SWIM.Member = .init(peer: nioPeer, status: .alive(incarnation: 1), protocolPeriod: 0) // FIXME: we don't ser/deser protocol period, bug or feature?

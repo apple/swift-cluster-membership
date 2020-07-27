@@ -30,11 +30,11 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
     }
 
     private let group: EventLoopGroup!
-    private var shell: NIOSWIMShell!
+    private var shell: SWIMNIOShell!
 
     private var pendingReplyCallbacks: [SWIM.SequenceNr: (Result<SWIM.Message, Error>) -> Void]
 
-    public init(settings: SWIM.Settings, group: EventLoopGroup, shell: NIOSWIMShell? = nil) {
+    public init(settings: SWIM.Settings, group: EventLoopGroup, shell: SWIMNIOShell? = nil) {
         self.settings = settings
         self.group = group
         self.shell = shell
@@ -55,7 +55,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
         }
 
         let node: Node = .init(protocol: "udp", host: hostIP, port: hostPort, uid: .random(in: 0 ..< UInt64.max))
-        self.shell = NIOSWIMShell(
+        self.shell = SWIMNIOShell(
             settings: self.settings,
             node: node,
             channel: context.channel,

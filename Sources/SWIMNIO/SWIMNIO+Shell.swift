@@ -44,7 +44,7 @@ extension SWIM {
 /// WARNING: ALL external invocations MUST be executed on the Shell's `EventLoop`, failure to do so will c
 ///
 /// - SeeAlso: `SWIM.Instance` for detailed documentation about the SWIM protocol implementation.
-public final class NIOSWIMShell: SWIM.Context {
+public final class SWIMNIOShell: SWIM.Context {
     internal var swim: SWIM.Instance!
     internal var settings: SWIM.Settings {
         self.swim.settings
@@ -67,7 +67,13 @@ public final class NIOSWIMShell: SWIM.Context {
     /// Function to creat new outbound connections to discovered peers
     let makeClient: (Node) -> EventLoopFuture<Channel>
 
-    internal init(settings: SWIM.Settings, node: Node, channel: Channel, makeClient: @escaping (Node) -> EventLoopFuture<Channel>) {
+    internal init(
+        settings: SWIM.Settings,
+        node: Node,
+        channel: Channel,
+        startPeriodicPingTimer: Bool = true,
+        makeClient: @escaping (Node) -> EventLoopFuture<Channel>
+    ) {
         self.log = settings.logger
         self.eventLoop = channel.eventLoop
         self._peerConnections = [:]
@@ -78,11 +84,11 @@ public final class NIOSWIMShell: SWIM.Context {
 
         self.makeClient = makeClient
 
-        self.onStart()
+        self.onStart(startPeriodicPingTimer: startPeriodicPingTimer)
     }
 
     /// Initialize timers and other after-initialized tasks
-    private func onStart() {
+    private func onStart(startPeriodicPingTimer: Bool) {
         // Immediately attempt to connect to initial contact points
         self.settings.initialContactPoints.forEach { node in
             self.resolvePeer(on: node) { peer in
@@ -90,9 +96,11 @@ public final class NIOSWIMShell: SWIM.Context {
             }
         }
 
-        // Kick off timer for periodically pinging random cluster member (i.e. the periodic Gossip)
-        self.schedule(key: NIOSWIMShell.periodicPingKey, delay: self.settings.probeInterval) {
-            self.handleNewProtocolPeriod()
+        if startPeriodicPingTimer {
+            // Kick off timer for periodically pinging random cluster member (i.e. the periodic Gossip)
+            self.schedule(key: SWIMNIOShell.periodicPingKey, delay: self.settings.probeInterval) {
+                self.handleNewProtocolPeriod()
+            }
         }
     }
 
@@ -458,7 +466,7 @@ public final class NIOSWIMShell: SWIM.Context {
     func handleNewProtocolPeriod() {
         self.periodicPingRandomMember()
 
-        self.schedule(key: NIOSWIMShell.periodicPingKey, delay: self.swim.dynamicLHMProtocolInterval) {
+        self.schedule(key: SWIMNIOShell.periodicPingKey, delay: self.swim.dynamicLHMProtocolInterval) {
             self.handleNewProtocolPeriod()
         }
     }
@@ -727,10 +735,10 @@ public final class NIOSWIMShell: SWIM.Context {
     }
 }
 
-extension NIOSWIMShell {
+extension SWIMNIOShell {
     static let name: String = "swim"
 
-    static let periodicPingKey = "\(NIOSWIMShell.name)/periodic-ping"
+    static let periodicPingKey = "\(SWIMNIOShell.name)/periodic-ping"
 }
 
 // FIXME: do we need to expose reachability in SWIM like this?

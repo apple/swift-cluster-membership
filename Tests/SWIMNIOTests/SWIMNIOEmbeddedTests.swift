@@ -16,16 +16,23 @@ import ClusterMembership
 import SWIM
 @testable import SWIMNIO
 import XCTest
+import NIO
 
-final class SWIMNIOEmbeddedTests: XCTestCase {
-    lazy var nioPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "localhost", port: 1111, uid: 12121), channel: nil)
-    lazy var nioPeerOther = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324), channel: nil)
-
-    lazy var memberOne: SWIM.Member = .init(peer: nioPeer, status: .alive(incarnation: 1), protocolPeriod: 0)
-    lazy var memberTwo: SWIM.Member = .init(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0)
-    lazy var memberThree: SWIM.Member = .init(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0)
+final class SWIMNIOEmbeddedTests: ClusteredXCTestCase {
+    override var alwaysPrintCaptureLogs: Bool {
+        true
+    }
 
     func test_embedded_peers_2_connect() throws {
-        () // ok
+        let first = self.makeShell(name: "first")
+        let second = self.makeShell(name: "second")
+
+        let firstPeer = first.peer as! SWIM.NIOPeer
+        let secondPeer = second.peer as! SWIM.NIOPeer
+
+        first.receiveMessage(message: .ping(replyTo: secondPeer, payload: .none, sequenceNr: 1))
+        self.loop.advanceTime(by: .seconds(1))
+
+        try self.capturedLogs(of: first.node).shouldContain(grep: "Checking suspicion timeouts")
     }
 }

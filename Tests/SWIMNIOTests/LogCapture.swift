@@ -19,9 +19,6 @@ import NIO
 import XCTest
 
 /// Testing only utility: Captures all log statements for later inspection.
-///
-/// ### Warning
-/// This handler uses locks for each and every operation.
 public final class LogCapture {
     private var _logs: [CapturedLogMessage] = []
     private let lock = NSLock()
@@ -61,17 +58,6 @@ public final class LogCapture {
         return self._logs
     }
 
-    public var deadLetterLogs: [CapturedLogMessage] {
-        self.lock.lock()
-        defer {
-            self.lock.unlock()
-        }
-
-        return self._logs.filter {
-            $0.metadata?.keys.contains("deadLetter") ?? false
-        }
-    }
-
     public func awaitLogContaining(text: String, within: TimeAmount = .seconds(3), file: StaticString = #file, line: UInt = #line, column: UInt = #column) throws {
         let startTime = DispatchTime.now()
         let deadline = startTime.uptimeNanoseconds + UInt64(within.nanoseconds)
@@ -107,6 +93,8 @@ extension LogCapture {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: XCTest integrations and helpers
 
+/// ### Warning
+/// This handler uses locks for each and every operation.
 extension LogCapture {
     public func printIfFailed(_ testRun: XCTestRun?) {
         if let failureCount = testRun?.failureCount, failureCount > 0 {
@@ -155,7 +143,7 @@ extension LogCapture {
             let date = Self._createFormatter().string(from: log.date)
             let file = log.file.split(separator: "/").last ?? ""
             let line = log.line
-            print("Captured log [\(self.captureLabel)][\(date)] [\(file):\(line)]\(node) [\(log.level)] \(log.message)\(metadataString)")
+            print("[\(self.captureLabel)][\(date)] [\(file):\(line)]\(node) [\(log.level)] \(log.message)\(metadataString)")
         }
     }
 
@@ -348,7 +336,7 @@ extension LogCapture {
             in captured logs at \(file):\(line)
             """
             if failTest {
-                XCTFail(message, file: file, line: line)
+                XCTFail(message, file: (file), line: line)
             }
 
             throw LogCaptureError(message: message, file: file, line: line, column: column)
