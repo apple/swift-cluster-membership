@@ -58,7 +58,14 @@ public final class LogCapture {
         return self._logs
     }
 
-    public func awaitLogContaining(text: String, within: TimeAmount = .seconds(3), file: StaticString = #file, line: UInt = #line, column: UInt = #column) throws {
+    @discardableResult
+    public func awaitLog(
+        grep: String,
+        within: TimeAmount = .seconds(5),
+        file: StaticString = #file,
+        line: UInt = #line,
+        column: UInt = #column
+    ) throws -> CapturedLogMessage {
         let startTime = DispatchTime.now()
         let deadline = startTime.uptimeNanoseconds + UInt64(within.nanoseconds)
         func timeExceeded() -> Bool {
@@ -66,12 +73,14 @@ public final class LogCapture {
         }
         while !timeExceeded() {
             let logs = self.logs
-            if logs.contains(where: { log in "\(log)".contains(text) }) {
-                return // ok, found it!
+            if let log = logs.first(where: { log in "\(log)".contains(grep) }) {
+                return log // ok, found it!
             }
+
+            sleep(1)
         }
 
-        throw LogCaptureError(message: "After \(within), logs still did not contain: [\(text)]", file: file, line: line, column: column)
+        throw LogCaptureError(message: "After \(within), logs still did not contain: [\(grep)]", file: file, line: line, column: column)
     }
 }
 

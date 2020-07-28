@@ -25,16 +25,59 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
         true
     }
 
+    // ==== ----------------------------------------------------------------------------------------------------------------
+    // MARK: Black box tests, we let the nodes run and inspect their state via logs
+
     func test_real_peers_2_connect() throws {
         let (firstHandler, firstChannel) = self.makeClusterNode(name: "first")
-        
+        let firstNode = firstHandler.shell.node
+
         let (secondHandler, secondChannel) = self.makeClusterNode(name: "second") { settings in
             settings.initialContactPoints = [firstHandler.shell.node]
         }
+        let secondNode = secondHandler.shell.node
 
-        sleep(3)
+        try self.capturedLogs(of: firstHandler.shell.node)
+            .awaitLog(grep: #""swim/members/count": 2"#)
+        try self.capturedLogs(of: secondNode)
+            .awaitLog(grep: #""swim/members/count": 2"#)
+    }
 
-        print("firstHandler.shell.swim.allMembers == \(firstHandler.shell.swim.allMembers)")
-        print("secondHandler.shell.swim.allMembers == \(secondHandler.shell.swim.allMembers)")
+    func test_real_peers_5_connect() throws {
+        let (first, _) = self.makeClusterNode(name: "first")
+        let (second, _) = self.makeClusterNode(name: "second") { settings in
+            settings.initialContactPoints = [first.shell.node]
+        }
+        let (third, _) = self.makeClusterNode(name: "third") { settings in
+            settings.initialContactPoints = [second.shell.node]
+        }
+        let (fourth, _) = self.makeClusterNode(name: "fourth") { settings in
+            settings.initialContactPoints = [third.shell.node]
+        }
+        let (fifth, _) = self.makeClusterNode(name: "fifth") { settings in
+            settings.initialContactPoints = [fourth.shell.node]
+        }
+
+        try [first, second, third, fourth, fifth].forEach { handler in
+            do {
+                try self.capturedLogs(of: handler.shell.node)
+                    .awaitLog(
+                        grep: #""swim/members/count": 5"#,
+                        within: .seconds(10)
+                    )
+            } catch {
+                throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
+            }
+        }
+    }
+}
+
+fileprivate struct TestError: Error {
+    let message: String
+    let error: Error
+
+    init(_ message: String, error: Error) {
+        self.message = message
+        self.error = error
     }
 }

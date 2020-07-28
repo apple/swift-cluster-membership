@@ -168,13 +168,13 @@ public final class SWIMNIOShell: SWIM.Context {
 
         switch message {
         case .ping(let replyTo, let payload, let sequenceNr):
-            self.interpretPing(replyTo: replyTo, payload: payload, sequenceNr: sequenceNr)
+            self.receivePing(replyTo: replyTo, payload: payload, sequenceNr: sequenceNr)
 
         case .pingReq(let target, let replyTo, let payload, let sequenceNr):
-            self.interpretPingReq(target: target, replyTo: replyTo, payload: payload, sequenceNr: sequenceNr)
+            self.receivePingReq(target: target, replyTo: replyTo, payload: payload, sequenceNr: sequenceNr)
 
         case .response(let pingResponse, let sequenceNr):
-            self.interpretPingResponse(result: pingResponse, pingReqOriginPeer: nil, sequenceNr: sequenceNr) // FIXME!!!!! we MUST be able to know if this was a response to a ping req CAUSED ping or not; we need request/reply basically
+            self.receivePingResponse(result: pingResponse, pingReqOriginPeer: nil, sequenceNr: sequenceNr) // FIXME!!!!! we MUST be able to know if this was a response to a ping req CAUSED ping or not; we need request/reply basically
         }
     }
 
@@ -188,7 +188,7 @@ public final class SWIMNIOShell: SWIM.Context {
         }
     }
 
-    private func interpretPing(replyTo: SWIMPeerReplyProtocol /* <SWIM.PingResponse> */, payload: SWIM.GossipPayload, sequenceNr: SWIM.SequenceNr) {
+    private func receivePing(replyTo: SWIMPeerReplyProtocol /* <SWIM.PingResponse> */, payload: SWIM.GossipPayload, sequenceNr: SWIM.SequenceNr) {
         self.log.trace("Received ping", metadata: self.swim.metadata([
             "swim/replyTo": "\(replyTo.node)",
             "swim/gossip/payload": "\(payload)",
@@ -228,7 +228,7 @@ public final class SWIMNIOShell: SWIM.Context {
         }
     }
 
-    private func interpretPingReq(target: SWIM.NIOPeer /* <SWIM.Message> */, replyTo: SWIM.NIOPeer /* <SWIM.PingResponse> */, payload: SWIM.GossipPayload, sequenceNr: SWIM.SequenceNr) {
+    private func receivePingReq(target: SWIM.NIOPeer /* <SWIM.Message> */, replyTo: SWIM.NIOPeer /* <SWIM.PingResponse> */, payload: SWIM.GossipPayload, sequenceNr: SWIM.SequenceNr) {
         self.log.trace("Received pingRequest", metadata: [
             "swim/replyTo": "\(replyTo.node)",
             "swim/target": "\(target.node)",
@@ -270,14 +270,13 @@ public final class SWIMNIOShell: SWIM.Context {
     }
 
     /// - parameter pingReqOrigin: is set only when the ping that this is a reply to was originated as a `pingReq`.
-    func interpretPingResponse(
+    func receivePingResponse(
         result: SWIM.PingResponse,
         pingReqOriginPeer: SWIM.NIOPeer?,
         sequenceNr: SWIM.SequenceNr
     ) {
-        // self.tracelog(.receive(nil), message: "\(result)")
-
         let directives = self.swim.onPingResponse(response: result, pingReqOrigin: pingReqOriginPeer, sequenceNr: sequenceNr)
+        // optionally debug log all directives here
         directives.forEach { directive in
             switch directive {
             case .gossipProcessed(let gossipDirective):
@@ -289,13 +288,13 @@ public final class SWIMNIOShell: SWIM.Context {
             case .sendNack(let pingReqOrigin, let acknowledging, let target):
                 pingReqOrigin.nack(acknowledging: acknowledging, target: target)
 
-            case .sendPingRequests(let PingRequestDirective):
-                self.sendPingRequests(PingRequestDirective)
+            case .sendPingRequests(let pingRequestDirective):
+                self.sendPingRequests(pingRequestDirective)
             }
         }
     }
 
-    func interpretPingRequestResponse(result: SWIM.PingResponse, pingedMember: AddressableSWIMPeer /* <SWIM.Message> */ ) {
+    func receivePingRequestResponse(result: SWIM.PingResponse, pingedMember: AddressableSWIMPeer /* <SWIM.Message> */ ) {
         self.tracelog(.receive(pinged: pingedMember.node), message: "\(result)")
         // TODO: do we know here WHO replied to us actually? We know who they told us about (with the ping-req), could be useful to know
 
@@ -306,8 +305,8 @@ public final class SWIMNIOShell: SWIM.Context {
             self.log.debug("Member [\(pingedMember)] marked as suspect")
         case .nackReceived:
             self.log.debug("Received `nack` from indirect probing of [\(pingedMember)]")
-        default:
-            () // TODO: revisit logging more details here
+        case let other:
+            self.log.trace("Handled ping request response, resulting directive: \(other), was ignored.") // TODO explicitly list all cases
         }
     }
 
@@ -337,7 +336,7 @@ public final class SWIMNIOShell: SWIM.Context {
                 self.eventLoop.execute {
                     switch result {
                     case .success(let response):
-                        self.interpretPingResponse(result: response, pingReqOriginPeer: pingReqOriginPeer, sequenceNr: 666_666) // FIXME!!!!!!!!!!!
+                        self.receivePingResponse(result: response, pingReqOriginPeer: pingReqOriginPeer, sequenceNr: 666_666) // FIXME!!!!!!!!!!!
                     case .failure(let error):
                         self.log.error("Failed reply promise: \(error)")
                     }
@@ -389,9 +388,9 @@ public final class SWIMNIOShell: SWIM.Context {
         firstSuccessPromise.futureResult.whenComplete {
             switch $0 {
             case .success(let response):
-                self.interpretPingRequestResponse(result: response, pingedMember: toPing)
+                self.receivePingRequestResponse(result: response, pingedMember: toPing)
             case .failure(let error):
-                self.interpretPingRequestResponse(result: .error(error, target: toPing.node), pingedMember: toPing)
+                self.receivePingRequestResponse(result: .error(error, target: toPing.node), pingedMember: toPing)
             }
         }
     }

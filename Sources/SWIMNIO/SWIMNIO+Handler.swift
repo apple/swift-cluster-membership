@@ -73,7 +73,9 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
         let writeCommand = self.unwrapOutboundIn(data)
 
         self.log.warning("write command", metadata: [
-            "writeCommand": "\(writeCommand)",
+            "write/message": "\(writeCommand.message)",
+            "write/recipient": "\(writeCommand.recipient)",
+            "write/reply-timeout": "\(writeCommand.replyTimeout)",
         ])
 
         do {
@@ -89,7 +91,12 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
                         "timeout/nanos": "\(writeCommand.replyTimeout.nanoseconds)",
                     ])
                     if let callback = self.pendingReplyCallbacks.removeValue(forKey: writeCommand.message.sequenceNr) {
-                        callback(.failure(NIOSWIMTimeoutError(timeout: writeCommand.replyTimeout, message: "No reply to [\(type(of: writeCommand.message as Any))] after \(writeCommand.replyTimeout.prettyDescription())"))) // FIXME: avoid strings here
+                        callback(.failure(
+                            NIOSWIMTimeoutError(
+                                timeout: writeCommand.replyTimeout,
+                                message: "No reply to [\(writeCommand)] after \(writeCommand.replyTimeout.prettyDescription())" // TODO less loud
+                            )
+                        ))
                     }
                 }
 
