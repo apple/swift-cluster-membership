@@ -51,17 +51,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
         self.shell = SWIMNIOShell(
             settings: self.settings,
             node: node,
-            channel: context.channel,
-            makeClient: { _ in
-//                let bootstrap = DatagramBootstrap(group: self.group)
-//                    .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
-//                    .channelInitializer { channel in
-//                        channel.pipeline.addHandler(SWIMProtocolHandler(settings: self.settings))
-//                    }
-//
-//                let channel = bootstrap.bind(host: "127.0.0.1", port: .random(in: 1000 ..< 9999))
-                return context.eventLoop.makeSucceededFuture(context.channel)
-            }
+            channel: context.channel
         )
 
         self.log.warning("channel active", metadata: [
@@ -92,7 +82,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
                     ])
                     if let callback = self.pendingReplyCallbacks.removeValue(forKey: writeCommand.message.sequenceNr) {
                         callback(.failure(
-                            NIOSWIMTimeoutError(
+                            SWIMNIOTimeoutError(
                                 timeout: writeCommand.replyTimeout,
                                 message: "No reply to [\(writeCommand)] after \(writeCommand.replyTimeout.prettyDescription())" // TODO less loud
                             )

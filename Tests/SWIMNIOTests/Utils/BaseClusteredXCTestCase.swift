@@ -112,9 +112,7 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
 
         let node = Node(protocol: "test", host: "127.0.0.1", port: self.nextPort(), uid: .random(in: 1 ..< UInt64.max))
         let peer = SWIM.NIOPeer(node: node, channel: channel)
-        let shell = SWIMNIOShell(settings: settings, node: peer.node, channel: channel, startPeriodicPingTimer: startPeriodicPingTimer, makeClient: { node in
-             self.loop.makeSucceededFuture(channel)
-        })
+        let shell = SWIMNIOShell(settings: settings, node: peer.node, channel: channel, startPeriodicPingTimer: startPeriodicPingTimer)
 
         self._nodes.append(shell.node)
         self._shells.append(shell)

@@ -51,7 +51,9 @@ public final class SWIMNIOShell: SWIM.Context {
     }
 
     public var log: Logger
+
     let eventLoop: EventLoop
+    let channel: Channel
 
     let myself: SWIM.NIOPeer
     public var peer: SWIMPeerProtocol {
@@ -62,27 +64,24 @@ public final class SWIMNIOShell: SWIM.Context {
         self.myself.node
     }
 
+    // FIXME: do we need this, we're connectionless in this specific impl
     internal var _peerConnections: [Node: SWIM.NIOPeer]
-
-    /// Function to creat new outbound connections to discovered peers
-    let makeClient: (Node) -> EventLoopFuture<Channel>
 
     internal init(
         settings: SWIM.Settings,
         node: Node,
         channel: Channel,
-        startPeriodicPingTimer: Bool = true,
-        makeClient: @escaping (Node) -> EventLoopFuture<Channel>
+        startPeriodicPingTimer: Bool = true
     ) {
         self.log = settings.logger
+
+        self.channel = channel
         self.eventLoop = channel.eventLoop
         self._peerConnections = [:]
 
         let myself = SWIM.NIOPeer(node: node, channel: channel)
         self.myself = myself
         self.swim = SWIM.Instance(settings: settings, myself: myself)
-
-        self.makeClient = makeClient
 
         self.onStart(startPeriodicPingTimer: startPeriodicPingTimer)
     }
@@ -104,7 +103,7 @@ public final class SWIMNIOShell: SWIM.Context {
         }
     }
 
-    public func resolvePeer(_ addressable: AddressableSWIMPeer, _ whenResolved: @escaping (SWIM.NIOPeer) -> Void) {
+    private func resolvePeer(_ addressable: AddressableSWIMPeer, _ whenResolved: @escaping (SWIM.NIOPeer) -> Void) {
         if let readyPeer = addressable as? SWIM.NIOPeer, readyPeer.channel != nil {
             whenResolved(readyPeer)
         } else {
@@ -117,7 +116,7 @@ public final class SWIMNIOShell: SWIM.Context {
     /// - Parameters:
     ///   - node: node which the peer will be representing // TODO: UIDs...
     ///   - whenResolved: callback is ensure to run on `self.eventLoop`
-    public func resolvePeer(on node: Node, _ whenResolved: @escaping (SWIM.NIOPeer) -> Void) {
+    private func resolvePeer(on node: Node, _ whenResolved: @escaping (SWIM.NIOPeer) -> Void) {
         guard self.node != node else {
             fatalError("Attempted to resolve and send messages to myself [\(self.node)], this should never be necessary.")
         }
@@ -129,19 +128,13 @@ public final class SWIMNIOShell: SWIM.Context {
                 "swim/node": "\(node)",
             ])
 
-            self.makeClient(node).hop(to: self.eventLoop).map { channel in
-                let peer = SWIM.NIOPeer(node: node, channel: channel)
-                self.log.trace("Successfully resolved new SWIM.NIOPeer", metadata: [
-                    "swim/node": "\(node)",
-                    "swim/nio/channel": "\(channel)",
-                ])
-                self._peerConnections[node] = peer
-                whenResolved(peer)
-            }.whenFailure { error in
-                self.log.error("Failed resolving peer for \(node)", metadata: [
-                    "error": "\(error)",
-                ])
-            }
+            let peer = SWIM.NIOPeer(node: node, channel: self.channel)
+            self.log.trace("Successfully resolved new SWIM.NIOPeer", metadata: [
+                "swim/node": "\(node)",
+                "swim/nio/channel": "\(channel)",
+            ])
+            self._peerConnections[node] = peer
+            whenResolved(peer)
         }
     }
 

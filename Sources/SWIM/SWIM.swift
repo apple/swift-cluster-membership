@@ -124,6 +124,8 @@ public enum SWIM {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Member Status
 
+// TODO: reduce the nesting since types now show up as SWIM.SWIM.TheType
+
 extension SWIM {
     /// The SWIM membership status reflects how a node is perceived by the distributed failure detector.
     ///

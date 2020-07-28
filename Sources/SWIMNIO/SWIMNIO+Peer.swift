@@ -142,7 +142,7 @@ extension SWIM {
         }
 
         public var description: String {
-            "NIOPeer(node: \(self.node), channel: \(self.channel != nil ? "<channel>" : "<nil>"))"
+            "NIOPeer(\(self.node), channel: \(self.channel != nil ? "<channel>" : "<nil>"))"
         }
     }
 }
@@ -157,7 +157,7 @@ extension SWIM.NIOPeer: Hashable {
     }
 }
 
-public struct NIOSWIMTimeoutError: Error {
+public struct SWIMNIOTimeoutError: Error {
     let timeout: NIO.TimeAmount
     let message: String
 
