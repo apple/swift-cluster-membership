@@ -30,9 +30,15 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
     }
 
     // initialized in channelActive
-    var shell: SWIMNIOShell! = nil
+    var shell: SWIMNIOShell!
 
-    var pendingReplyCallbacks: [SWIM.SequenceNr: (Result<SWIM.Message, Error>) -> Void]
+    // TODO: move callbacks into the shell?
+    struct PendingResponseCallbackIdentifier: Hashable {
+        let peerAddress: SocketAddress // TODO: UID as well...
+        let sequenceNumber: SWIM.SequenceNumber
+    }
+
+    var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void]
 
     public init(settings: SWIM.Settings) {
         self.settings = settings
@@ -49,20 +55,37 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
 
         let node: Node = .init(protocol: "udp", host: hostIP, port: hostPort, uid: .random(in: 0 ..< UInt64.max))
         self.shell = SWIMNIOShell(
-            settings: self.settings,
             node: node,
+            settings: self.settings,
             channel: context.channel
         )
 
-        self.log.warning("channel active", metadata: [
-            "channel": "\(context.channel)",
+        self.log.trace("Channel active", metadata: [
+            "nio/localAddress": "\(context.channel.localAddress)",
         ])
     }
+
+    public func channelUnregistered(context: ChannelHandlerContext) {
+        self.shell.receiveShutdown()
+        context.fireChannelUnregistered()
+    }
+
+    public func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+        switch event {
+        case let change as SWIM.MemberStatusChange:
+            self.log.info("Membership changed: \(change.member), \(change.fromStatus) -> \(change.toStatus)")
+        default:
+            context.fireUserInboundEventTriggered(event)
+        }
+    }
+
+    // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: Write Messages
 
     public func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
         let writeCommand = self.unwrapOutboundIn(data)
 
-        self.log.warning("write command", metadata: [
+        self.log.warning("write command: \(writeCommand.message.messageCaseDescription)", metadata: [
             "write/message": "\(writeCommand.message)",
             "write/recipient": "\(writeCommand.recipient)",
             "write/reply-timeout": "\(writeCommand.replyTimeout)",
@@ -73,24 +96,21 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
 
             // register and manage reply callback ------------------------------
             if let replyCallback = writeCommand.replyCallback {
-                let sequenceNr = writeCommand.message.sequenceNr
+                let sequenceNumber = writeCommand.message.sequenceNumber
+                let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: writeCommand.message.sequenceNumber)
 
                 let timeoutTask = context.eventLoop.scheduleTask(in: writeCommand.replyTimeout) {
-                    self.log.trace("Timeout, no reply from [\(writeCommand.recipient)] after [\(writeCommand.replyTimeout.prettyDescription())]", metadata: [
-                        "swim/request": "\(writeCommand.message)",
-                        "timeout/nanos": "\(writeCommand.replyTimeout.nanoseconds)",
-                    ])
-                    if let callback = self.pendingReplyCallbacks.removeValue(forKey: writeCommand.message.sequenceNr) {
+                    if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
                         callback(.failure(
                             SWIMNIOTimeoutError(
                                 timeout: writeCommand.replyTimeout,
-                                message: "No reply to [\(writeCommand)] after \(writeCommand.replyTimeout.prettyDescription())" // TODO less loud
+                                message: "No reply to [\(writeCommand.message.messageCaseDescription)] after \(writeCommand.replyTimeout.prettyDescription())"
                             )
                         ))
                     }
                 }
 
-                self.pendingReplyCallbacks[sequenceNr] = { reply in
+                self.pendingReplyCallbacks[callbackKey] = { reply in
                     timeoutTask.cancel() // when we trigger the callback, we should also cancel the timeout task
                     replyCallback(reply) // successful reply received
                 }
@@ -106,26 +126,48 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
         }
     }
 
-    public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let addressedEnvelope = self.unwrapInboundIn(data)
+    // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: Read Messages
 
-        // TODO: sanity check we are the recipient? UIDs...
+    public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        let addressedEnvelope: AddressedEnvelope<ByteBuffer> = self.unwrapInboundIn(data)
         let remoteAddress = addressedEnvelope.remoteAddress
 
-        self.log.warning("channel read", metadata: [
-            "nio/remoteAddress": "\(remoteAddress)",
-            "channel": "\(context.channel)",
-        ])
-
         do {
-            var bytes = addressedEnvelope.data
-            var proto = ProtoSWIMMessage()
-            try proto.merge(serializedData: bytes.readData(length: bytes.readableBytes)!) // FIXME: fix the !
-            let message = try SWIM.Message(fromProto: proto)
+            // deserialize ----------------------------------------
+            let message = try self.deserialize(addressedEnvelope.data)
 
-            self.shell.receiveMessage(message: message)
+            self.log.trace("Read successful: \(message.messageCaseDescription)", metadata: [
+                "remoteAddress": "\(remoteAddress)",
+                "swim/message/type": "\(message.messageCaseDescription)",
+                "swim/message": "\(message)",
+            ])
+
+            if message.isResponse {
+                // if it's a reply, invoke the pending callback ------
+                // TODO: move into the shell !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                let callbackKey = PendingResponseCallbackIdentifier(peerAddress: remoteAddress, sequenceNumber: message.sequenceNumber)
+                if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
+                    // TODO: UIDs of nodes...
+                    self.log.warning("Received response, key: \(callbackKey); Invoking callback...", metadata: [
+                        "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
+                    ])
+                    callback(.success(message))
+                } else {
+                    self.log.warning("No callback for \(callbackKey)... weird", metadata: [
+                        "pending callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
+                    ])
+                }
+            }
+            // TODO: move into the shell ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            else {
+                // deliver to the shell ------------------------------
+                self.shell.receiveMessage(message: message)
+            }
         } catch {
             self.log.error("Read failed: \(error)", metadata: [
+                "remoteAddress": "\(remoteAddress)",
+                "message/bytes/count": "\(addressedEnvelope.data.readableBytes)",
                 "error": "\(error)",
             ])
         }
@@ -137,6 +179,22 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
             "swim/shell": "\(self.shell, orElse: "nil")",
             "error": "\(error)",
         ])
+    }
+}
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: Serialization
+
+extension SWIMProtocolHandler {
+    private func deserialize(_ bytes: ByteBuffer) throws -> SWIM.Message {
+        var bytes = bytes
+        guard let data = bytes.readData(length: bytes.readableBytes) else {
+            throw MissingDataError("No data to read")
+        }
+
+        var proto = ProtoSWIMMessage()
+        try proto.merge(serializedData: data)
+        return try SWIM.Message(fromProto: proto)
     }
 
     private func serialize(message: SWIM.Message, using allocator: ByteBufferAllocator) throws -> ByteBuffer {
@@ -165,5 +223,15 @@ public struct WriteCommand {
         self.recipient = try! .init(ipAddress: recipient.host, port: recipient.port) // FIXME: try!
         self.replyTimeout = replyTimeout
         self.replyCallback = replyCallback
+    }
+}
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: Errors
+
+struct MissingDataError: Error {
+    let message: String
+    init(_ message: String) {
+        self.message = message
     }
 }

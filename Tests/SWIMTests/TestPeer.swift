@@ -23,8 +23,8 @@ final class TestPeer: Hashable, SWIMPeerProtocol {
     var messages: [TestPeer.Message] = []
 
     enum Message {
-        case ping(payload: SWIM.GossipPayload, origin: AddressableSWIMPeer, timeout: SWIMTimeAmount, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
-        case pingReq(target: AddressableSWIMPeer, payload: SWIM.GossipPayload, origin: AddressableSWIMPeer, timeout: SWIMTimeAmount, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
+        case ping(payload: SWIM.GossipPayload, origin: AddressableSWIMPeer, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
+        case pingReq(target: AddressableSWIMPeer, payload: SWIM.GossipPayload, origin: AddressableSWIMPeer, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
         case ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload)
         case nack(target: AddressableSWIMPeer)
     }
@@ -37,12 +37,13 @@ final class TestPeer: Hashable, SWIMPeerProtocol {
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,
         timeout: SWIMTimeAmount,
+        sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     ) {
         self.lock.lock()
         defer { self.lock.unlock() }
 
-        self.messages.append(.ping(payload: payload, origin: origin, timeout: timeout, onComplete: onComplete))
+        self.messages.append(.ping(payload: payload, origin: origin, timeout: timeout, sequenceNumber: sequenceNumber, onComplete: onComplete))
     }
 
     func pingRequest(
@@ -50,16 +51,17 @@ final class TestPeer: Hashable, SWIMPeerProtocol {
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,
         timeout: SWIMTimeAmount,
+        sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     ) {
         self.lock.lock()
         defer { self.lock.unlock() }
 
-        self.messages.append(.pingReq(target: target, payload: payload, origin: origin, timeout: timeout, onComplete: onComplete))
+        self.messages.append(.pingReq(target: target, payload: payload, origin: origin, timeout: timeout, sequenceNumber: sequenceNumber, onComplete: onComplete))
     }
 
     func ack(
-        acknowledging: SWIM.SequenceNr,
+        acknowledging: SWIM.SequenceNumber,
         target: AddressableSWIMPeer,
         incarnation: SWIM.Incarnation,
         payload: SWIM.GossipPayload
@@ -71,7 +73,7 @@ final class TestPeer: Hashable, SWIMPeerProtocol {
     }
 
     func nack(
-        acknowledging: SWIM.SequenceNr,
+        acknowledging: SWIM.SequenceNumber,
         target: AddressableSWIMPeer
     ) {
         self.lock.lock()

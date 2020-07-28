@@ -25,7 +25,7 @@ public protocol SWIMContext {
     func schedule(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> SWIMCancellable
 }
 
-/// Simple cancelation construct
+/// Simple cancellation construct
 public struct SWIMCancellable {
     private var _cancel: () -> Void
 

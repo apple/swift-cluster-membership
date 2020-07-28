@@ -32,14 +32,14 @@ final class SWIMNIOSerializationTests: XCTestCase {
 
     func test_serializationOf_pingReq() throws {
         let payloadNone: SWIM.GossipPayload = .none
-        try self.shared_serializationRoundtrip(SWIM.Message.pingReq(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadNone, sequenceNr: 111))
+        try self.shared_serializationRoundtrip(SWIM.Message.pingRequest(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadNone, sequenceNumber: 111))
 
         let payloadSome: SWIM.GossipPayload = .membership([
             self.memberOne,
             self.memberTwo,
             self.memberThree,
         ])
-        try self.shared_serializationRoundtrip(SWIM.Message.pingReq(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadSome, sequenceNr: 1212))
+        try self.shared_serializationRoundtrip(SWIM.Message.pingRequest(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadSome, sequenceNumber: 1212))
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------

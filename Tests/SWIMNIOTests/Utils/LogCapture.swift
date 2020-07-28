@@ -61,7 +61,7 @@ public final class LogCapture {
     @discardableResult
     public func awaitLog(
         grep: String,
-        within: TimeAmount = .seconds(5),
+        within: TimeAmount = .seconds(10),
         file: StaticString = #file,
         line: UInt = #line,
         column: UInt = #column

@@ -4,17 +4,15 @@
 import PackageDescription
 
 var targets: [PackageDescription.Target] = [
-    // ==== ----------------------------------------------------------------------------------------------------------------
-    // MARK: Samples
-
     .target(
-        name: "SampleCluster",
+        name: "SWIMNIOSampleCluster",
         dependencies: [
             "SWIM",
             "SWIMNIO",
             "Lifecycle",
+            "ArgumentParser",
         ],
-        path: "Sources/SampleCluster"
+        path: "Sources/SWIMNIOSampleCluster"
     ),
 
     /* --- tests --- */
@@ -45,11 +43,9 @@ let package = Package(
         .macOS(.v10_12)
     ],
     products: [
-        /* ---  samples --- */
-
         .executable(
-            name: "SampleCluster",
-            targets: ["SampleCluster"]
+            name: "SWIMNIOSampleCluster",
+            targets: ["SWIMNIOSampleCluster"]
         ),
 
     ],

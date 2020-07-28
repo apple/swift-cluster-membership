@@ -21,13 +21,12 @@ import SWIM
 @testable import SWIMNIO
 import XCTest
 
-
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Real Networking Test Case
 
 class RealClusteredXCTestCase: BaseClusteredXCTestCase {
-    var group: MultiThreadedEventLoopGroup! = nil
-    var loop: EventLoop! = nil
+    var group: MultiThreadedEventLoopGroup!
+    var loop: EventLoop!
 
     override func setUp() {
         super.setUp()
@@ -44,8 +43,9 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
         self.loop = nil
     }
 
-    func makeClusterNode(name: String, configure configureSettings: (inout SWIM.Settings) -> () = { _ in () }) -> (SWIMProtocolHandler, Channel) {
+    func makeClusterNode(name: String? = nil, configure configureSettings: (inout SWIM.Settings) -> Void = { _ in () }) -> (SWIMProtocolHandler, Channel) {
         let port = self.nextPort()
+        let name = name ?? "swim-\(port)"
 
         var settings = SWIM.Settings()
         configureSettings(&settings)
@@ -73,7 +73,6 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
 
         return (handler, channel)
     }
-
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
@@ -95,8 +94,10 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
         self.loop = nil
     }
 
-    func makeShell(_ name: String, settings: SWIM.Settings?, startPeriodicPingTimer: Bool) -> SWIMNIOShell {
+    func makeShell(_ name: String? = nil, settings: SWIM.Settings?, startPeriodicPingTimer: Bool) -> SWIMNIOShell {
         var settings = settings ?? SWIM.Settings()
+        let port: Int = self.nextPort()
+        let name = name ?? "swim-\(port)"
 
         if self.captureLogs {
             var captureSettings = LogCapture.Settings()
@@ -110,9 +111,9 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
 
         let channel: Channel = EmbeddedChannel(loop: self.loop)
 
-        let node = Node(protocol: "test", host: "127.0.0.1", port: self.nextPort(), uid: .random(in: 1 ..< UInt64.max))
+        let node = Node(protocol: "test", host: "127.0.0.1", port: port, uid: .random(in: 1 ..< UInt64.max))
         let peer = SWIM.NIOPeer(node: node, channel: channel)
-        let shell = SWIMNIOShell(settings: settings, node: peer.node, channel: channel, startPeriodicPingTimer: startPeriodicPingTimer)
+        let shell = SWIMNIOShell(node: peer.node, settings: settings, channel: channel, startPeriodicPingTimer: startPeriodicPingTimer)
 
         self._nodes.append(shell.node)
         self._shells.append(shell)
@@ -143,7 +144,7 @@ class BaseClusteredXCTestCase: XCTestCase {
         false
     }
 
-    var _nextPort = 9001
+    var _nextPort = 7001
     open func nextPort() -> Int {
         defer { self._nextPort += 1 }
         return self._nextPort
@@ -165,8 +166,12 @@ class BaseClusteredXCTestCase: XCTestCase {
             self.printAllCapturedLogs()
         }
 
-        try! self._shells.forEach { shell in
-            try shell.myself.channel?.close().wait()
+        self._shells.forEach { shell in
+            do {
+                try shell.myself.channel?.close().wait()
+            } catch {
+                () // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
+            }
         }
 
         self._nodes = []
@@ -194,7 +199,6 @@ extension BaseClusteredXCTestCase {
 
     public func printAllCapturedLogs() {
         for node in self._nodes {
-            print("node = \(node)")
             self.printCapturedLogs(of: node)
         }
     }

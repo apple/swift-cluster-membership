@@ -41,23 +41,22 @@ extension SWIM.Message: ProtobufRepresentable {
     public func toProto() throws -> ProtobufRepresentation {
         var proto = ProtobufRepresentation()
         switch self {
-        case .ping(let replyTo, let payload, let sequenceNr):
+        case .ping(let replyTo, let payload, let sequenceNumber):
             var ping = ProtoSWIMPing()
             ping.replyTo = try replyTo.toProto()
             ping.payload = try payload.toProto()
-            proto.sequenceNr = sequenceNr
+            ping.sequenceNumber = sequenceNumber
             proto.ping = ping
 
-        case .pingReq(let target, let replyTo, let payload, let sequenceNr):
+        case .pingRequest(let target, let replyTo, let payload, let sequenceNumber):
             var pingRequest = ProtoSWIMPingRequest()
             pingRequest.target = try target.toProto()
             pingRequest.replyTo = try replyTo.toProto()
             pingRequest.payload = try payload.toProto()
-            proto.sequenceNr = sequenceNr
+            pingRequest.sequenceNumber = sequenceNumber
             proto.pingReq = pingRequest
 
-        case .response(let response, let sequenceNr):
-            proto.sequenceNr = sequenceNr
+        case .response(let response):
             proto.response = try response.toProto()
         }
 
@@ -69,15 +68,15 @@ extension SWIM.Message: ProtobufRepresentable {
         case .ping(let ping):
             let replyTo = try SWIM.NIOPeer(fromProto: ping.replyTo)
             let payload = try SWIM.GossipPayload(fromProto: ping.payload)
-            let sequenceNr = proto.sequenceNr
-            self = .ping(replyTo: replyTo, payload: payload, sequenceNr: sequenceNr)
+            let sequenceNumber = ping.sequenceNumber
+            self = .ping(replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
 
         case .pingReq(let pingRequest):
             let target = try SWIM.NIOPeer(fromProto: pingRequest.target)
             let replyTo = try SWIM.NIOPeer(fromProto: pingRequest.replyTo)
             let payload = try SWIM.GossipPayload(fromProto: pingRequest.payload)
-            let sequenceNr = proto.sequenceNr
-            self = .pingReq(target: target, replyTo: replyTo, payload: payload, sequenceNr: sequenceNr)
+            let sequenceNumber = pingRequest.sequenceNumber
+            self = .pingRequest(target: target, replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
 
         case .response(let response):
             switch response.pingResponse {
@@ -93,16 +92,16 @@ extension SWIM.Message: ProtobufRepresentable {
                 } else {
                     payload = .none
                 }
-                let sequenceNr = proto.sequenceNr
-                self = .response(.ack(target: target, incarnation: incarnation, payload: payload), sequenceNr: sequenceNr)
+                let sequenceNumber = response.sequenceNumber
+                self = .response(.ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
 
             case .nack:
                 guard response.nack.hasTarget else {
                     throw SWIMSerializationError.missingField("target", type: "\(type(of: Node.self))")
                 }
                 let target: Node = try .init(fromProto: response.nack.target)
-                let sequenceNr = proto.sequenceNr
-                self = .response(.nack(target: target), sequenceNr: sequenceNr)
+                let sequenceNumber = response.sequenceNumber
+                self = .response(.nack(target: target, sequenceNumber: sequenceNumber))
 
             case .none:
                 throw SWIMSerializationError.missingField("response", type: "PingResponse")
@@ -192,10 +191,21 @@ extension SWIM.Member: ProtobufRepresentable {
 
     public func toProto() throws -> ProtoSWIMMember {
         var proto = ProtoSWIMMember()
-        guard let nioPeer = self.peer as? SWIM.NIOPeer else {
-            fatalError("Can only support `NIOPeer`s, was: \(self.peer)")
+        let node: ClusterMembership.Node
+
+        if let nioPeer = self.peer as? SWIM.NIOPeer {
+            node = nioPeer.node
+        } else if let _node = self.peer as? ClusterMembership.Node {
+            node = _node
+        } else {
+            fatalError("Unexpected peer type: [\(self.peer)]:\(String(reflecting: type(of: self.peer))), member: \(self)")
         }
-        proto.peer = try nioPeer.toProto()
+
+        var peer = ProtoPeer()
+        peer.node = try node.toProto()
+        proto.peer = peer
+        // proto.peer = try nioPeer.toProto()
+
         proto.status = try self.status.toProto()
         return proto
     }
@@ -213,17 +223,19 @@ extension SWIM.PingResponse: ProtobufRepresentable {
     public func toProto() throws -> ProtoSWIMPingResponse {
         var proto = ProtoSWIMPingResponse()
         switch self {
-        case .ack(let target, let incarnation, let payload):
+        case .ack(let target, let incarnation, let payload, let sequenceNumber):
             var ack = ProtoSWIMPingResponse.Ack()
             ack.target = try target.toProto()
             ack.incarnation = incarnation
             ack.payload = try payload.toProto()
+            proto.sequenceNumber = sequenceNumber
             proto.ack = ack
 
-        case .nack(let target):
+        case .nack(let target, let sequenceNumber):
             var nack = ProtoSWIMPingResponse.Nack()
             nack.target = try target.toProto()
             proto.nack = nack
+            proto.sequenceNumber = sequenceNumber
 
         case .timeout:
             throw SWIMSerializationError.notSerializable(".timeout is not to be sent as remote message, was: \(self)")
@@ -242,11 +254,13 @@ extension SWIM.PingResponse: ProtobufRepresentable {
         case .ack(let ack):
             let target = try Node(fromProto: ack.target)
             let payload = try SWIM.GossipPayload(fromProto: ack.payload)
-            self = .ack(target: target, incarnation: ack.incarnation, payload: payload)
+            let sequenceNumber = proto.sequenceNumber
+            self = .ack(target: target, incarnation: ack.incarnation, payload: payload, sequenceNumber: sequenceNumber)
 
         case .nack(let nack):
             let target = try Node(fromProto: nack.target)
-            self = .nack(target: target)
+            let sequenceNumber = proto.sequenceNumber
+            self = .nack(target: target, sequenceNumber: sequenceNumber)
         }
     }
 }

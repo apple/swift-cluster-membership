@@ -19,7 +19,6 @@ import SWIM
 import XCTest
 
 final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
-
     override var alwaysPrintCaptureLogs: Bool {
         true
     }
@@ -31,7 +30,7 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
         let firstPeer = first.peer as! SWIM.NIOPeer
         let secondPeer = second.peer as! SWIM.NIOPeer
 
-        first.receiveMessage(message: .ping(replyTo: secondPeer, payload: .none, sequenceNr: 1))
+        first.receiveMessage(message: .ping(replyTo: secondPeer, payload: .none, sequenceNumber: 1))
         self.loop.advanceTime(by: .seconds(1))
 
         try self.capturedLogs(of: first.node).shouldContain(grep: "Checking suspicion timeouts")
