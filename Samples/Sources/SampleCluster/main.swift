@@ -46,7 +46,7 @@ func startNode(port: Int) {
     let bootstrap = DatagramBootstrap(group: group)
         .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
         .channelInitializer { channel in
-            channel.pipeline.addHandler(SWIMProtocolHandler(settings: settings, group: group))
+            channel.pipeline.addHandler(SWIMProtocolHandler(settings: settings))
         }
 
     lifecycle.register(

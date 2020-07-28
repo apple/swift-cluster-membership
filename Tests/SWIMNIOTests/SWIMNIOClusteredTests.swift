@@ -17,23 +17,24 @@ import NIO
 import SWIM
 @testable import SWIMNIO
 import XCTest
+import Logging
 
-final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
+final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
 
     override var alwaysPrintCaptureLogs: Bool {
         true
     }
 
-    func test_embedded_peers_2_connect() throws {
-        let first = self.makeShell("first", settings: nil, startPeriodicPingTimer: true)
-        let second = self.makeShell("second", settings: nil, startPeriodicPingTimer: true)
+    func test_real_peers_2_connect() throws {
+        let (firstHandler, firstChannel) = self.makeClusterNode(name: "first")
+        
+        let (secondHandler, secondChannel) = self.makeClusterNode(name: "second") { settings in
+            settings.initialContactPoints = [firstHandler.shell.node]
+        }
 
-        let firstPeer = first.peer as! SWIM.NIOPeer
-        let secondPeer = second.peer as! SWIM.NIOPeer
+        sleep(3)
 
-        first.receiveMessage(message: .ping(replyTo: secondPeer, payload: .none, sequenceNr: 1))
-        self.loop.advanceTime(by: .seconds(1))
-
-        try self.capturedLogs(of: first.node).shouldContain(grep: "Checking suspicion timeouts")
+        print("firstHandler.shell.swim.allMembers == \(firstHandler.shell.swim.allMembers)")
+        print("secondHandler.shell.swim.allMembers == \(secondHandler.shell.swim.allMembers)")
     }
 }

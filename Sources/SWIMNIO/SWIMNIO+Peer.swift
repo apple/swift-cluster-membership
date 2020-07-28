@@ -56,10 +56,6 @@ extension SWIM {
 
             let sequenceNr = self.nextSequenceNumber.add(1)
             let message = SWIM.Message.ping(replyTo: nioOrigin, payload: payload, sequenceNr: sequenceNr)
-            print("""
-            >>> sending ping = \(message)
-                TO: \(self)
-            """)
 
             let command = WriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
                 switch reply {

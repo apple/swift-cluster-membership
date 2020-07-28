@@ -24,29 +24,22 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
     public typealias OutboundIn = WriteCommand
     public typealias OutboundOut = AddressedEnvelope<ByteBuffer>
 
-    private let settings: SWIM.Settings
-    private var log: Logger {
+    let settings: SWIM.Settings
+    var log: Logger {
         self.settings.logger
     }
 
-    private let group: EventLoopGroup!
-    private var shell: SWIMNIOShell!
+    // initialized in channelActive
+    var shell: SWIMNIOShell! = nil
 
-    private var pendingReplyCallbacks: [SWIM.SequenceNr: (Result<SWIM.Message, Error>) -> Void]
+    var pendingReplyCallbacks: [SWIM.SequenceNr: (Result<SWIM.Message, Error>) -> Void]
 
-    public init(settings: SWIM.Settings, group: EventLoopGroup, shell: SWIMNIOShell? = nil) {
+    public init(settings: SWIM.Settings) {
         self.settings = settings
-        self.group = group
-        self.shell = shell
         self.pendingReplyCallbacks = [:]
     }
 
     public func channelActive(context: ChannelHandlerContext) {
-        guard self.shell == nil else {
-            // assume initialized
-            return
-        }
-
         guard let hostIP = context.channel.localAddress!.ipAddress else {
             fatalError("SWIM requires a known host IP, but was nil! Channel: \(context.channel)")
         }
@@ -60,15 +53,14 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
             node: node,
             channel: context.channel,
             makeClient: { _ in
-                let bootstrap = DatagramBootstrap(group: self.group)
-                    .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
-                    .channelInitializer { channel in
-                        channel.pipeline.addHandler(SWIMProtocolHandler(settings: self.settings, group: self.group, shell: self.shell))
-                    }
-
-                let channel = bootstrap.bind(host: "127.0.0.1", port: .random(in: 1000 ..< 9999))
-                // FIXME: channel.connect(to: .v4())
-                return channel // FIXME?
+//                let bootstrap = DatagramBootstrap(group: self.group)
+//                    .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
+//                    .channelInitializer { channel in
+//                        channel.pipeline.addHandler(SWIMProtocolHandler(settings: self.settings))
+//                    }
+//
+//                let channel = bootstrap.bind(host: "127.0.0.1", port: .random(in: 1000 ..< 9999))
+                return context.eventLoop.makeSucceededFuture(context.channel)
             }
         )
 
