@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xl="http://www.w3.org/1999/xlink" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" viewBox="120 177 955 742" width="955" height="742">
+  <defs>
+    <font-face font-family="Helvetica" font-size="12" units-per-em="1000" underline-position="-75.68359" underline-thickness="49.316406" slope="0" x-height="522.9492" cap-height="717.28516" ascent="770.0195" descent="-229.98047" font-weight="400">
+      <font-face-src>
+        <font-face-name name="Helvetica"/>
+      </font-face-src>
+    </font-face>
+    <marker orient="auto" overflow="visible" markerUnits="strokeWidth" id="StickArrow_Marker" stroke-linejoin="miter" stroke-miterlimit="10" viewBox="-9 -4 10 8" markerWidth="10" markerHeight="8" color="black">
+      <g>
+        <path d="M -8 0 L 0 0 M 0 3 L -8 0 L 0 -3" fill="none" stroke="currentColor" stroke-width="1"/>
+      </g>
+    </marker>
+    <font-face font-family="Helvetica Neue" font-size="10" panose-1="2 0 5 3 0 0 0 2 0 4" units-per-em="1000" underline-position="-100" underline-thickness="50" slope="0" x-height="517" cap-height="714" ascent="951.9958" descent="-212.99744" font-weight="400">
+      <font-face-src>
+        <font-face-name name="HelveticaNeue"/>
+      </font-face-src>
+    </font-face>
+    <marker orient="auto" overflow="visible" markerUnits="strokeWidth" id="StickArrow_Marker_2" stroke-linejoin="miter" stroke-miterlimit="10" viewBox="-1 -4 10 8" markerWidth="10" markerHeight="8" color="black">
+      <g>
+        <path d="M 8 0 L 0 0 M 0 -3 L 8 0 L 0 3" fill="none" stroke="currentColor" stroke-width="1"/>
+      </g>
+    </marker>
+  </defs>
+  <metadata> Produced by OmniGraffle 7.17.2\n2019-07-24 16:43:31 +0000</metadata>
+  <g id="Canvas_1" fill-opacity="1" stroke-opacity="1" fill="none" stroke-dasharray="none" stroke="none">
+    <title>Canvas 1</title>
+    <rect fill="white" x="120" y="177" width="955" height="742"/>
+    <g id="Canvas_1_Layer_1">
+      <title>Layer 1</title>
+      <g id="Graphic_8">
+        <rect x="168" y="178" width="133" height="33" fill="white"/>
+        <rect x="168" y="178" width="133" height="33" stroke="black" stroke-linecap="square" stroke-linejoin="miter" stroke-width="1"/>
+        <text transform="translate(173 187.5)" fill="black">
+          <tspan font-family="Helvetica" font-size="12" font-weight="400" fill="black" x="15.480469" y="11">SWIM Instance A</tspan>
+        </text>
+      </g>
+      <g id="Graphic_9">
+        <rect x="362" y="178" width="133" height="33" fill="white"/>
+        <rect x="362" y="178" width="133" height="33" stroke="black" stroke-linecap="square" stroke-linejoin="miter" stroke-width="1"/>
+        <text transform="translate(367 187.5)" fill="black">
+          <tspan font-family="Helvetica" font-size="12" font-weight="400" fill="black" x="15.152344" y="11">SWIM Instance B</tspan>
+        </text>
+      </g>
+      <g id="Graphic_10">
+        <rect x="555" y="178" width="133" height="33" fill="white"/>
+        <rect x="555" y="178" width="133" height="33" stroke="black" stroke-linecap="square" stroke-linejoin="miter" stroke-width="1"/>
+        <text transform="translate(560 187.5)" fill="black">
+          <tspan font-family="Helvetica" font-size="12" font-weight="400" fill="black" x="14.821289" y="11">SWIM Instance C</tspan>
+        </text>
+      </g>
+      <g id="Graphic_11">
+        <rect x="748" y="178" width="133" height="33" fill="white"/>
+        <rect x="748" y="178" width="133" height="33" stroke="black" stroke-linecap="square" stroke-linejoin="miter" stroke-width="1"/>
+        <text transform="translate(753 187.5)" fill="black">
+          <tspan font-family="Helvetica" font-size="12" font-weight="400" fill="black" x="14.821289" y="11">SWIM Instance D</tspan>
+        </text>
+      </g>
+      <g id="Graphic_12">
+        <rect x="941" y="178" width="133" height="33" fill="white"/>
+        <rect x="941" y="178" width="133" height="33" stroke="black" stroke-linecap="square" stroke-linejoin="miter" stroke-width="1"/>
+        <text transform="translate(946 187.5)" fill="black">
+          <tspan font-family="Helvetica" font-size="12" font-weight="400" fill="black" x="15.152344" y="11">SWIM Instance E</tspan>
+        </text>
+      </g>
+      <g id="Line_18">
+        <line x1="234" y1="918" x2="234" y2="225" stroke="#007015" stroke-opacity=".68" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      </g>
+      <g id="Line_19">
+        <line x1="428" y1="918" x2="428" y2="225" stroke="#007015" stroke-opacity=".68" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      </g>
+      <g id="Line_21">
+        <line x1="621" y1="918" x2="621" y2="225" stroke="#007015" stroke-opacity=".68" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      </g>
+      <g id="Line_22">
+        <line x1="814" y1="918" x2="814" y2="225" stroke="#007015" stroke-opacity=".68" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      </g>
+      <g id="Line_23">
+        <line x1="1007" y1="918" x2="1007" y2="225" stroke="#e80024" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+      </g>
+      <g id="Line_24">
+        <path d="M 224.10098 274.9672 C 217.30215 275.15072 210.53559 275.3151 208 273 C 204.16705 269.50035 206.6671 255.3332 211 254 C 215.3329 252.6668 226.3341 261.3337 234 265" marker-start="url(#StickArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_25">
+        <text transform="translate(136 251)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="0" y="10">Ping Random</tspan>
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="11.76" y="22.28">Member</tspan>
+        </text>
+      </g>
+      <g id="Line_28">
+        <line x1="240" y1="294" x2="412.1429" y2="310.0793" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_29">
+        <text transform="translate(320.11 275)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">Ping </tspan>
+        </text>
+      </g>
+      <g id="Line_30">
+        <line x1="419.78" y1="325" x2="243.8313" y2="345.8358" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_31">
+        <text transform="translate(323.07 345)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">Ack </tspan>
+        </text>
+      </g>
+      <g id="Line_32">
+        <line x1="234" y1="410" x2="954.1704" y2="496.3218" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Line_34">
+        <path d="M 219.10098 392.9672 C 212.30215 393.15073 205.53559 393.3151 203 391 C 199.16705 387.50035 201.6671 373.3332 206 372 C 210.3329 370.6668 221.3341 379.3337 229 383" marker-start="url(#StickArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_33">
+        <text transform="translate(131 369)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="0" y="10">Ping Random</tspan>
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="11.76" y="22.28">Member</tspan>
+        </text>
+      </g>
+      <g id="Graphic_35">
+        <text transform="translate(320.11 397)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">Ping </tspan>
+        </text>
+      </g>
+      <g id="Line_36">
+        <path d="M 219.10098 498.1872 C 212.30215 498.3707 205.53559 498.5351 203 496.22 C 199.16705 492.72035 201.6671 478.5532 206 477.22 C 210.3329 475.8868 221.3341 484.5537 229 488.22" marker-start="url(#StickArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_37">
+        <text transform="translate(131.835 480)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="7105427e-20" y="10">Ping Timeout</tspan>
+        </text>
+      </g>
+      <g id="Line_38">
+        <line x1="234" y1="523" x2="418.20153" y2="549.5858" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Line_39">
+        <line x1="235.13672" y1="527.3242" x2="611.2321" y2="589.3881" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Line_40">
+        <line x1="234" y1="528" x2="804.2643" y2="633.2039" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_41">
+        <text transform="translate(301.585 513)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">Ping Request </tspan>
+        </text>
+      </g>
+      <g id="Graphic_42">
+        <text transform="translate(493.605 543)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">Ping Request </tspan>
+        </text>
+      </g>
+      <g id="Graphic_43">
+        <text transform="translate(686.605 592)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">Ping Request </tspan>
+        </text>
+      </g>
+      <g id="Line_44">
+        <line x1="427" y1="552" x2="954.189" y2="623.1754" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Line_45">
+        <line x1="621" y1="594" x2="954.2056" y2="643.058" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Line_46">
+        <line x1="815" y1="642" x2="954.2159" y2="663.4897" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_47">
+        <text transform="translate(900.11 599)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">Ping </tspan>
+        </text>
+      </g>
+      <g id="Graphic_48">
+        <text transform="translate(900.11 622)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">Ping </tspan>
+        </text>
+      </g>
+      <g id="Graphic_49">
+        <text transform="translate(899.61 641)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">Ping </tspan>
+        </text>
+      </g>
+      <g id="Line_54">
+        <path d="M 219.10098 849.2472 C 212.30215 849.4307 205.53559 849.5951 203 847.28 C 199.16705 843.7803 201.6671 829.6132 206 828.28 C 210.3329 826.9468 221.3341 835.6137 229 839.28" marker-start="url(#StickArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_55">
+        <text transform="translate(125.26 825.28)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="8029133e-19" y="10">Mark Instance E</tspan>
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="17.69" y="22.28">Suspect</tspan>
+        </text>
+      </g>
+      <g id="Group_61">
+        <g id="Line_63">
+          <line x1="969" y1="491" x2="979.5" y2="503" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </g>
+        <g id="Line_62">
+          <line x1="979.5" y1="491" x2="969" y2="503" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </g>
+      </g>
+      <g id="Group_64">
+        <g id="Line_66">
+          <line x1="969" y1="617.9434" x2="979.5" y2="629.9434" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </g>
+        <g id="Line_65">
+          <line x1="979.5" y1="617.9434" x2="969" y2="629.9434" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </g>
+      </g>
+      <g id="Group_67">
+        <g id="Line_69">
+          <line x1="969" y1="638.8302" x2="979.5" y2="650.8302" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </g>
+        <g id="Line_68">
+          <line x1="979.5" y1="638.8302" x2="969" y2="650.8302" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </g>
+      </g>
+      <g id="Group_70">
+        <g id="Line_72">
+          <line x1="969" y1="659" x2="979.5" y2="671" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </g>
+        <g id="Line_71">
+          <line x1="979.5" y1="659" x2="969" y2="671" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        </g>
+      </g>
+      <g id="Line_73">
+        <path d="M 415.101 698.4672 C 408.30215 698.6507 401.5356 698.8151 399 696.5 C 395.16705 693.00035 397.6671 678.8332 402 677.5 C 406.3329 676.1668 417.3341 684.8337 425 688.5" marker-start="url(#StickArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_74">
+        <text transform="translate(327.835 680.28)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="7105427e-20" y="10">Ping Timeout</tspan>
+        </text>
+      </g>
+      <g id="Line_75">
+        <path d="M 608.101 725.4672 C 601.30215 725.6507 594.5356 725.8151 592 723.5 C 588.16705 720.00035 590.6671 705.8332 595 704.5 C 599.3329 703.1668 610.3341 711.8337 618 715.5" marker-start="url(#StickArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_76">
+        <text transform="translate(520.835 707.28)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="7105427e-20" y="10">Ping Timeout</tspan>
+        </text>
+      </g>
+      <g id="Line_77">
+        <path d="M 798.101 747.4672 C 791.30215 747.6507 784.5356 747.8151 782 745.5 C 778.16705 742.00035 780.6671 727.8332 785 726.5 C 789.3329 725.1668 800.3341 733.8337 808 737.5" marker-start="url(#StickArrow_Marker)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_78">
+        <text transform="translate(710.835 729.28)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="7105427e-20" y="10">Ping Timeout</tspan>
+        </text>
+      </g>
+      <g id="Line_79">
+        <line x1="423.283" y1="713.9434" x2="243.85433" y2="731.2388" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_80">
+        <text transform="translate(324.225 733)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">NAck </tspan>
+        </text>
+      </g>
+      <g id="Line_81">
+        <line x1="617.283" y1="735.9434" x2="243.8558" y2="771.3486" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_82">
+        <text transform="translate(518.225 755)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">NAck </tspan>
+        </text>
+      </g>
+      <g id="Line_83">
+        <line x1="811.283" y1="755.9434" x2="243.85534" y2="810.023" marker-end="url(#StickArrow_Marker_2)" stroke="black" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4.0,4.0" stroke-width="1"/>
+      </g>
+      <g id="Graphic_84">
+        <text transform="translate(712.225 775)" fill="black">
+          <tspan font-family="Helvetica Neue" font-size="10" font-weight="400" fill="black" x="1.39" y="10">NAck </tspan>
+        </text>
+      </g>
+    </g>
+  </g>
+</svg>

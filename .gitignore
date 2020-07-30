@@ -13,6 +13,7 @@
 /*.xcodeproj
 .xcode
 .idea
+Samples/swift-cluster-membership-samples.xcodeproj
 
 # rendered docs output dirs
 /reference/
