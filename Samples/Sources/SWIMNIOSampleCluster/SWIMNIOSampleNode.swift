@@ -39,10 +39,7 @@ struct SampleSWIMNIONode {
         let bootstrap = DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in
-                let swimHandler = SWIMProtocolHandler(
-                    settings: settings,
-                    onMemberStatusChanged: self.onMemberStatusChanged
-                )
+                let swimHandler = SWIMProtocolHandler(settings: settings)
                 return channel.pipeline.addHandler(swimHandler)
             }
 

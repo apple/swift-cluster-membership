@@ -26,13 +26,8 @@ extension SWIM {
         // TODO: can we always have a channel here?
         var channel: Channel?
 
-//        /// When sending messages we generate sequence numbers which allow us to match their replies
-//        /// with corresponding completion handlers
-//        private let nextSequenceNumber: NIOAtomic<UInt32> // TODO: no need to be atomic?
-
         public init(node: Node, channel: Channel?) {
             self.node = node
-//            self.nextSequenceNumber = .makeAtomic(value: 0)
             self.channel = channel
         }
 
@@ -56,7 +51,6 @@ extension SWIM {
                 fatalError("Can't support non NIOPeer as origin, was: [\(origin)]:\(String(reflecting: type(of: origin as Any)))")
             }
 
-            // let sequenceNumber = self.nextSequenceNumber.add(1)
             let message = SWIM.Message.ping(replyTo: nioOrigin, payload: payload, sequenceNumber: sequenceNumber)
 
             let command = WriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
@@ -86,14 +80,10 @@ extension SWIM {
             guard let channel = self.channel else {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")
             }
-            guard let nioTarget = target as? SWIM.NIOPeer else {
-                fatalError("\(#function) failed, `target` was not `NIOPeer`, was: \(target)")
-            }
-            guard let nioOrigin = origin as? SWIM.NIOPeer else {
-                fatalError("\(#function) failed, `origin` was not `NIOPeer`, was: \(origin)")
-            }
 
-            let message = SWIM.Message.pingRequest(target: nioTarget, replyTo: nioOrigin, payload: payload, sequenceNumber: sequenceNumber)
+            let targetPeer = NIOPeer(node: target.node, channel: nil)
+            let originPeer = NIOPeer(node: origin.node, channel: nil)
+            let message = SWIM.Message.pingRequest(target: targetPeer, replyTo: originPeer, payload: payload, sequenceNumber: sequenceNumber)
 
             let command = WriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
                 switch reply {
