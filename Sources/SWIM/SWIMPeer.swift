@@ -21,12 +21,17 @@ extension SWIM {
 
 public protocol AddressableSWIMPeer {
     /// Node that this peer is representing.
-    var node: ClusterMembership.Node { get }
+    var node: ClusterMembership.Node { get set }
 }
 
 extension ClusterMembership.Node: AddressableSWIMPeer {
     public var node: ClusterMembership.Node {
-        self
+        get {
+            self
+        }
+        set {
+            self = newValue
+        }
     }
 }
 
@@ -92,14 +97,19 @@ extension SWIMPeerProtocol {
 }
 
 public struct AnySWIMPeer: Hashable, SWIMPeerProtocol {
-    let peer: SWIMPeerProtocol
+    var peer: SWIMPeerProtocol
 
     public init(peer: SWIMPeerProtocol) {
         self.peer = peer
     }
 
     public var node: ClusterMembership.Node {
-        self.peer.node
+        get {
+            self.peer.node
+        }
+        set {
+            self.peer.node = newValue
+        }
     }
 
     public func ping(

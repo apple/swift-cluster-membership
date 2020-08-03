@@ -21,7 +21,7 @@ import struct SWIM.SWIMTimeAmount
 
 extension SWIM {
     public struct NIOPeer: SWIMPeerProtocol, CustomStringConvertible {
-        public let node: Node
+        public var node: Node
 
         // TODO: can we always have a channel here?
         var channel: Channel?

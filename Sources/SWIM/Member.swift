@@ -22,11 +22,16 @@ extension SWIM {
         /// Peer reference, used to send messages to this cluster member.
         ///
         /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
-        public let peer: AddressableSWIMPeer
+        public var peer: AddressableSWIMPeer
 
         /// `Node` of the member's `peer`.
         public var node: ClusterMembership.Node {
-            self.peer.node
+            get {
+                self.peer.node
+            }
+            set {
+                self.peer.node = newValue
+            }
         }
 
         /// Membership status of this cluster member

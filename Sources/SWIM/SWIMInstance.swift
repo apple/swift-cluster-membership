@@ -157,7 +157,10 @@ extension SWIM {
                 return .newerMemberAlreadyPresent(existingMember)
             }
 
-            let member = SWIM.Member(peer: peer, status: status, protocolPeriod: self.protocolPeriod, suspicionStartedAt: self.nowNanos())
+            // just in case we had a peer added manually, and thus we did not know its uuid, let us remove it
+            _ = self.members.removeValue(forKey: self.node.withoutUID)
+
+            let member = SWIM.Member(peer: peer, status: status, protocolPeriod: self.protocolPeriod, suspicionStartedAt: self.nowNanos()) // FIXME: why the suspicion?
             self.members[member.node] = member
 
             if maybeExistingMember == nil, self.notMyself(member) {
@@ -458,19 +461,31 @@ extension SWIM {
 
 extension SWIM.Instance {
     func notMyself(_ member: SWIM.Member) -> Bool {
-        !self.isMyself(member)
+        self.isMyself(member) == nil
     }
 
     func notMyself(_ peer: AddressableSWIMPeer) -> Bool {
         !self.isMyself(peer)
     }
 
-    func isMyself(_ member: SWIM.Member) -> Bool {
-        self.isMyself(member.peer)
+    func isMyself(_ member: SWIM.Member) -> SWIM.Member? {
+        if self.isMyself(member.peer) {
+            var m = member
+            m.node = self.node // this ensures the UID is present, even if an incoming gossip was UIDless (because it's their first message, and there was no handshake to exchange the UIDs)
+            return m
+        } else {
+            return nil
+        }
     }
 
     func isMyself(_ peer: AddressableSWIMPeer) -> Bool {
-        self.node == peer.node
+        // we are exactly that node:
+        self.node == peer.node ||
+            // ...or, the incoming node has no UID; there was no handshake made,
+            // and thus the other side does not know which specific node it is going to talk to; as such, "we" are that node
+            // as such, "we" are that node; we should never add such peer to our members, but we will reply to that node with "us" and thus
+            // inform it about our specific UID, and from then onwards it will know about specifically this node (by replacing its UID-less version with our UID-ful version).
+            self.node.withoutUID == peer.node
     }
 
     // TODO: ensure we actually store "us" in members; do we need this special handling if then at all?
@@ -491,7 +506,8 @@ extension SWIM.Instance {
     }
 
     public func member(for peer: AddressableSWIMPeer) -> SWIM.Member? {
-        self.members[peer.node]
+        let node = peer.node
+        return self.members[node]
     }
 
     public func member(for node: ClusterMembership.Node) -> SWIM.Member? {
@@ -882,8 +898,8 @@ extension SWIM.Instance {
     }
 
     internal func onGossipPayload(about member: SWIM.Member) -> GossipProcessedDirective {
-        if self.isMyself(member) {
-            return onMyselfGossipPayload(myself: member)
+        if let myself = self.isMyself(member) {
+            return onMyselfGossipPayload(myself: myself)
         } else {
             return onOtherMemberGossipPayload(member: member)
         }
@@ -985,25 +1001,14 @@ extension SWIM.Instance {
             self.addMember(member.peer, status: member.status) // we assume the best
 
             // ask the shell to eagerly prep a connection with it
-            return .connect(
-                node: member.node
-//                ,
-//                onceConnected: { // FIXME: once connected os not neccessary
-//                    switch $0 {
-//                    case .success:
-//                        self.addMember(member.peer, status: member.status)
-//                    case .failure:
-//                        self.addMember(member.peer, status: self.makeSuspicion(incarnation: 0)) // connecting failed, so we immediately mark it as suspect (!)
-//                    }
-//                }
-            )
+            return .connect(node: member.node)
         }
     }
 
     public enum GossipProcessedDirective {
         case applied(change: SWIM.MemberStatusChange?, level: Logger.Level?, message: Logger.Message?)
         /// Ignoring a gossip update is perfectly fine: it may be "too old" or other reasons
-        case ignored(level: Logger.Level?, message: Logger.Message?)
+        case ignored(level: Logger.Level?, message: Logger.Message?) // TODO: allow the instance to log
         /// Warning! Even though we have an `ClusterMembership.Node` here, we need to ensure that we are actually connected to the node,
         /// hosting this swim peer.
         ///

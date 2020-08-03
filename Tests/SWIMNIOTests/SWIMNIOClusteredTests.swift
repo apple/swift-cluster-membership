@@ -71,6 +71,36 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             .awaitLog(grep: #""swim/suspects/count": 1"#, within: .seconds(20))
     }
 
+    func test_real_peers_2_connect_peerCountNeverExceeds2() throws {
+        let (firstHandler, firstChannel) = self.makeClusterNode() { settings in
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
+        }
+        let firstNode = firstHandler.shell.node
+
+        let (secondHandler, secondChannel) = self.makeClusterNode() { settings in
+            settings.initialContactPoints = [firstHandler.shell.node]
+
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
+        }
+        let secondNode = secondHandler.shell.node
+
+        try self.capturedLogs(of: firstHandler.shell.node)
+            .awaitLog(grep: #""swim/members/count": 2"#)
+
+        sleep(5)
+
+        do {
+            let found = try self.capturedLogs(of: secondNode)
+                .awaitLog(grep: #""swim/members/count": 3"#, within: .seconds(5))
+            XCTFail("Found unexpected members count: 3! Log message: \(found)")
+            return
+        } catch {
+            () // good!
+        }
+    }
+
     func test_real_peers_5_connect() throws {
         let (first, _) = self.makeClusterNode()
         let (second, _) = self.makeClusterNode() { settings in
