@@ -605,14 +605,12 @@ final class SWIMInstanceTests: XCTestCase {
                 return
             }
 
-            print("\(member.node)")
             seenNodes.append(member.node)
             members = members.filter {
                 $0.node != member.node
             }
         }
 
-        print("remaining members: \(members)")
         XCTAssertTrue(members.isEmpty, "all members should have been selected at least once")
 
         // should loop around and we should encounter all the same members now

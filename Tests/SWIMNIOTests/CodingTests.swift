@@ -13,17 +13,28 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import Foundation
 import SWIM
 @testable import SWIMNIO
 import XCTest
 
-final class SWIMNIOSerializationTests: XCTestCase {
+final class CodingTests: XCTestCase {
     lazy var nioPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121), channel: nil)
     lazy var nioPeerOther = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324), channel: nil)
 
-    lazy var memberOne: SWIM.Member = .init(peer: nioPeer, status: .alive(incarnation: 1), protocolPeriod: 0) // FIXME: we don't ser/deser protocol period, bug or feature?
-    lazy var memberTwo: SWIM.Member = .init(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0) // FIXME: we don't ser/deser protocol period, bug or feature?
-    lazy var memberThree: SWIM.Member = .init(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0) // FIXME: we don't ser/deser protocol period, bug or feature?
+    lazy var memberOne = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 1), protocolPeriod: 0)
+    lazy var memberTwo = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0)
+    lazy var memberThree = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0)
+
+    // TODO: add some more "nasty" cases, since the node parsing code is very manual and not hardened / secure
+    func test_serializationOf_node() throws {
+        try self.shared_serializationRoundtrip(
+            Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121)
+        )
+        try self.shared_serializationRoundtrip(
+            Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: nil)
+        )
+    }
 
     func test_serializationOf_ping() throws {
         try self.shared_serializationRoundtrip(self.nioPeer)
@@ -45,16 +56,9 @@ final class SWIMNIOSerializationTests: XCTestCase {
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Utils
 
-    func shared_serializationRoundtrip<T: InternalProtobufRepresentable>(_ obj: T) throws {
-        let proto = try obj.toProto()
-        let deserialized = try! T.init(fromProto: proto)
-
-        XCTAssertEqual("\(obj)", "\(deserialized)")
-    }
-
-    func shared_serializationRoundtrip<T: ProtobufRepresentable>(_ obj: T) throws {
-        let proto = try obj.toProto()
-        let deserialized = try! T.init(fromProto: proto)
+    func shared_serializationRoundtrip<T: Codable>(_ obj: T) throws {
+        let repr = try SWIMNIODefaultEncoder().encode(obj)
+        let deserialized = try SWIMNIODefaultDecoder().decode(T.self, from: repr)
 
         XCTAssertEqual("\(obj)", "\(deserialized)")
     }

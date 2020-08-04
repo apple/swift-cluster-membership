@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2020 Apple Inc. and the Swift Cluster Membership project authors
+// Copyright (c) 2018-2019 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -12,18 +12,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-syntax = "proto3";
-
-option optimize_for = SPEED;
-option swift_prefix = "Proto";
-
-message Peer {
-    Node node = 1;
-}
-
-message Node {
-    string protocol = 1;
-    string host     = 2;
-    int32 port      = 3;
-    uint64 uid      = 4;
+// TODO: make a struct for compat
+public enum SWIMSerializationError: Error {
+    case notSerializable(String)
+    case missingField(String, type: String)
+    case missingData(String)
+    case unknownEnumValue(Int)
 }
