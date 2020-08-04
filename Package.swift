@@ -24,7 +24,6 @@ var targets: [PackageDescription.Target] = [
     .target(
         name: "ClusterMembership",
         dependencies: [
-            .product(name: "SwiftProtobuf", package: "SwiftProtobuf"),
         ]
     ),
 
@@ -32,8 +31,6 @@ var targets: [PackageDescription.Target] = [
         name: "SWIM",
         dependencies: [
             "ClusterMembership",
-            .product(name: "SwiftProtobuf", package: "SwiftProtobuf"),
-
             .product(name: "Logging", package: "swift-log"),
             .product(name: "Metrics", package: "swift-metrics"),
         ]
@@ -46,9 +43,7 @@ var targets: [PackageDescription.Target] = [
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "NIOFoundationCompat", package: "swift-nio"),
             .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
-
             .product(name: "NIOExtras", package: "swift-nio-extras"),
-            .product(name: "SwiftProtobuf", package: "SwiftProtobuf"),
 
             .product(name: "Logging", package: "swift-log"),
             .product(name: "Metrics", package: "swift-metrics"),
@@ -101,8 +96,6 @@ var dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/apple/swift-nio.git",        from: "2.19.0"),
     .package(url: "https://github.com/apple/swift-nio-ssl.git",    from: "2.8.0"),
     .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.5.1"),
-
-    .package(name: "SwiftProtobuf", url: "https://github.com/apple/swift-protobuf.git", from: "1.7.0"),
 
     // ~~~ SSWG APIs ~~~
 

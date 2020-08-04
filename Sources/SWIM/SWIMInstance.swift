@@ -629,9 +629,9 @@ extension SWIM.Instance {
             return self.onPingAckResponse(target: target, incarnation: incarnation, payload: payload, pingReqOrigin: pingReqOrigin, sequenceNumber: sequenceNumber)
         case .nack(let target, let sequenceNumber):
             return self.onPingNackResponse(target: target, pingReqOrigin: pingReqOrigin, sequenceNumber: sequenceNumber)
-        case .timeout(let target, let pingReqOriginNode, let timeout, let sequenceNumber):
+        case .timeout(let target, _, let timeout, let sequenceNumber):
             return self.onPingResponseTimeout(target: target, timeout: timeout, pingReqOrigin: pingReqOrigin, sequenceNumber: sequenceNumber)
-        case .error(let error, let target, let sequenceNumber):
+        case .error:
             fatalError() // FIXME: what to do here
         }
     }
@@ -683,7 +683,7 @@ extension SWIM.Instance {
         pingReqOrigin: SWIMPeerReplyProtocol?,
         sequenceNumber: SWIM.SequenceNumber
     ) -> [OnPingResponseDirective] {
-        var directives: [OnPingResponseDirective] = []
+        let directives: [OnPingResponseDirective] = []
         () // TODO: nothing???
         return directives
     }
@@ -842,8 +842,21 @@ extension SWIM.Instance {
         }
 
         switch response {
+        case .ack(let target, let incarnation, let payload, _):
+            assert(target == member.node, "The ack.from member [\(target)] MUST be equal to the pinged member \(member.node)]; The Ack message is being forwarded back to us from the pinged member.")
+            self.adjustLHMultiplier(.successfulProbe)
+            switch self.mark(member, as: .alive(incarnation: incarnation)) {
+            case .applied:
+                // TODO: we can be more interesting here, was it a move suspect -> alive or a reassurance?
+                return .alive(previous: lastKnownStatus, payloadToProcess: payload)
+            case .ignoredDueToOlderStatus(let currentStatus):
+                return .ignoredDueToOlderStatus(currentStatus: currentStatus)
+            }
+        case .nack:
+            return .nackReceived
+
         case .timeout, .error:
-            // missed pingReq's nack may indicate a problem with local health
+            // missed pingRequest's nack may indicate a problem with local health
             self.adjustLHMultiplier(.probeWithMissedNack)
 
             switch lastKnownStatus {
@@ -859,19 +872,6 @@ extension SWIM.Instance {
             case .dead:
                 return .alreadyDead
             }
-
-        case .ack(let target, let incarnation, let payload, let sequenceNumber):
-            assert(target == member.node, "The ack.from member [\(target)] MUST be equal to the pinged member \(member.node)]; The Ack message is being forwarded back to us from the pinged member.")
-            self.adjustLHMultiplier(.successfulProbe)
-            switch self.mark(member, as: .alive(incarnation: incarnation)) {
-            case .applied:
-                // TODO: we can be more interesting here, was it a move suspect -> alive or a reassurance?
-                return .alive(previous: lastKnownStatus, payloadToProcess: payload)
-            case .ignoredDueToOlderStatus(let currentStatus):
-                return .ignoredDueToOlderStatus(currentStatus: currentStatus)
-            }
-        case .nack:
-            return .nackReceived
         }
     }
 

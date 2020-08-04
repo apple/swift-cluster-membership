@@ -12,7 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-public struct Node: Codable, Hashable, CustomStringConvertible {
+/// Generic representation of a (potentially unique, if `uid` is present) node in a cluster.
+///
+/// Generally the node represents "some node we want to contact" if the `uid` is not set,
+/// and if the `uid` is available "the specific instance of a node".
+public struct Node: Hashable, CustomStringConvertible {
     public var `protocol`: String
     public var host: String
     public var port: Int
@@ -52,11 +56,3 @@ extension Node: Comparable {
         }
     }
 }
-
-// FIXME: would prefer that, but it's hard to express
-// public protocol Node: Codable, Hashable {
-//    var `protocol`: String { get }
-//    var host: String { get }
-//    var port: Int { get }
-//    var uuid: UInt64? { get }
-// }

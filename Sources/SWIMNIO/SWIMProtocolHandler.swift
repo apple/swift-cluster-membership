@@ -192,14 +192,14 @@ extension SWIMProtocolHandler {
             throw MissingDataError("No data to read")
         }
 
-        var proto = ProtoSWIMMessage()
-        try proto.merge(serializedData: data)
-        return try SWIM.Message(fromProto: proto)
+        let decoder = SWIMNIODefaultDecoder()
+        return try decoder.decode(SWIM.Message.self, from: data)
     }
 
     private func serialize(message: SWIM.Message, using allocator: ByteBufferAllocator) throws -> ByteBuffer {
-        let proto = try message.toProto()
-        let data = try proto.serializedData()
+        let encoder = SWIMNIODefaultEncoder()
+        let data = try encoder.encode(message)
+
         let buffer = data.withUnsafeBytes { bytes -> ByteBuffer in
             var buffer = allocator.buffer(capacity: data.count)
             buffer.writeBytes(bytes)

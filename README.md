@@ -1,10 +1,10 @@
 # Swift Cluster Membership
 
-It is my pleasure to announce a new open source project for the Swift Server ecosystem, Swift Cluster Membership. This library aims to help Swift grow in a new range of server applications: clustered multi-node distributed systems. With this library we provide reusable runtime agnostic membership protocol implementations which can be adopted in various clustering use-cases.
+This library aims to help Swift make ground in a new space: clustered multi-node distributed systems. With this library we provide reusable runtime agnostic membership protocol implementations which can be adopted in various clustering use-cases.
 
 ## Background
 
-Cluster Membership protocols are a foundational and important building block for distributed systems, such as databases, key-value stores, computation intensive clusters, schedulers and more. With the announcement of this package, we aim to make building such systems simpler, and also invite the community to collaborate on and develop additional protocols.
+Cluster Membership protocols are a foundational and important building block for distributed systems, such as databases, key-value stores, computation intensive clusters, schedulers and more. With the announcement of this package, we aim to make building such systems simpler, and also invite the community to collaborate on and develop additional membership protocols.
 
 At their core, membership protocols need to provide an answer for the question "what are my (live) peers?" whenever a node in a clustered environment asks itself this question. This seemingly "simple" task turns out to be not so simple at all in a distributed system where delayed or lost messages, network partitions, and unresponsive but still "alive" nodes are the daily bread and butter. Providing a predictable, reliable answer to such question is what cluster membership protocols do.
 
@@ -26,11 +26,11 @@ At a high level, SWIM works like this:
 
 ![SWIM: Messages Examples](images/ping_pingreq_cycle.svg)
 
-Eventually a peer may become `.unreachable` and `.dead` resulting in its irrevocable removal from the cluster. For detailed rules about status transition refer to `SWIM.MemberStatus`. While this describes the failure detection mechanism of SWIM, it concurrently serves another purpose: disseminating the membership information, which is transparently piggy backed onto these periodic message exchanges.
+Eventually a peer may become `.unreachable` and `.dead` resulting in its irrevocable removal from the cluster. For detailed rules about status transition refer to `SWIM.MemberStatus`. While this describes the failure detection mechanism of SWIM, it also serves another purpose: disseminating the membership information, which is transparently piggy backed onto these periodic message exchanges.
 
 ![SWIM: Lifecycle Diagram](images/swim_lifecycle.svg)
 
-It should be noted that, as the name implies, this style of membership is *weakly-consistent*, which means there is no guarantee (or way to know, without additional extensions) if all members have the same exact view on the membership. However, it is an excellent building block for higher-level tools and systems to build their stronger guarantees on top of.
+It should be noted that, as the name implies, this style of membership is *weakly-consistent*, which means there is no guarantee (or way to know, without additional extensions) if all members have the same exact view on the membership. However, it is an excellent building block for higher-level tools and systems to build their stronger guarantees on top.
 
 In order to "actually do anything", the `SWIM.Instance` needs to be "driven" or "interpreted" by some glue code between a networking runtime and the instance itself. We call those glue pieces of an implementation "Shells", and the library ships with a SWIM Shell implemented using [SwiftNIO](https://www.github.com/apple/swift-nio)’s `DatagramChannel` that performs all messaging asynchronously over UDP. Alternative implementations could use alternative transports, or piggy back SWIM messages on some other existing gossip system etc.
 

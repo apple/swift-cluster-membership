@@ -38,7 +38,7 @@ extension SWIM {
         public var status: SWIM.Status
 
         // Period in which protocol period was this state set
-        public let protocolPeriod: Int
+        public var protocolPeriod: Int
 
         /// Indicates a time when suspicion was started.
         ///
