@@ -96,6 +96,11 @@ public struct ProtoSWIMPing {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  public var sequenceNumber: UInt32 {
+    get {return _storage._sequenceNumber}
+    set {_uniqueStorage()._sequenceNumber = newValue}
+  }
+
   public var replyTo: ProtoPeer {
     get {return _storage._replyTo ?? ProtoPeer()}
     set {_uniqueStorage()._replyTo = newValue}
@@ -125,6 +130,11 @@ public struct ProtoSWIMPingRequest {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
+
+  public var sequenceNumber: UInt32 {
+    get {return _storage._sequenceNumber}
+    set {_uniqueStorage()._sequenceNumber = newValue}
+  }
 
   public var target: ProtoPeer {
     get {return _storage._target ?? ProtoPeer()}
@@ -164,6 +174,11 @@ public struct ProtoSWIMPingResponse {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
+
+  public var sequenceNumber: UInt32 {
+    get {return _storage._sequenceNumber}
+    set {_uniqueStorage()._sequenceNumber = newValue}
+  }
 
   public var pingResponse: OneOf_PingResponse? {
     get {return _storage._pingResponse}
@@ -471,11 +486,13 @@ extension ProtoSWIMMessage: SwiftProtobuf.Message, SwiftProtobuf._MessageImpleme
 extension ProtoSWIMPing: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = "SWIMPing"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "replyTo"),
-    2: .same(proto: "payload"),
+    1: .same(proto: "sequenceNumber"),
+    2: .same(proto: "replyTo"),
+    3: .same(proto: "payload"),
   ]
 
   fileprivate class _StorageClass {
+    var _sequenceNumber: UInt32 = 0
     var _replyTo: ProtoPeer? = nil
     var _payload: ProtoSWIMPayload? = nil
 
@@ -484,6 +501,7 @@ extension ProtoSWIMPing: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
     private init() {}
 
     init(copying source: _StorageClass) {
+      _sequenceNumber = source._sequenceNumber
       _replyTo = source._replyTo
       _payload = source._payload
     }
@@ -501,8 +519,9 @@ extension ProtoSWIMPing: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       while let fieldNumber = try decoder.nextFieldNumber() {
         switch fieldNumber {
-        case 1: try decoder.decodeSingularMessageField(value: &_storage._replyTo)
-        case 2: try decoder.decodeSingularMessageField(value: &_storage._payload)
+        case 1: try decoder.decodeSingularUInt32Field(value: &_storage._sequenceNumber)
+        case 2: try decoder.decodeSingularMessageField(value: &_storage._replyTo)
+        case 3: try decoder.decodeSingularMessageField(value: &_storage._payload)
         default: break
         }
       }
@@ -511,11 +530,14 @@ extension ProtoSWIMPing: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      if _storage._sequenceNumber != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._sequenceNumber, fieldNumber: 1)
+      }
       if let v = _storage._replyTo {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
       }
       if let v = _storage._payload {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
       }
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -526,6 +548,7 @@ extension ProtoSWIMPing: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
       let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
         let _storage = _args.0
         let rhs_storage = _args.1
+        if _storage._sequenceNumber != rhs_storage._sequenceNumber {return false}
         if _storage._replyTo != rhs_storage._replyTo {return false}
         if _storage._payload != rhs_storage._payload {return false}
         return true
@@ -540,12 +563,14 @@ extension ProtoSWIMPing: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementa
 extension ProtoSWIMPingRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = "SWIMPingRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "target"),
-    2: .same(proto: "replyTo"),
-    3: .same(proto: "payload"),
+    1: .same(proto: "sequenceNumber"),
+    2: .same(proto: "target"),
+    3: .same(proto: "replyTo"),
+    4: .same(proto: "payload"),
   ]
 
   fileprivate class _StorageClass {
+    var _sequenceNumber: UInt32 = 0
     var _target: ProtoPeer? = nil
     var _replyTo: ProtoPeer? = nil
     var _payload: ProtoSWIMPayload? = nil
@@ -555,6 +580,7 @@ extension ProtoSWIMPingRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     private init() {}
 
     init(copying source: _StorageClass) {
+      _sequenceNumber = source._sequenceNumber
       _target = source._target
       _replyTo = source._replyTo
       _payload = source._payload
@@ -573,9 +599,10 @@ extension ProtoSWIMPingRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       while let fieldNumber = try decoder.nextFieldNumber() {
         switch fieldNumber {
-        case 1: try decoder.decodeSingularMessageField(value: &_storage._target)
-        case 2: try decoder.decodeSingularMessageField(value: &_storage._replyTo)
-        case 3: try decoder.decodeSingularMessageField(value: &_storage._payload)
+        case 1: try decoder.decodeSingularUInt32Field(value: &_storage._sequenceNumber)
+        case 2: try decoder.decodeSingularMessageField(value: &_storage._target)
+        case 3: try decoder.decodeSingularMessageField(value: &_storage._replyTo)
+        case 4: try decoder.decodeSingularMessageField(value: &_storage._payload)
         default: break
         }
       }
@@ -584,14 +611,17 @@ extension ProtoSWIMPingRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      if let v = _storage._target {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      if _storage._sequenceNumber != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._sequenceNumber, fieldNumber: 1)
       }
-      if let v = _storage._replyTo {
+      if let v = _storage._target {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
       }
-      if let v = _storage._payload {
+      if let v = _storage._replyTo {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      }
+      if let v = _storage._payload {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
       }
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -602,6 +632,7 @@ extension ProtoSWIMPingRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
         let _storage = _args.0
         let rhs_storage = _args.1
+        if _storage._sequenceNumber != rhs_storage._sequenceNumber {return false}
         if _storage._target != rhs_storage._target {return false}
         if _storage._replyTo != rhs_storage._replyTo {return false}
         if _storage._payload != rhs_storage._payload {return false}
@@ -617,11 +648,13 @@ extension ProtoSWIMPingRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
 extension ProtoSWIMPingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = "SWIMPingResponse"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "ack"),
-    2: .same(proto: "nack"),
+    1: .same(proto: "sequenceNumber"),
+    2: .same(proto: "ack"),
+    3: .same(proto: "nack"),
   ]
 
   fileprivate class _StorageClass {
+    var _sequenceNumber: UInt32 = 0
     var _pingResponse: ProtoSWIMPingResponse.OneOf_PingResponse?
 
     static let defaultInstance = _StorageClass()
@@ -629,6 +662,7 @@ extension ProtoSWIMPingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     private init() {}
 
     init(copying source: _StorageClass) {
+      _sequenceNumber = source._sequenceNumber
       _pingResponse = source._pingResponse
     }
   }
@@ -645,7 +679,8 @@ extension ProtoSWIMPingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
       while let fieldNumber = try decoder.nextFieldNumber() {
         switch fieldNumber {
-        case 1:
+        case 1: try decoder.decodeSingularUInt32Field(value: &_storage._sequenceNumber)
+        case 2:
           var v: ProtoSWIMPingResponse.Ack?
           if let current = _storage._pingResponse {
             try decoder.handleConflictingOneOf()
@@ -653,7 +688,7 @@ extension ProtoSWIMPingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
           }
           try decoder.decodeSingularMessageField(value: &v)
           if let v = v {_storage._pingResponse = .ack(v)}
-        case 2:
+        case 3:
           var v: ProtoSWIMPingResponse.Nack?
           if let current = _storage._pingResponse {
             try decoder.handleConflictingOneOf()
@@ -669,11 +704,14 @@ extension ProtoSWIMPingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
     try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      if _storage._sequenceNumber != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._sequenceNumber, fieldNumber: 1)
+      }
       switch _storage._pingResponse {
       case .ack(let v)?:
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-      case .nack(let v)?:
         try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      case .nack(let v)?:
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
       case nil: break
       }
     }
@@ -685,6 +723,7 @@ extension ProtoSWIMPingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
       let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
         let _storage = _args.0
         let rhs_storage = _args.1
+        if _storage._sequenceNumber != rhs_storage._sequenceNumber {return false}
         if _storage._pingResponse != rhs_storage._pingResponse {return false}
         return true
       }

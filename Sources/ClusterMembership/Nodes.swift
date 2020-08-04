@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-public struct Node: Codable, Hashable {
+public struct Node: Codable, Hashable, CustomStringConvertible {
     public var `protocol`: String
     public var host: String
     public var port: Int
@@ -23,6 +23,16 @@ public struct Node: Codable, Hashable {
         self.host = host
         self.port = port
         self.uid = uid
+    }
+
+    public var withoutUID: Self {
+        var without = self
+        without.uid = nil
+        return without
+    }
+
+    public var description: String {
+        "\(self.protocol)://\(self.host):\(self.port)\(self.uid.map { "#\($0.description)" } ?? "")"
     }
 }
 

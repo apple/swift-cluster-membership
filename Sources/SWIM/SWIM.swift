@@ -35,20 +35,12 @@ public enum SWIM {
     public typealias Incarnation = UInt64
     public typealias Members = [SWIM.Member]
 
+    /// A sequence number which can be used to associate with messages in order to establish an request/response
+    /// relationship between ping/pingRequest and their corresponding ack/nack messages.
+    public typealias SequenceNumber = UInt32
+
     // TODO: or index by just the Node?
     public typealias MembersValues = Dictionary<Node, SWIM.Member>.Values
-
-//    public enum Message: Codable {
-//        case remote(RemoteMessage)
-//        case local(LocalMessage)
-//    }
-//
-//    public enum RemoteMessage: Codable {
-//        case ping(replyTo: Peer<PingResponse>, payload: GossipPayload)
-//
-//        /// "Ping Request" requests a SWIM probe.
-//        case pingReq(target: Peer<Message>, replyTo: Peer<PingResponse>, payload: GossipPayload)
-//    }
 
     /// Message sent in reply to a `SWIM.RemoteMessage.ping`.
     ///
@@ -59,20 +51,35 @@ public enum SWIM {
         /// - parameter incarnation: TODO: docs
         /// - parameter payload: TODO: docs
         // case ack(target: AnyPeer, incarnation: Incarnation, payload: GossipPayload)
-        case ack(target: Node, incarnation: Incarnation, payload: GossipPayload)
+        case ack(target: Node, incarnation: Incarnation, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
 
         /// - parameter target: always contains the peer of the member that was the target of the `ping`.
         /// - parameter incarnation: TODO: docs
         /// - parameter payload: TODO: docs
         // case nack(target: AnyPeer)
-        case nack(target: Node)
+        case nack(target: Node, sequenceNumber: SWIM.SequenceNumber)
 
         //         pingedMember: SWIMPeerProtocol,
         //         pingReqOrigin: ActorRef<SWIM.PingResponse>?
-        case timeout(target: Node, pingReqOrigin: Node?, timeout: SWIMTimeAmount)
+        case timeout(target: Node, pingReqOrigin: Node?, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber)
 
         /// Other error
-        case error(Error, target: Node)
+        case error(Error, target: Node, sequenceNumber: SWIM.SequenceNumber)
+
+        /// Sequence number of the initial request this is a response to.
+        /// Used to pair up responses to the requests which initially caused them.
+        public var sequenceNumber: SWIM.SequenceNumber {
+            switch self {
+            case .ack(_, _, _, let identifier):
+                return identifier
+            case .nack(_, let identifier):
+                return identifier
+            case .timeout(_, _, _, let identifier):
+                return identifier
+            case .error(_, _, let identifier):
+                return identifier
+            }
+        }
     }
 
     internal struct MembershipState {
@@ -131,6 +138,8 @@ public enum SWIM {
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Member Status
+
+// TODO: reduce the nesting since types now show up as SWIM.SWIM.TheType
 
 extension SWIM {
     /// The SWIM membership status reflects how a node is perceived by the distributed failure detector.

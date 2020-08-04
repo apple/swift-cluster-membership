@@ -20,7 +20,7 @@ import SWIM
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Tracelog: SWIM [tracelog:SWIM]
 
-extension NIOSWIMShell {
+extension SWIMNIOShell {
     /// Optional "dump all messages" logging.
     ///
     /// Enabled by `SWIM.Settings.traceLogLevel` or `-DTRACELOG_SWIM`

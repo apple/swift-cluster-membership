@@ -17,8 +17,8 @@ import SWIM
 @testable import SWIMNIO
 import XCTest
 
-final class SWIMSerializationTests: XCTestCase {
-    lazy var nioPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "localhost", port: 1111, uid: 12121), channel: nil)
+final class SWIMNIOSerializationTests: XCTestCase {
+    lazy var nioPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121), channel: nil)
     lazy var nioPeerOther = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324), channel: nil)
 
     lazy var memberOne: SWIM.Member = .init(peer: nioPeer, status: .alive(incarnation: 1), protocolPeriod: 0) // FIXME: we don't ser/deser protocol period, bug or feature?
@@ -32,14 +32,14 @@ final class SWIMSerializationTests: XCTestCase {
 
     func test_serializationOf_pingReq() throws {
         let payloadNone: SWIM.GossipPayload = .none
-        try self.shared_serializationRoundtrip(SWIM.Message.pingReq(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadNone))
+        try self.shared_serializationRoundtrip(SWIM.Message.pingRequest(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadNone, sequenceNumber: 111))
 
         let payloadSome: SWIM.GossipPayload = .membership([
             self.memberOne,
             self.memberTwo,
             self.memberThree,
         ])
-        try self.shared_serializationRoundtrip(SWIM.Message.pingReq(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadSome))
+        try self.shared_serializationRoundtrip(SWIM.Message.pingRequest(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadSome, sequenceNumber: 1212))
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------

@@ -31,20 +31,21 @@ extension Node: ProtobufRepresentable {
 
     public init(fromProto proto: ProtobufRepresentation) throws {
         guard !proto.protocol.isEmpty else {
-            throw SWIMSerializationError.missingField("protocol", type: "String")
+            throw SWIMSerializationError.missingField("node.protocol", type: "String")
         }
         guard !proto.host.isEmpty else {
-            throw SWIMSerializationError.missingField("host", type: "String")
+            throw SWIMSerializationError.missingField("node.host", type: "String")
         }
         guard proto.port > 0 else {
-            throw SWIMSerializationError.missingField("port", type: "Int")
-        }
-        guard proto.uid > 0 else {
-            throw SWIMSerializationError.missingField("port", type: "Int")
+            throw SWIMSerializationError.missingField("node.port", type: "Int")
         }
         self.protocol = proto.protocol
         self.host = proto.host
         self.port = Int(proto.port)
-        self.uid = UInt64(proto.uid)
+        if proto.uid != 0 {
+            self.uid = UInt64(proto.uid)
+        } else {
+            self.uid = nil
+        }
     }
 }

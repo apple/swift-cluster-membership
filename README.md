@@ -139,7 +139,7 @@ public protocol SWIMPeerReplyProtocol: AddressableSWIMPeer {
 
     /// "NegativeAcknowledge" a ping.
     func nack(
-        target: AddressableSWIMPeer
+        target: AddressableSWIMPeer,
         sequenceNr: SWIM.SequenceNr
     )
 }

@@ -21,21 +21,34 @@ extension SWIM {
 
 public protocol AddressableSWIMPeer {
     /// Node that this peer is representing.
-    var node: ClusterMembership.Node { get }
+    var node: ClusterMembership.Node { get set }
 }
 
 extension ClusterMembership.Node: AddressableSWIMPeer {
     public var node: ClusterMembership.Node {
-        self
+        get {
+            self
+        }
+        set {
+            self = newValue
+        }
     }
 }
 
 public protocol SWIMPeerReplyProtocol: AddressableSWIMPeer {
     /// Acknowledge a ping.
-    func ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload)
+    func ack(
+        acknowledging: SWIM.SequenceNumber,
+        target: AddressableSWIMPeer,
+        incarnation: SWIM.Incarnation,
+        payload: SWIM.GossipPayload
+    )
 
     /// "NegativeAcknowledge" a ping.
-    func nack(target: AddressableSWIMPeer)
+    func nack(
+        acknowledging: SWIM.SequenceNumber,
+        target: AddressableSWIMPeer
+    )
 }
 
 public protocol SWIMPeerProtocol: SWIMPeerReplyProtocol {
@@ -50,6 +63,7 @@ public protocol SWIMPeerProtocol: SWIMPeerReplyProtocol {
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,
         timeout: SWIMTimeAmount,
+        sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     )
 
@@ -61,12 +75,14 @@ public protocol SWIMPeerProtocol: SWIMPeerReplyProtocol {
     ///   - origin:
     ///   - timeout: timeout during which we expect the other peer to have replied to us with a PingResponse about the pinged node.
     ///     If we get no response about that peer in that time, this `pingReq` is considered failed.
-    ///   - onComplete:
-    func pingReq(
+    ///   - onComplete: must be invoked when the a corresponding reply (ack, nack) or timeout event for this ping request occurs.
+    ///     It may be necessary to generate and pass a `SWIM.SequenceNumber` when sending the request, such that the replies can be correlated to this request and completion block.
+    func pingRequest(
         target: AddressableSWIMPeer,
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,
         timeout: SWIMTimeAmount,
+        sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     )
 
@@ -81,41 +97,56 @@ extension SWIMPeerProtocol {
 }
 
 public struct AnySWIMPeer: Hashable, SWIMPeerProtocol {
-    let peer: SWIMPeerProtocol
+    var peer: SWIMPeerProtocol
 
     public init(peer: SWIMPeerProtocol) {
         self.peer = peer
     }
 
     public var node: ClusterMembership.Node {
-        self.peer.node
+        get {
+            self.peer.node
+        }
+        set {
+            self.peer.node = newValue
+        }
     }
 
     public func ping(
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,
         timeout: SWIMTimeAmount,
+        sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     ) {
-        self.peer.ping(payload: payload, from: origin, timeout: timeout, onComplete: onComplete)
+        self.peer.ping(payload: payload, from: origin, timeout: timeout, sequenceNumber: sequenceNumber, onComplete: onComplete)
     }
 
-    public func pingReq(
+    public func pingRequest(
         target: AddressableSWIMPeer,
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,
         timeout: SWIMTimeAmount,
+        sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     ) {
-        self.peer.pingReq(target: target, payload: payload, from: origin, timeout: timeout, onComplete: onComplete)
+        self.peer.pingRequest(target: target, payload: payload, from: origin, timeout: timeout, sequenceNumber: sequenceNumber, onComplete: onComplete)
     }
 
-    public func ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload) {
-        self.peer.ack(target: target, incarnation: incarnation, payload: payload)
+    public func ack(
+        acknowledging: SWIM.SequenceNumber,
+        target: AddressableSWIMPeer,
+        incarnation: SWIM.Incarnation,
+        payload: SWIM.GossipPayload
+    ) {
+        self.peer.ack(acknowledging: acknowledging, target: target, incarnation: incarnation, payload: payload)
     }
 
-    public func nack(target: AddressableSWIMPeer) {
-        self.peer.nack(target: target)
+    public func nack(
+        acknowledging: SWIM.SequenceNumber,
+        target: AddressableSWIMPeer
+    ) {
+        self.peer.nack(acknowledging: acknowledging, target: target)
     }
 
     public func hash(into hasher: inout Hasher) {

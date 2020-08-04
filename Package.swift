@@ -45,6 +45,8 @@ var targets: [PackageDescription.Target] = [
             "SWIM",
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "NIOFoundationCompat", package: "swift-nio"),
+            .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
+
             .product(name: "NIOExtras", package: "swift-nio-extras"),
             .product(name: "SwiftProtobuf", package: "SwiftProtobuf"),
 

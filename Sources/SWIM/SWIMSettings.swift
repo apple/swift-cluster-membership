@@ -20,9 +20,11 @@ import Logging
 // MARK: SWIM Settings
 
 extension SWIM {
+    /// Settings generally applicable to the SWIM implementation as well as any shell running it.
     public struct Settings {
         public init() {}
 
+        /// Logger used by the instance and shell (unless the specific shell implememntation states otherwise).
         public var logger: Logger = Logger(label: "swim")
 
         public var logLevel: Logger.Level {
@@ -103,6 +105,7 @@ public struct SWIMGossipSettings {
     /// Max number of messages included in any gossip payload
     public var maxNumberOfMessages: Int = 20
 
+    ///
     public var maxGossipCountPerMessage: Int = 6
 }
 

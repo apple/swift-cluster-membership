@@ -34,7 +34,7 @@ extension SWIM.Instance {
             "swim/incarnation": "\(self.incarnation)",
             "swim/members/all": Logger.Metadata.Value.array(self.allMembers.map { "\($0)" }),
             "swim/members/toPing": Logger.Metadata.Value.array(self.membersToPing.map { "\($0)" }),
-            "swim/member/count": "\(self.notDeadMemberCount)",
+            "swim/members/count": "\(self.notDeadMemberCount)",
             "swim/suspects/count": "\(self.suspects.count)",
         ]
     }
