@@ -297,7 +297,7 @@ public final class SWIMNIOShell: SWIM.Context {
         }
     }
 
-    func receivePingRequestResponse(result: SWIM.PingResponse, pingedMember: AddressableSWIMPeer /* <SWIM.Message> */ ) {
+    func receivePingRequestResponse(result: SWIM.PingResponse, pingedMember: SWIMAddressablePeer /* <SWIM.Message> */ ) {
         self.tracelog(.receive(pinged: pingedMember.node), message: "\(result)")
         // TODO: do we know here WHO replied to us actually? We know who they told us about (with the ping-req), could be useful to know
 
@@ -320,7 +320,7 @@ public final class SWIMNIOShell: SWIM.Context {
     ///
     /// - parameter pingReqOrigin: is set only when the ping that this is a reply to was originated as a `pingReq`.
     func sendPing(
-        to target: AddressableSWIMPeer, // SWIM.NIOPeer, // <SWIM.Message>
+        to target: SWIMAddressablePeer, // SWIM.NIOPeer, // <SWIM.Message>
         pingReqOriginPeer: SWIMPeerProtocol?, // <SWIM.PingResponse>
         timeout: SWIMTimeAmount,
         sequenceNumber: SWIM.SequenceNumber
@@ -650,7 +650,7 @@ public enum MemberReachability: String, Equatable {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Peer "resolve"
 
-extension AddressableSWIMPeer {
+extension SWIMAddressablePeer {
     /// Since we're an implementation over UDP, all messages are sent to the same channel anyway,
     /// and simply wrapped in `NIO.AddressedEnvelope`, thus we can easily take any addressable and
     /// convert it into a real NIO peer by simply providing the channel we're running on.

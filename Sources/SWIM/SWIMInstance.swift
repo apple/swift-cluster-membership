@@ -149,7 +149,7 @@ extension SWIM {
 
         // FIXME: should not be public
         @discardableResult
-        public func addMember(_ peer: AddressableSWIMPeer, status: SWIM.Status) -> AddMemberDirective {
+        public func addMember(_ peer: SWIMAddressablePeer, status: SWIM.Status) -> AddMemberDirective {
             let maybeExistingMember = self.member(for: peer)
 
             if let existingMember = maybeExistingMember, existingMember.status.supersedes(status) {
@@ -243,7 +243,7 @@ extension SWIM {
         ///   but in a round-robin fashion. Instead, a newly joining member is inserted in the membership list at
         ///   a position that is chosen uniformly at random. On completing a traversal of the entire list,
         ///   rearranges the membership list to a random reordering.
-        public func nextMemberToPing() -> AddressableSWIMPeer? {
+        public func nextMemberToPing() -> SWIMAddressablePeer? {
             if self.membersToPing.isEmpty {
                 return nil
             }
@@ -255,8 +255,8 @@ extension SWIM {
         }
 
         /// Selects `settings.indirectProbeCount` members to send a `ping-req` to.
-        func membersToPingRequest(target: AddressableSWIMPeer) -> ArraySlice<SWIM.Member> {
-            func notTarget(_ peer: AddressableSWIMPeer) -> Bool {
+        func membersToPingRequest(target: SWIMAddressablePeer) -> ArraySlice<SWIM.Member> {
+            func notTarget(_ peer: SWIMAddressablePeer) -> Bool {
                 peer.node != target.node
             }
 
@@ -275,7 +275,7 @@ extension SWIM {
         }
 
         @discardableResult
-        public func mark(_ peer: AddressableSWIMPeer, as status: SWIM.Status) -> MarkedDirective {
+        public func mark(_ peer: SWIMAddressablePeer, as status: SWIM.Status) -> MarkedDirective {
             let previousStatusOption = self.status(of: peer)
 
             var status = status
@@ -390,7 +390,7 @@ extension SWIM {
             self.settings.timeSourceNanos()
         }
 
-        public func makeGossipPayload(to target: AddressableSWIMPeer?) -> SWIM.GossipPayload {
+        public func makeGossipPayload(to target: SWIMAddressablePeer?) -> SWIM.GossipPayload {
             var members: [SWIM.Member] = []
             // buddy system will always send to a suspect its suspicion.
             // The reason for that to ensure the suspect will be notified it is being suspected,
@@ -464,7 +464,7 @@ extension SWIM.Instance {
         self.isMyself(member) == nil
     }
 
-    func notMyself(_ peer: AddressableSWIMPeer) -> Bool {
+    func notMyself(_ peer: SWIMAddressablePeer) -> Bool {
         !self.isMyself(peer)
     }
 
@@ -478,7 +478,7 @@ extension SWIM.Instance {
         }
     }
 
-    func isMyself(_ peer: AddressableSWIMPeer) -> Bool {
+    func isMyself(_ peer: SWIMAddressablePeer) -> Bool {
         // we are exactly that node:
         self.node == peer.node ||
             // ...or, the incoming node has no UID; there was no handshake made,
@@ -489,7 +489,7 @@ extension SWIM.Instance {
     }
 
     // TODO: ensure we actually store "us" in members; do we need this special handling if then at all?
-    public func status(of peer: AddressableSWIMPeer) -> SWIM.Status? {
+    public func status(of peer: SWIMAddressablePeer) -> SWIM.Status? {
         if self.notMyself(peer) {
             return self.members[peer.node]?.status
         } else {
@@ -498,14 +498,14 @@ extension SWIM.Instance {
         }
     }
 
-    public func isMember(_ peer: AddressableSWIMPeer) -> Bool {
+    public func isMember(_ peer: SWIMAddressablePeer) -> Bool {
         // the peer could be either:
         // - "us" (i.e. the peer which hosts this SWIM instance, or
         // - a "known member"
         peer.node == self.node || self.members[peer.node] != nil
     }
 
-    public func member(for peer: AddressableSWIMPeer) -> SWIM.Member? {
+    public func member(for peer: SWIMAddressablePeer) -> SWIM.Member? {
         let node = peer.node
         return self.members[node]
     }
@@ -836,7 +836,7 @@ extension SWIM.Instance {
     }
 
     /// Must be invoked whenever a response to a `pingRequest` (an ack, nack or lack response i.e. a timeout) happens.
-    public func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) -> OnPingRequestResponseDirective {
+    public func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: SWIMAddressablePeer) -> OnPingRequestResponseDirective {
         guard let lastKnownStatus = self.status(of: member) else {
             return .unknownMember
         }

@@ -38,7 +38,7 @@ extension SWIM {
 
         public func ping(
             payload: GossipPayload,
-            from origin: AddressableSWIMPeer,
+            from origin: SWIMAddressablePeer,
             timeout: SWIMTimeAmount,
             sequenceNumber: SWIM.SequenceNumber,
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
@@ -70,9 +70,9 @@ extension SWIM {
         }
 
         public func pingRequest(
-            target: AddressableSWIMPeer,
+            target: SWIMAddressablePeer,
             payload: GossipPayload,
-            from origin: AddressableSWIMPeer,
+            from origin: SWIMAddressablePeer,
             timeout: SWIMTimeAmount,
             sequenceNumber: SWIM.SequenceNumber,
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
@@ -103,7 +103,7 @@ extension SWIM {
 
         public func ack(
             acknowledging sequenceNumber: SWIM.SequenceNumber,
-            target: AddressableSWIMPeer,
+            target: SWIMAddressablePeer,
             incarnation: Incarnation,
             payload: GossipPayload
         ) {
@@ -119,7 +119,7 @@ extension SWIM {
 
         public func nack(
             acknowledging sequenceNumber: SWIM.SequenceNumber,
-            target: AddressableSWIMPeer
+            target: SWIMAddressablePeer
         ) {
             guard let channel = self.channel else {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")
