@@ -19,7 +19,7 @@ public protocol SWIMContext {
     var node: ClusterMembership.Node { get }
     var log: Logger { get set }
 
-    var peer: SWIMPeerProtocol { get }
+    var peer: SWIMPeer { get }
 
     @discardableResult
     func schedule(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> SWIMCancellable

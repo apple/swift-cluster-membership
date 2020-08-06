@@ -152,7 +152,7 @@ extension ClusterMembership.Node: Codable {
         let container = try decoder.singleValueContainer()
 
         // Repr is expected in format: `protocol://host:port#uid`
-        var repr = try container.decode(String.self)[...]
+        let repr = try container.decode(String.self)[...]
         var atIndex = repr.startIndex
 
         // protocol

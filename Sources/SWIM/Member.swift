@@ -22,7 +22,7 @@ extension SWIM {
         /// Peer reference, used to send messages to this cluster member.
         ///
         /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
-        public var peer: SWIMAddressablePeer
+        public var peer: AddressableSWIMPeer
 
         /// `Node` of the member's `peer`.
         public var node: ClusterMembership.Node {
@@ -43,12 +43,13 @@ extension SWIM {
         /// Indicates a time when suspicion was started.
         ///
         /// // FIXME: reword this paragraph
+        /// // FIXME: reconsider...
         /// Only suspicion needs to have it, but having the actual field in SWIM.Member feels more natural.
-        /// Putting it inside `SWIM.Status` makes time management a huge mess: status can either be created internally in
+        /// We prefer to store it here rather than `SWIM.Status` makes time management a huge mess: status can either be created internally in
         /// SWIM.Member or deserialized from protobuf. Having this in SWIM.Member ensures we never pass it on the wire and we can't make a mistake when merging suspicions.
         public let suspicionStartedAt: Int64?
 
-        public init(peer: SWIMAddressablePeer, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
+        public init(peer: AddressableSWIMPeer, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
             self.peer = peer
             self.status = status
             self.protocolPeriod = protocolPeriod

@@ -34,7 +34,7 @@ public final class SWIMNIOShell: SWIM.Context {
     let channel: Channel
 
     let myself: SWIM.NIOPeer
-    public var peer: SWIMPeerProtocol {
+    public var peer: SWIMPeer {
         self.myself
     }
 
@@ -121,6 +121,8 @@ public final class SWIMNIOShell: SWIM.Context {
     }
 
     public func receiveLocalMessage(context: SWIM.Context, message: SWIM.LocalMessage) {
+        self.tracelog(.receive, message: "\(message)")
+
         switch message {
         case .monitor(let node):
             self.receiveStartMonitoring(node: node)
@@ -130,14 +132,14 @@ public final class SWIMNIOShell: SWIM.Context {
         }
     }
 
-    private func receivePing(replyTo: SWIMPeerReplyProtocol /* <SWIM.PingResponse> */, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) {
+    private func receivePing(replyTo: PingOriginSWIMPeer /* <SWIM.PingResponse> */, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) {
         self.log.trace("Received ping@\(sequenceNumber)", metadata: self.swim.metadata([
             "swim/ping/replyTo": "\(replyTo.node)",
             "swim/ping/payload": "\(payload)",
             "swim/ping/seqNr": "\(sequenceNumber)",
         ]))
 
-        let directives: [SWIM.Instance.OnPingDirective] = self.swim.onPing(payload: payload)
+        let directives: [SWIM.Instance.PingDirective] = self.swim.onPing(payload: payload, sequenceNumber: sequenceNumber)
         directives.forEach { directive in
             switch directive {
             case .gossipProcessed(let gossipDirective):
@@ -205,9 +207,10 @@ public final class SWIMNIOShell: SWIM.Context {
     /// - parameter pingReqOrigin: is set only when the ping that this is a reply to was originated as a `pingReq`.
     func receivePingResponse(
         response: SWIM.PingResponse,
-        pingReqOriginPeer: SWIMPeerProtocol?
+        pingReqOriginPeer: SWIMPeer?
     ) {
         let sequenceNumber = response.sequenceNumber
+
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
                 self.receivePingResponse(response: response, pingReqOriginPeer: pingReqOriginPeer)
@@ -240,7 +243,13 @@ public final class SWIMNIOShell: SWIM.Context {
         }
     }
 
-    func receivePingRequestResponse(result: SWIM.PingResponse, pingedMember: SWIMAddressablePeer /* <SWIM.Message> */ ) {
+    func receivePingRequestResponse(result: SWIM.PingResponse, pingedMember: AddressableSWIMPeer /* <SWIM.Message> */ ) {
+        guard self.eventLoop.inEventLoop else {
+            return self.eventLoop.execute {
+                self.receivePingRequestResponse(result: result, pingedMember: pingedMember)
+            }
+        }
+
         self.tracelog(.receive(pinged: pingedMember.node), message: "\(result)")
         // TODO: do we know here WHO replied to us actually? We know who they told us about (with the ping-req), could be useful to know
 
@@ -263,8 +272,8 @@ public final class SWIMNIOShell: SWIM.Context {
     ///
     /// - parameter pingReqOrigin: is set only when the ping that this is a reply to was originated as a `pingReq`.
     func sendPing(
-        to target: SWIMAddressablePeer, // SWIM.NIOPeer, // <SWIM.Message>
-        pingReqOriginPeer: SWIMPeerProtocol?, // <SWIM.PingResponse>
+        to target: AddressableSWIMPeer, // SWIM.NIOPeer, // <SWIM.Message>
+        pingReqOriginPeer: SWIMPeer?, // <SWIM.PingResponse>
         timeout: SWIMTimeAmount,
         sequenceNumber: SWIM.SequenceNumber
     ) {
@@ -276,6 +285,8 @@ public final class SWIMNIOShell: SWIM.Context {
         ]))
 
         let targetPeer = target.peer(self.channel)
+
+        self.tracelog(.send(to: targetPeer), message: "ping(replyTo: \(self.peer), payload: \(payload), sequenceNr: \(sequenceNumber))")
         targetPeer.ping(payload: payload, from: self.peer, timeout: timeout, sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
             switch result {
             case .success(let response):
@@ -296,14 +307,16 @@ public final class SWIMNIOShell: SWIM.Context {
         let firstSuccessPromise = self.eventLoop.makePromise(of: SWIM.PingResponse.self)
         let pingTimeout = self.swim.dynamicLHMPingTimeout
         let nodeToPing = directive.targetNode
-        for detail in directive.requestDetails {
-            let memberToPingRequestThrough = detail.memberToPingRequestThrough
-            let payload = detail.payload
-            let sequenceNumber = detail.sequenceNumber
+        for pingRequest in directive.requestDetails {
+            let memberToPingRequestThrough = pingRequest.memberToPingRequestThrough
+            let payload = pingRequest.payload
+            let sequenceNumber = pingRequest.sequenceNumber
 
             self.log.trace("Sending ping request for [\(nodeToPing)] to [\(memberToPingRequestThrough)] with payload: \(payload)")
 
             let peerToPingRequestThrough = memberToPingRequestThrough.node.peer(on: self.channel)
+
+            self.tracelog(.send(to: peerToPingRequestThrough), message: "pingRequest(target: \(nodeToPing), replyTo: \(self.peer), payload: \(payload), sequenceNumber: \(sequenceNumber))")
             peerToPingRequestThrough.pingRequest(target: nodeToPing, payload: payload, from: self.peer, timeout: pingTimeout, sequenceNumber: sequenceNumber) { result in
                 // We choose to cascade only successes;
                 // While this has a slight timing implication on time timeout of the pings -- the node that is last
@@ -314,7 +327,7 @@ public final class SWIMNIOShell: SWIM.Context {
                     firstSuccessPromise.succeed(response)
                 case .failure(let error):
                     // these are generally harmless thus we do not want to log them on higher levels
-                    self.log.trace("pingReq failed", metadata: [
+                    self.log.trace("Failed pingRequest", metadata: [
                         "swim/target": "\(nodeToPing)",
                         "swim/payload": "\(payload)",
                         "swim/pingTimeout": "\(pingTimeout)",
@@ -522,7 +535,7 @@ public final class SWIMNIOShell: SWIM.Context {
         }
 
         // Log the transition
-        switch change.toStatus {
+        switch change.status {
         case .unreachable:
             self.log.info(
                 """
@@ -534,7 +547,7 @@ public final class SWIMNIOShell: SWIM.Context {
             )
         default:
             self.log.info(
-                "Node \(change.member.node) determined [.\(change.toStatus)] (was [\(change.fromStatus, orElse: "nil")].",
+                "Node \(change.member.node) determined [.\(change.status)] (was [\(change.previousStatus, orElse: "nil")].",
                 metadata: [
                     "swim/member": "\(change.member)",
                 ]
@@ -542,7 +555,7 @@ public final class SWIMNIOShell: SWIM.Context {
         }
 
         let reachability: SWIM.MemberReachability
-        switch change.toStatus {
+        switch change.status {
         case .alive, .suspect:
             reachability = .reachable
         case .unreachable, .dead:
@@ -593,7 +606,7 @@ public enum MemberReachability: String, Equatable {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Peer "resolve"
 
-extension SWIMAddressablePeer {
+extension AddressableSWIMPeer {
     /// Since we're an implementation over UDP, all messages are sent to the same channel anyway,
     /// and simply wrapped in `NIO.AddressedEnvelope`, thus we can easily take any addressable and
     /// convert it into a real NIO peer by simply providing the channel we're running on.

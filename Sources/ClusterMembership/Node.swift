@@ -16,10 +16,11 @@
 ///
 /// Generally the node represents "some node we want to contact" if the `uid` is not set,
 /// and if the `uid` is available "the specific instance of a node".
-public struct Node: Hashable, CustomStringConvertible {
+public struct Node: Hashable, Comparable, CustomStringConvertible {
     public var `protocol`: String
     public var host: String
     public var port: Int
+
     public var uid: UInt64?
 
     public init(protocol: String, host: String, port: Int, uid: UInt64?) {
@@ -36,11 +37,17 @@ public struct Node: Hashable, CustomStringConvertible {
     }
 
     public var description: String {
+        /// uid is not printed by default since we only care about it when we do, not in every place where we log a node
+        "\(self.protocol)://\(self.host):\(self.port)"
+    }
+
+    /// Prints a node's String representation including its `uid`.
+    public var detailedDescription: String {
         "\(self.protocol)://\(self.host):\(self.port)\(self.uid.map { "#\($0.description)" } ?? "")"
     }
 }
 
-extension Node: Comparable {
+extension Node {
     // Silly but good enough comparison for deciding "who is lower node"
     // as we only use those for "tie-breakers" any ordering is fine to be honest here.
     public static func < (lhs: Node, rhs: Node) -> Bool {

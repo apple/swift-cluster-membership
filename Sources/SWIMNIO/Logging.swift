@@ -28,20 +28,23 @@ extension SWIMNIOShell {
         _ type: TraceLogType, message: @autoclosure () -> String,
         file: String = #file, function: String = #function, line: UInt = #line
     ) {
-        if let level = self.settings.traceLogLevel {
-            self.log.log(
-                level: level,
-                "\(type.description): \(message())",
-                metadata: self.swim.metadata,
-                file: file, function: function, line: line
-            )
-        }
+//        if let level = self.settings.traceLogLevel {
+//            self.log.log(
+//                level: level,
+        print(
+            "[\(self.myself.node)] \(type.description) :: \(message()) @ \(file):\(line)"
+        )
+//                    ,
+//                metadata: self.swim.metadata,
+//                file: file, function: function, line: line
+//            )
+//        }
     }
 
     internal enum TraceLogType: CustomStringConvertible {
-        case send(to: SWIMAddressablePeer) // <SWIM.Message>
-        case reply(to: SWIMAddressablePeer) // <SWIM.PingResponse>
-        case receive(pinged: SWIMAddressablePeer?) // <SWIM.Message>
+        case send(to: AddressableSWIMPeer) // <SWIM.Message>
+        case reply(to: AddressableSWIMPeer) // <SWIM.PingResponse>
+        case receive(pinged: AddressableSWIMPeer?) // <SWIM.Message>
 
         static var receive: TraceLogType {
             .receive(pinged: nil)

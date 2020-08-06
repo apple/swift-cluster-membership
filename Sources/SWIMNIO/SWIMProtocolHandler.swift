@@ -61,7 +61,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
         )
 
         self.log.trace("Channel active", metadata: [
-            "nio/localAddress": "\(context.channel.localAddress)",
+            "nio/localAddress": "\(String(describing: context.channel.localAddress))",
         ])
     }
 
@@ -73,7 +73,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
     public func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
         switch event {
         case let change as SWIM.MemberStatusChange:
-            self.log.info("Membership changed: \(change.member), \(change.fromStatus) -> \(change.toStatus)")
+            self.log.info("Membership changed: \(change.member), \(String(describing: change.previousStatus)) -> \(change.status)")
         default:
             context.fireUserInboundEventTriggered(event)
         }
@@ -97,7 +97,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
             // register and manage reply callback ------------------------------
             if let replyCallback = writeCommand.replyCallback {
                 let sequenceNumber = writeCommand.message.sequenceNumber
-                let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: writeCommand.message.sequenceNumber)
+                let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: sequenceNumber)
 
                 let timeoutTask = context.eventLoop.scheduleTask(in: writeCommand.replyTimeout) {
                     if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
@@ -107,7 +107,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
                                 message: "No reply to [\(writeCommand.message.messageCaseDescription)] after \(writeCommand.replyTimeout.prettyDescription())"
                             )
                         ))
-                    }
+                    } // else, task fired already (should have been removed)
                 }
 
                 self.pendingReplyCallbacks[callbackKey] = { reply in
@@ -154,7 +154,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
                     ])
                     callback(.success(message))
                 } else {
-                    self.log.warning("No callback for \(callbackKey)... weird", metadata: [
+                    self.log.warning("No callback for \(callbackKey)... It may have been removed due to a timeout already.", metadata: [
                         "pending callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
                 }
