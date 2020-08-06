@@ -47,20 +47,19 @@ public enum SWIM {
     /// The ack may be delivered directly in a request-response fashion between the probing and pinged members,
     /// or indirectly, as a result of a `pingReq` message.
     public enum PingResponse {
-        /// - parameter target: always contains the peer of the member that was the target of the `ping`.
+        /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
         /// - parameter incarnation: TODO: docs
         /// - parameter payload: TODO: docs
         // case ack(target: AnyPeer, incarnation: Incarnation, payload: GossipPayload)
         case ack(target: Node, incarnation: Incarnation, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
 
-        /// - parameter target: always contains the peer of the member that was the target of the `ping`.
+        /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
         /// - parameter incarnation: TODO: docs
         /// - parameter payload: TODO: docs
         // case nack(target: AnyPeer)
         case nack(target: Node, sequenceNumber: SWIM.SequenceNumber)
 
-        //         pingedMember: SWIMPeerProtocol,
-        //         pingReqOrigin: ActorRef<SWIM.PingResponse>?
+        /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
         case timeout(target: Node, pingReqOrigin: Node?, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber)
 
         /// Other error
@@ -80,10 +79,6 @@ public enum SWIM {
                 return identifier
             }
         }
-    }
-
-    internal struct MembershipState {
-        let membershipState: [AnyPeer: Status]
     }
 
     public enum LocalMessage {

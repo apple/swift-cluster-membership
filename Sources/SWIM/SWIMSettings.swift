@@ -75,6 +75,25 @@ extension SWIM {
         /// - SeeAlso: `lifeguard.maxLocalHealthMultiplier`
         public var pingTimeout: SWIMTimeAmount = .milliseconds(300)
 
+        /// Optional SWIM Protocol Extension: `SWIM.MemberStatus.unreachable`
+        ///
+        /// This is a custom extension to the standard SWIM statuses which first moves a member into unreachable state,
+        /// while still trying to ping it, while awaiting for a final "mark it `.dead` now" from an external system.
+        ///
+        /// This allows for collaboration between external and internal monitoring systems before committing a node as `.dead`.
+        /// The `.unreachable` state IS gossiped throughout the cluster same as alive/suspect are, while a `.dead` member is not gossiped anymore,
+        /// as it is effectively removed from the membership. This allows for additional spreading of the unreachable observation throughout
+        /// the cluster, as an observation, but not as an action (of removing given member).
+        ///
+        /// The `.unreachable` state therefore from a protocol perspective, is equivalent to a `.suspect` member status.
+        ///
+        /// Unless you _know_ you need unreachability, do not enable this mode, as it requires additional actions to be taken,
+        /// to confirm a node as dead, complicating the failure detection and node pruning.
+        ///
+        /// By default this option is disabled, and the SWIM implementation behaves same as documented in the papers,
+        /// meaning that when a node remains unresponsive for an exceeded amount of time it is marked as `.dead` immediately.
+        public var useUnreachableState: Bool = false // FIXME: actually use this!!!!!!!!!!!!!!!!
+
         /// This is not a part of public API. SWIM is using time to schedule pings/calculate timeouts.
         /// When designing tests one may want to simulate scenarios when events are coming in particular order.
         /// Doing this will require some control over SWIM's notion of time.

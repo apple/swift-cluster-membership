@@ -23,11 +23,11 @@ final class SWIMInstanceTests: XCTestCase {
     let fourthNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7004, uid: 4444)
     let fifthNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7005, uid: 5555)
 
-    var myself: SWIMPeerProtocol!
-    var second: SWIMPeerProtocol!
-    var third: SWIMPeerProtocol!
-    var fourth: SWIMPeerProtocol!
-    var fifth: SWIMPeerProtocol!
+    var myself: SWIMPeer!
+    var second: SWIMPeer!
+    var third: SWIMPeer!
+    var fourth: SWIMPeer!
+    var fifth: SWIMPeer!
 
     override func setUp() {
         super.setUp()
@@ -223,7 +223,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         swim.addMember(secondPeer, status: .alive(incarnation: 0))
 
-        let res = swim.onPing(payload: .none).first!
+        let res = swim.onPing(payload: .none, sequenceNumber: 0).first!
 
         switch res {
         case .reply(.ack(let pinged, _, _, _)):
@@ -244,7 +244,7 @@ final class SWIMInstanceTests: XCTestCase {
         // Imagine: thirdPeer pings us, it suspects us (!)
         // we (p1) receive the ping and want to refute the suspicion, we are Still Alive:
         // (thirdPeer has heard from someone that we are suspect in incarnation 10 (for some silly reason))
-        let res = swim.onPing(payload: .none).first!
+        let res = swim.onPing(payload: .none, sequenceNumber: 0).first!
 
         switch res {
         case .reply(.ack(_, let incarnation, _, _)):
@@ -415,7 +415,7 @@ final class SWIMInstanceTests: XCTestCase {
         XCTAssertEqual(myMember.status, .dead)
 
         switch res {
-        case .applied(.some(let change), _, _) where change.toStatus.isDead:
+        case .applied(.some(let change), _, _) where change.status.isDead:
             XCTAssertEqual(change.member, myselfMember)
         default:
             XCTFail("Expected `.applied(.some(change to dead)`, got: \(res)")
@@ -433,7 +433,7 @@ final class SWIMInstanceTests: XCTestCase {
         let res = swim.onGossipPayload(about: otherMember)
 
         switch res {
-        case .applied(.some(let change), _, _) where change.toStatus.isDead:
+        case .applied(.some(let change), _, _) where change.status.isDead:
             XCTAssertEqual(change.member, otherMember)
         default:
             XCTFail("Expected `.applied(.some(change to dead))`, got \(res)")
@@ -449,7 +449,7 @@ final class SWIMInstanceTests: XCTestCase {
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.secondNode])
         let res = swim.onGossipPayload(about: otherMember)
         if case .applied(.some(let change), _, _) = res,
-            case .suspect(_, let confirmations) = change.toStatus {
+            case .suspect(_, let confirmations) = change.status {
             XCTAssertEqual(confirmations.count, 2)
             XCTAssertTrue(confirmations.contains(secondNode), "expected \(confirmations) to contain \(secondNode)")
             XCTAssertTrue(confirmations.contains(thirdNode), "expected \(confirmations) to contain \(thirdNode)")
@@ -490,7 +490,7 @@ final class SWIMInstanceTests: XCTestCase {
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.fourthNode])
         let res = swim.onGossipPayload(about: otherMember)
         if case .applied(.some(let change), _, _) = res,
-            case .suspect(_, let confirmation) = change.toStatus {
+            case .suspect(_, let confirmation) = change.status {
             XCTAssertEqual(confirmation.count, swim.settings.lifeguard.maxIndependentSuspicions)
         } else {
             XCTFail("Expected `.applied(.some(suspectedBy)) where suspectedBy.count = maxIndependentSuspicions`, got \(res)")
@@ -835,7 +835,7 @@ final class SWIMInstanceTests: XCTestCase {
     // MARK: utility functions
 
     func validateMark(
-        swim: SWIM.Instance, member: SWIMPeerProtocol, status: SWIM.Status, shouldSucceed: Bool,
+        swim: SWIM.Instance, member: SWIMPeer, status: SWIM.Status, shouldSucceed: Bool,
         file: StaticString = (#file), line: UInt = #line
     ) throws {
         try self.validateMark(swim: swim, node: member.node, status: status, shouldSucceed: shouldSucceed, file: file, line: line)

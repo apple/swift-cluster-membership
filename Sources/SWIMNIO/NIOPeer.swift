@@ -20,7 +20,7 @@ import SWIM
 import struct SWIM.SWIMTimeAmount
 
 extension SWIM {
-    public struct NIOPeer: SWIMPeerProtocol, CustomStringConvertible {
+    public struct NIOPeer: SWIMPeer, CustomStringConvertible {
         public var node: Node
 
         // TODO: can we always have a channel here?
@@ -38,7 +38,7 @@ extension SWIM {
 
         public func ping(
             payload: GossipPayload,
-            from origin: SWIMAddressablePeer,
+            from origin: AddressableSWIMPeer,
             timeout: SWIMTimeAmount,
             sequenceNumber: SWIM.SequenceNumber,
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
@@ -47,11 +47,8 @@ extension SWIM {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")
             }
 
-            guard let nioOrigin = origin as? NIOPeer else {
-                fatalError("Can't support non NIOPeer as origin, was: [\(origin)]:\(String(reflecting: type(of: origin as Any)))")
-            }
-
-            let message = SWIM.Message.ping(replyTo: nioOrigin, payload: payload, sequenceNumber: sequenceNumber)
+            let originPeer = NIOPeer(node: origin.node, channel: nil)
+            let message = SWIM.Message.ping(replyTo: originPeer, payload: payload, sequenceNumber: sequenceNumber)
 
             let command = WriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
                 switch reply {
@@ -70,9 +67,9 @@ extension SWIM {
         }
 
         public func pingRequest(
-            target: SWIMAddressablePeer,
+            target: AddressableSWIMPeer,
             payload: GossipPayload,
-            from origin: SWIMAddressablePeer,
+            from origin: AddressableSWIMPeer,
             timeout: SWIMTimeAmount,
             sequenceNumber: SWIM.SequenceNumber,
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
@@ -103,7 +100,7 @@ extension SWIM {
 
         public func ack(
             acknowledging sequenceNumber: SWIM.SequenceNumber,
-            target: SWIMAddressablePeer,
+            target: AddressableSWIMPeer,
             incarnation: Incarnation,
             payload: GossipPayload
         ) {
@@ -119,7 +116,7 @@ extension SWIM {
 
         public func nack(
             acknowledging sequenceNumber: SWIM.SequenceNumber,
-            target: SWIMAddressablePeer
+            target: AddressableSWIMPeer
         ) {
             guard let channel = self.channel else {
                 fatalError("\(#function) failed, channel was not initialized for \(self)!")

@@ -71,6 +71,18 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             .awaitLog(grep: #""swim/suspects/count": 1"#, within: .seconds(20))
     }
 
+    func test_real_peers_2_connectToNonExistingPeer_immediatelyMarksItSuspect() throws {
+        let (firstHandler, firstChannel) = self.makeClusterNode() { settings in
+            settings.initialContactPoints = [
+                Node(protocol: "test", host: "127.0.0.1", port: 8888, uid: nil),
+            ]
+        }
+        let firstNode = firstHandler.shell.node
+
+        try self.capturedLogs(of: firstHandler.shell.node)
+            .awaitLog(grep: #""swim/suspects/count": 1"#)
+    }
+
     func test_real_peers_2_connect_peerCountNeverExceeds2() throws {
         let (firstHandler, firstChannel) = self.makeClusterNode() { settings in
             settings.pingTimeout = .milliseconds(100)
@@ -121,6 +133,48 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
                 try self.capturedLogs(of: handler.shell.node)
                     .awaitLog(
                         grep: #""swim/members/count": 5"#,
+                        within: .seconds(10)
+                    )
+            } catch {
+                throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
+            }
+        }
+    }
+
+    func test_real_peers_5_then1Dies_becomesSuspect() throws {
+        let (first, firstChannel) = self.makeClusterNode()
+        let (second, _) = self.makeClusterNode() { settings in
+            settings.initialContactPoints = [first.shell.node]
+        }
+        let (third, _) = self.makeClusterNode() { settings in
+            settings.initialContactPoints = [second.shell.node]
+        }
+        let (fourth, _) = self.makeClusterNode() { settings in
+            settings.initialContactPoints = [third.shell.node]
+        }
+        let (fifth, _) = self.makeClusterNode() { settings in
+            settings.initialContactPoints = [fourth.shell.node]
+        }
+
+        try [first, second, third, fourth, fifth].forEach { handler in
+            do {
+                try self.capturedLogs(of: handler.shell.node)
+                    .awaitLog(
+                        grep: #""swim/members/count": 5"#,
+                        within: .seconds(10)
+                    )
+            } catch {
+                throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
+            }
+        }
+
+        try firstChannel.close().wait()
+
+        try [second, third, fourth, fifth].forEach { handler in
+            do {
+                try self.capturedLogs(of: handler.shell.node)
+                    .awaitLog(
+                        grep: #""swim/suspects/count": 1"#,
                         within: .seconds(10)
                     )
             } catch {
