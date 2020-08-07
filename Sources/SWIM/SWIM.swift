@@ -250,29 +250,6 @@ extension SWIM.Status {
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
-// MARK: Extension: Reachability
-
-extension SWIM {
-    public enum MemberReachability: String, Equatable {
-        /// The member is reachable and responding to failure detector probing properly.
-        case reachable
-        /// Failure detector has determined this node as not reachable.
-        /// It may be a candidate to be downed.
-        case unreachable
-    }
-}
-
-extension SWIM.MemberReachability {
-    public var isReachable: Bool {
-        self == .reachable
-    }
-
-    public var isUnreachable: Bool {
-        self == .unreachable
-    }
-}
-
-// ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Gossip Payload
 
 extension SWIM {

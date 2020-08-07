@@ -27,7 +27,6 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
         let first = self.makeShell("first", settings: nil, startPeriodicPingTimer: true)
         let second = self.makeShell("second", settings: nil, startPeriodicPingTimer: true)
 
-        let firstPeer = first.peer as! SWIM.NIOPeer
         let secondPeer = second.peer as! SWIM.NIOPeer
 
         first.receiveMessage(message: .ping(replyTo: secondPeer, payload: .none, sequenceNumber: 1))
