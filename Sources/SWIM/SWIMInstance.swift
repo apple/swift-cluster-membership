@@ -172,20 +172,15 @@ extension SWIM {
             return newSuspectedBy
         }
 
-        // FIXME: docs
+        /// Adjust the Local Health-aware Multiplier based on the event causing it.
+        ///
+        /// - Parameter event: event which causes the LHM adjustment.
         public func adjustLHMultiplier(_ event: LHModifierEvent) {
-            switch event {
-            case .successfulProbe:
-                if self.localHealthMultiplier > 0 {
-                    self.localHealthMultiplier -= 1
-                }
-            case .failedProbe,
-                 .refutingSuspectMessageAboutSelf,
-                 .probeWithMissedNack:
-                if self.localHealthMultiplier < self.settings.lifeguard.maxLocalHealthMultiplier {
-                    self.localHealthMultiplier += 1
-                }
-            }
+            self.localHealthMultiplier =
+                max(
+                    min(0, self.localHealthMultiplier + event.lhmAdjustment),
+                    self.settings.lifeguard.maxLocalHealthMultiplier
+                )
         }
 
         // The protocol period represents the number of times we have pinged a random member
@@ -1176,10 +1171,26 @@ extension SWIM {
 // MARK: SWIM Lifeguard Local Health Modifier event
 
 extension SWIM.Instance {
-    public enum LHModifierEvent {
+    /// Events which cause the modification of the Local health aware Multiplier to be adjusted.
+    ///
+    /// - SeeAlso: Lifeguard IV.A. Local Health Aware Probe, which describes the rationale behind the events.
+    public enum LHModifierEvent: Equatable {
         case successfulProbe
         case failedProbe
         case refutingSuspectMessageAboutSelf
         case probeWithMissedNack
+
+        /// Returns by how much the LHM should be adjusted in response to this event.
+        /// The adjusted value MUST be clamped between `0 <= value <= maxLocalHealthMultiplier`
+        var lhmAdjustment: Int {
+            switch self {
+            case .successfulProbe:
+                return -1 // decrease the LHM
+            case .failedProbe,
+                 .refutingSuspectMessageAboutSelf,
+                 .probeWithMissedNack:
+                return 1 // increase the LHM
+            }
+        }
     }
 }
