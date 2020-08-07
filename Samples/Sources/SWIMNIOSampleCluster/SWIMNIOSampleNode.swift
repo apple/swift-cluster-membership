@@ -25,11 +25,7 @@ struct SampleSWIMNIONode {
 
     let group: EventLoopGroup
 
-    init(
-        port: Int,
-        settings: SWIM.Settings,
-        group: EventLoopGroup
-    ) {
+    init(port: Int, settings: SWIM.Settings, group: EventLoopGroup) {
         self.port = port
         self.settings = settings
         self.group = group
@@ -39,8 +35,10 @@ struct SampleSWIMNIONode {
         let bootstrap = DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in
-                let swimHandler = SWIMProtocolHandler(settings: settings)
-                return channel.pipeline.addHandler(swimHandler)
+                return channel.pipeline
+                    .addHandler(SWIMProtocolHandler(settings: settings)).flatMap {
+                        channel.pipeline.addHandler(SWIMNIOSampleHandler())
+                    }
             }
 
         bootstrap.bind(host: "127.0.0.1", port: port).whenComplete { result in
@@ -54,4 +52,16 @@ struct SampleSWIMNIONode {
         }
     }
 
+}
+
+final class SWIMNIOSampleHandler: ChannelInboundHandler {
+    public typealias InboundIn = SWIM.MemberStatusChangeEvent
+    
+    let log = Logger(label: "SWIMNIOSampleHandler")
+    
+    public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        let change: SWIM.MemberStatusChangeEvent = self.unwrapInboundIn(data)
+
+        self.log.info("SWIM membership change: \(change)")
+    }
 }

@@ -41,7 +41,15 @@ extension SWIM {
 
         /// Settings of the Lifeguard extensions to the SWIM protocol.
         public var lifeguard: SWIMLifeguardSettings = .init()
-
+        
+        /// Configures the node of this SWIM instance explicitly, including allowing setting it's UID.
+        ///
+        /// Depending on runtime, setting this value explicitly may not be necessary,
+        /// as the node can be inferred from the host/port the specific shell is bound to.
+        ///
+        /// If neither, the node could be inferred, or is set explicitly, a fatal crash should be caused by the SWIM shell implementaiton.
+        public var node: Node? = nil
+        
         /// Number of indirect probes that will be issued once a direct ping probe has failed to reply in time with an ack.
         ///
         /// In case of small clusters where nr. of neighbors is smaller than this value, the most neighbors available will
@@ -92,7 +100,7 @@ extension SWIM {
         ///
         /// By default this option is disabled, and the SWIM implementation behaves same as documented in the papers,
         /// meaning that when a node remains unresponsive for an exceeded amount of time it is marked as `.dead` immediately.
-        public var useUnreachableState: Bool = false // FIXME: actually use this!!!!!!!!!!!!!!!!
+        public var useUnreachableState: Bool = false // TODO: https://github.com/apple/swift-cluster-membership/issues/5
 
         /// This is not a part of public API. SWIM is using time to schedule pings/calculate timeouts.
         /// When designing tests one may want to simulate scenarios when events are coming in particular order.

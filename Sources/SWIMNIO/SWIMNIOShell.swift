@@ -22,9 +22,9 @@ import SWIM
 /// WARNING: ALL external invocations MUST be executed on the Shell's `EventLoop`, failure to do so will c
 ///
 /// - SeeAlso: `SWIM.Instance` for detailed documentation about the SWIM protocol implementation.
-public final class SWIMNIOShell: SWIM.Context {
-    internal var swim: SWIM.Instance!
-    internal var settings: SWIM.Settings {
+public final class SWIMNIOShell {
+    var swim: SWIM.Instance!
+    var settings: SWIM.Settings {
         self.swim.settings
     }
 
@@ -38,18 +38,21 @@ public final class SWIMNIOShell: SWIM.Context {
         self.myself
     }
 
+    let onMemberStatusChange: (SWIM.MemberStatusChangeEvent) -> ()
+
     public var node: Node {
         self.myself.node
     }
 
     /// Cancellable of the periodicPingTimer (if it was kicked off)
-    private var nextPeriodicTickCancellable: SWIMCancellable?
+    private var nextPeriodicTickCancellable: Cancellable?
 
     internal init(
         node: Node,
         settings: SWIM.Settings,
         channel: Channel,
-        startPeriodicPingTimer: Bool = true
+        startPeriodicPingTimer: Bool = true,
+        onMemberStatusChange: @escaping (SWIM.MemberStatusChangeEvent) -> ()
     ) {
         self.log = settings.logger
 
@@ -60,11 +63,15 @@ public final class SWIMNIOShell: SWIM.Context {
         self.myself = myself
         self.swim = SWIM.Instance(settings: settings, myself: myself)
 
+        self.onMemberStatusChange = onMemberStatusChange
         self.onStart(startPeriodicPingTimer: startPeriodicPingTimer)
     }
 
     /// Initialize timers and other after-initialized tasks
     private func onStart(startPeriodicPingTimer: Bool) {
+        // Immediately announce that "we" are alive
+        self.announceMembershipChange(.init(previousStatus: nil, member: self.swim.myselfMember))
+
         // Immediately attempt to connect to initial contact points
         self.settings.initialContactPoints.forEach { node in
             self.swim.addMember(node.peer(on: self.channel), status: .alive(incarnation: 0)) // assume the best case; we'll find out soon enough its real status
@@ -89,11 +96,11 @@ public final class SWIMNIOShell: SWIM.Context {
 
     /// Start a *single* timer, to run the passed task after given delay.
     @discardableResult
-    public func schedule(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> SWIMCancellable {
+    private func schedule(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> Cancellable {
         self.eventLoop.assertInEventLoop()
 
         let scheduled: Scheduled<Void> = self.eventLoop.scheduleTask(in: delay.toNIO) { () in task() }
-        return SWIMCancellable { scheduled.cancel() }
+        return Cancellable { scheduled.cancel() }
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -120,7 +127,14 @@ public final class SWIMNIOShell: SWIM.Context {
         }
     }
 
-    public func receiveLocalMessage(context: SWIM.Context, message: SWIM.LocalMessage) {
+    /// Allows for typical local interactions with the shell
+    public func receiveLocalMessage(message: SWIM.LocalMessage) {
+        guard self.eventLoop.inEventLoop else {
+            return self.eventLoop.execute {
+                self.receiveLocalMessage(message: message)
+            }
+        }
+
         self.tracelog(.receive, message: "\(message)")
 
         switch message {
@@ -128,7 +142,7 @@ public final class SWIMNIOShell: SWIM.Context {
             self.receiveStartMonitoring(node: node)
 
         case .confirmDead(let node):
-            self.handleConfirmDead(deadNode: node)
+            self.receiveConfirmDead(deadNode: node)
         }
     }
 
@@ -209,13 +223,13 @@ public final class SWIMNIOShell: SWIM.Context {
         response: SWIM.PingResponse,
         pingRequestOriginPeer: SWIMPeer?
     ) {
-        let sequenceNumber = response.sequenceNumber
-
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
                 self.receivePingResponse(response: response, pingRequestOriginPeer: pingRequestOriginPeer)
             }
         }
+
+        let sequenceNumber = response.sequenceNumber
 
         self.log.warning("Receive ping response: \(response)", metadata: self.swim.metadata([
             "swim/pingRequestOriginPeer": "\(pingRequestOriginPeer, orElse: "nil")",
@@ -268,7 +282,7 @@ public final class SWIMNIOShell: SWIM.Context {
             fatalError("self.processGossipPayload(payload: payloadToProcess)") // FIXME: !!!!!
         case .newlySuspect(let previousStatus, let suspect):
             self.log.debug("Member [\(suspect)] marked as suspect")
-            self.announceMembershipChange(SWIM.MemberStatusChange(previousStatus: previousStatus, member: suspect))
+            self.announceMembershipChange(SWIM.MemberStatusChangeEvent(previousStatus: previousStatus, member: suspect))
         case .nackReceived:
             self.log.debug("Received `nack` from indirect probing of [\(pingedPeer)]")
         case let other:
@@ -276,8 +290,8 @@ public final class SWIMNIOShell: SWIM.Context {
         }
     }
 
-    private func announceMembershipChange(_ change: SWIM.MemberStatusChange) {
-        self.channel.triggerUserOutboundEvent(change, promise: nil)
+    private func announceMembershipChange(_ change: SWIM.MemberStatusChangeEvent) {
+        self.onMemberStatusChange(change)
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -398,7 +412,7 @@ public final class SWIMNIOShell: SWIM.Context {
     }
 
     /// Extra functionality, allowing external callers to ask this swim shell to start monitoring a specific node.
-    public func receiveStartMonitoring(node: Node) {
+    private func receiveStartMonitoring(node: Node) {
         guard self.node != node else { // FIXME: compare while ignoring the UUID
             return // no need to monitor ourselves, nor a replacement of us (if node is our replacement, we should have been dead already)
         }
@@ -413,10 +427,15 @@ public final class SWIMNIOShell: SWIM.Context {
     }
 
     // TODO: test in isolation
-    func handleConfirmDead(deadNode node: Node) {
+    private func receiveConfirmDead(deadNode node: Node) {
+        guard self.settings.useUnreachableState else {
+            self.log.warning("Received confirm .dead for [\(node)], however shell is not configured to use unreachable state, thus this results in no action.")
+            return
+        }
+
         guard let member = self.swim.member(for: node) else {
             // TODO: would want to see if this happens when we fail these tests
-            self.log.warning("Attempted to .confirmDead(\(node)), yet no such member known to \(self)!")
+            self.log.warning("Attempted to confirm .dead [\(node)], yet no such member known", metadata: self.swim.metadata)
             return
         }
 
@@ -464,6 +483,7 @@ public final class SWIMNIOShell: SWIM.Context {
         }
     }
 
+    // FIXME: move into SWIM on the "on periodic tick"
     func checkSuspicionTimeouts() {
         self.log.trace(
             "Checking suspicion timeouts...",
@@ -518,7 +538,7 @@ public final class SWIMNIOShell: SWIM.Context {
                     "swim/previousStatus": "\(previousStatus, orElse: "nil")",
                 ]
             )
-            self.tryAnnounceMemberReachability(change: SWIM.MemberStatusChange(previousStatus: previousStatus, member: latest))
+            self.tryAnnounceMemberReachability(change: SWIM.MemberStatusChangeEvent(previousStatus: previousStatus, member: latest))
         case .ignoredDueToOlderStatus:
             () // self.log.trace("No change \(latest), currentStatus remains [\(currentStatus)]. No reachability change to announce")
         }
@@ -540,7 +560,7 @@ public final class SWIMNIOShell: SWIM.Context {
     }
 
     /// Announce to the a change in reachability of a member.
-    private func tryAnnounceMemberReachability(change: SWIM.MemberStatusChange?) {
+    private func tryAnnounceMemberReachability(change: SWIM.MemberStatusChangeEvent?) {
         guard let change = change else {
             // this means it likely was a change to the same status or it was about us, so we do not need to announce anything
             return
@@ -611,6 +631,14 @@ public enum MemberReachability: String, Equatable {
     /// Failure detector has determined this node as not reachable.
     /// It may be a candidate to be downed.
     case unreachable
+}
+
+struct Cancellable {
+    let cancel: () -> ()
+
+    init(_ cancel: @escaping () -> ()) {
+        self.cancel = cancel
+    }
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------

@@ -34,7 +34,7 @@ internal enum HeapType {
     }
 }
 
-// Slightly modified version of NIO's Heap. TODO: upstream changes
+// Slightly modified version of SwiftNIO's Heap, by exposing the comparator.
 internal struct Heap<T: Equatable> {
     internal private(set) var storage: ContiguousArray<T> = []
     private let comparator: (T, T) -> Bool

@@ -106,6 +106,11 @@ extension SWIM {
             self.myself.node
         }
 
+        /// Cluster `Member` representing this instance.
+        public var myselfMember: SWIM.Member {
+            self.member(for: self.node)!
+        }
+
         /// Main members storage, map to values to obtain current members.
         internal var members: [ClusterMembership.Node: SWIM.Member]
 
@@ -752,16 +757,16 @@ extension SWIM.Instance {
         guard !membersToPingRequest.isEmpty else {
             // no nodes available to ping, so we have to assume the node suspect right away
             guard let lastKnownIncarnation = lastKnownStatus.incarnation else {
-                print("Not marking .suspect, as [\(target)] is already dead.") // "You are already dead!" // TODO logging
+                // log.debug("Not marking .suspect, as [\(target)] is already dead.") // "You are already dead!" // TODO logging
                 return nil
             }
 
             switch self.mark(target, as: self.makeSuspicion(incarnation: lastKnownIncarnation)) {
             case .applied(_, let currentStatus):
-                print("No members to ping-req through, marked [\(target)] immediately as [\(currentStatus)].") // TODO: logging
+                // log.debug("No members to ping-req through, marked [\(target)] immediately as [\(currentStatus)].") // TODO: logging
                 return nil
             case .ignoredDueToOlderStatus(let currentStatus):
-                print("No members to ping-req through to [\(target)], was already [\(currentStatus)].") // TODO: logging
+                // log.debug("No members to ping-req through to [\(target)], was already [\(currentStatus)].") // TODO: logging
                 return nil
             }
         }
@@ -1079,7 +1084,7 @@ extension SWIM.Instance {
     }
 
     public enum GossipProcessedDirective {
-        case applied(change: SWIM.MemberStatusChange?, level: Logger.Level?, message: Logger.Message?)
+        case applied(change: SWIM.MemberStatusChangeEvent?, level: Logger.Level?, message: Logger.Message?)
         /// Ignoring a gossip update is perfectly fine: it may be "too old" or other reasons
         case ignored(level: Logger.Level?, message: Logger.Message?) // TODO: allow the instance to log
         /// Warning! Even though we have an `ClusterMembership.Node` here, we need to ensure that we are actually connected to the node,
@@ -1091,7 +1096,7 @@ extension SWIM.Instance {
         /// thus we need to ensure we have a connection to them, before we consider adding them to the membership).
         case connect(node: ClusterMembership.Node) // FIXME: should be able to remove this
 
-        static func applied(change: SWIM.MemberStatusChange?) -> SWIM.Instance.GossipProcessedDirective {
+        static func applied(change: SWIM.MemberStatusChangeEvent?) -> SWIM.Instance.GossipProcessedDirective {
             .applied(change: change, level: nil, message: nil)
         }
 
@@ -1123,70 +1128,6 @@ extension SWIM.Instance: CustomDebugStringConvertible {
             _messagesToGossip: \(_messagesToGossip)
         )
         """
-    }
-}
-
-// ==== ----------------------------------------------------------------------------------------------------------------
-// MARK: MemberStatus Change
-
-extension SWIM {
-    /// Emitted whenever a membership change happens.
-    public struct MemberStatusChange {
-        public let member: SWIM.Member
-
-        /// The resulting ("current") status of the `member`.
-        public var status: SWIM.Status {
-            // Note if the member is marked .dead, SWIM shall continue to gossip about it for a while
-            // such that other nodes gain this information directly, and do not have to wait until they detect
-            // it as such independently.
-            self.member.status
-        }
-
-        /// Previous status of the member, needed in order to decide if the change is "effective" or if applying the
-        /// member did not move it in such way that we need to inform the cluster about unreachability.
-        public let previousStatus: SWIM.Status?
-
-        public init(previousStatus: SWIM.Status?, member: SWIM.Member) {
-            if let from = previousStatus, from == .dead {
-                precondition(member.status == .dead, "Change MUST NOT move status 'backwards' from [.dead] state to anything else, but did so, was: \(member)")
-            }
-
-            self.previousStatus = previousStatus
-            self.member = member
-        }
-
-        /// Reachability changes are important events, in which a reachable node became unreachable, or vice-versa,
-        /// as opposed to events which only move a member between `.alive` and `.suspect` status,
-        /// during which the member should still be considered and no actions assuming it's death shall be performed (yet).
-        ///
-        /// If true, a system may want to issue a reachability change event and handle this situation by confirming the node `.dead`,
-        /// and proceeding with its removal from the cluster.
-        public var isReachabilityChange: Bool {
-            guard let fromStatus = self.previousStatus else {
-                // i.e. nil -> anything, is always an effective reachability affecting change
-                return true
-            }
-
-            // explicitly list all changes which are affecting reachability, all others do not (i.e. flipping between
-            // alive and suspect does NOT affect high-level reachability).
-            switch (fromStatus, self.status) {
-            case (.alive, .unreachable),
-                 (.alive, .dead):
-                return true
-            case (.suspect, .unreachable),
-                 (.suspect, .dead):
-                return true
-            case (.unreachable, .alive),
-                 (.unreachable, .suspect):
-                return true
-            case (.dead, .alive),
-                 (.dead, .suspect),
-                 (.dead, .unreachable):
-                fatalError("Change MUST NOT move status 'backwards' from .dead state to anything else, but did so, was: \(self)")
-            default:
-                return false
-            }
-        }
     }
 }
 
