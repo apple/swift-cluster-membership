@@ -29,19 +29,31 @@ final class CodingTests: XCTestCase {
     // TODO: add some more "nasty" cases, since the node parsing code is very manual and not hardened / secure
     func test_serializationOf_node() throws {
         try self.shared_serializationRoundtrip(
-            Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121)
+            ContainsNode(node: Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121))
         )
         try self.shared_serializationRoundtrip(
-            Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: nil)
+            ContainsNode(node: Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: nil))
         )
         try self.shared_serializationRoundtrip(
-            Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: .random(in: 0 ... UInt64.max))
+            ContainsNode(node: Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: .random(in: 0 ... UInt64.max)))
         )
     }
 
+    func test_serializationOf_peer() throws {
+        try self.shared_serializationRoundtrip(ContainsPeer(peer: self.nioPeer))
+    }
+
+    func test_serializationOf_member() throws {
+        try self.shared_serializationRoundtrip(ContainsMember(member: self.memberOne))
+    }
+
     func test_serializationOf_ping() throws {
-        try self.shared_serializationRoundtrip(self.nioPeer)
-        try self.shared_serializationRoundtrip(self.memberOne)
+        let payloadSome: SWIM.GossipPayload = .membership([
+            self.memberOne,
+            self.memberTwo,
+            self.memberThree,
+        ])
+        try self.shared_serializationRoundtrip(SWIM.Message.ping(replyTo: self.nioPeer, payload: payloadSome, sequenceNumber: 1212))
     }
 
     func test_serializationOf_pingReq() throws {
@@ -65,4 +77,19 @@ final class CodingTests: XCTestCase {
 
         XCTAssertEqual("\(obj)", "\(deserialized)")
     }
+}
+
+// This is a workaround until Swift 5.2.5 is available with the "top level string value encoding" support.
+struct ContainsPeer: Codable {
+    let peer: SWIM.NIOPeer
+}
+
+// This is a workaround until Swift 5.2.5 is available with the "top level string value encoding" support.
+struct ContainsMember: Codable {
+    let member: SWIM.Member
+}
+
+// This is a workaround until Swift 5.2.5 is available with the "top level string value encoding" support.
+struct ContainsNode: Codable {
+    let node: ClusterMembership.Node
 }
