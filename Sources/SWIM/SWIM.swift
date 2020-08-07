@@ -60,7 +60,7 @@ public enum SWIM {
         case nack(target: Node, sequenceNumber: SWIM.SequenceNumber)
 
         /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
-        case timeout(target: Node, pingReqOrigin: Node?, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber)
+        case timeout(target: Node, pingRequestOrigin: Node?, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber)
 
         /// Other error
         case error(Error, target: Node, sequenceNumber: SWIM.SequenceNumber)

@@ -20,10 +20,6 @@ import SWIM
 import XCTest
 
 final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
-    override var alwaysPrintCaptureLogs: Bool {
-        true
-    }
-
     // ==== ----------------------------------------------------------------------------------------------------------------
     // MARK: Black box tests, we let the nodes run and inspect their state via logs
 
@@ -135,18 +131,29 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     }
 
     func test_real_peers_5_then1Dies_becomesSuspect() throws {
-        let (first, firstChannel) = self.makeClusterNode()
+        let (first, firstChannel) = self.makeClusterNode() { settings in
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
+        }
         let (second, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [first.shell.node]
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
         }
         let (third, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [second.shell.node]
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
         }
         let (fourth, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [third.shell.node]
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
         }
         let (fifth, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [fourth.shell.node]
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
         }
 
         try [first, second, third, fourth, fifth].forEach { handler in
@@ -154,7 +161,7 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
                 try self.capturedLogs(of: handler.shell.node)
                     .awaitLog(
                         grep: #""swim/members/count": 5"#,
-                        within: .seconds(10)
+                        within: .seconds(20)
                     )
             } catch {
                 throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
