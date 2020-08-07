@@ -886,7 +886,7 @@ extension SWIM.Instance {
     // MARK: On Ping Request Response
 
     public func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) -> PingRequestResponseDirective {
-        guard let lastKnownStatus = self.status(of: member) else {
+        guard let previousStatus = self.status(of: member) else {
             return .unknownMember
         }
 
@@ -901,7 +901,7 @@ extension SWIM.Instance {
             switch self.mark(member, as: .alive(incarnation: incarnation)) {
             case .applied:
                 // TODO: we can be more interesting here, was it a move suspect -> alive or a reassurance?
-                return .alive(previous: lastKnownStatus, payloadToProcess: payload)
+                return .alive(previousStatus: previousStatus, payloadToProcess: payload)
             case .ignoredDueToOlderStatus(let currentStatus):
                 return .ignoredDueToOlderStatus(currentStatus: currentStatus)
             }
@@ -912,13 +912,13 @@ extension SWIM.Instance {
             // missed pingRequest's nack may indicate a problem with local health
             self.adjustLHMultiplier(.probeWithMissedNack)
 
-            switch lastKnownStatus {
+            switch previousStatus {
             case .alive(let incarnation), .suspect(let incarnation, _):
                 print("!!!! marking as suspect: \(member) >>> SUSPECT")
                 switch self.mark(member, as: self.makeSuspicion(incarnation: incarnation)) {
                 case .applied:
-                    print("!!!! marking as suspect: \(self.status(of: member)) >>> ")
-                    return .newlySuspect
+                    print("!!!! marking as suspect: \(String(describing: self.status(of: member))) >>> ")
+                    return .newlySuspect(previousStatus: previousStatus, suspect: self.member(for: member.node)!)
                 case .ignoredDueToOlderStatus(let status):
                     return .ignoredDueToOlderStatus(currentStatus: status)
                 }
@@ -931,10 +931,10 @@ extension SWIM.Instance {
     }
 
     public enum PingRequestResponseDirective {
-        case alive(previous: SWIM.Status, payloadToProcess: SWIM.GossipPayload)
+        case alive(previousStatus: SWIM.Status, payloadToProcess: SWIM.GossipPayload)
         case nackReceived
         case unknownMember
-        case newlySuspect
+        case newlySuspect(previousStatus: SWIM.Status, suspect: SWIM.Member)
         case alreadySuspect
         case alreadyUnreachable
         case alreadyDead
@@ -1021,7 +1021,7 @@ extension SWIM.Instance {
             myselfMember.status = .dead
             switch self.mark(self.myself, as: .dead) {
             case .applied(.some(let previousStatus), _):
-                return .applied(change: .init(fromStatus: previousStatus, member: myselfMember))
+                return .applied(change: .init(previousStatus: previousStatus, member: myselfMember))
             default:
                 return .ignored(level: .warning, message: "Self already marked .dead")
             }
@@ -1038,12 +1038,12 @@ extension SWIM.Instance {
                 member.status = currentStatus
                 if currentStatus.isSuspect, previousStatus?.isAlive ?? false {
                     return .applied(
-                        change: .init(fromStatus: previousStatus, member: member),
+                        change: .init(previousStatus: previousStatus, member: member),
                         level: .debug,
                         message: "Member [\(member.peer.node, orElse: "<unknown-node>")] marked as suspect, via incoming gossip"
                     )
                 } else {
-                    return .applied(change: .init(fromStatus: previousStatus, member: member))
+                    return .applied(change: .init(previousStatus: previousStatus, member: member))
                 }
 
             case .ignoredDueToOlderStatus(let currentStatus):
@@ -1128,12 +1128,12 @@ extension SWIM {
         /// member did not move it in such way that we need to inform the cluster about unreachability.
         public let previousStatus: SWIM.Status?
 
-        public init(fromStatus: SWIM.Status?, member: SWIM.Member) {
-            if let from = fromStatus, from == .dead {
+        public init(previousStatus: SWIM.Status?, member: SWIM.Member) {
+            if let from = previousStatus, from == .dead {
                 precondition(member.status == .dead, "Change MUST NOT move status 'backwards' from [.dead] state to anything else, but did so, was: \(member)")
             }
 
-            self.previousStatus = fromStatus
+            self.previousStatus = previousStatus
             self.member = member
         }
 

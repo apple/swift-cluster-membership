@@ -243,26 +243,31 @@ public final class SWIMNIOShell: SWIM.Context {
         }
     }
 
-    func receivePingRequestResponse(result: SWIM.PingResponse, pingedMember: AddressableSWIMPeer /* <SWIM.Message> */ ) {
+    func receivePingRequestResponse(result: SWIM.PingResponse, pingedPeer: AddressableSWIMPeer /* <SWIM.Message> */ ) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
-                self.receivePingRequestResponse(result: result, pingedMember: pingedMember)
+                self.receivePingRequestResponse(result: result, pingedPeer: pingedPeer)
             }
         }
 
-        self.tracelog(.receive(pinged: pingedMember.node), message: "\(result)")
+        self.tracelog(.receive(pinged: pingedPeer.node), message: "\(result)")
         // TODO: do we know here WHO replied to us actually? We know who they told us about (with the ping-req), could be useful to know
 
-        switch self.swim.onPingRequestResponse(result, pingedMember: pingedMember) {
-        case .alive(_, let payloadToProcess):
+        switch self.swim.onPingRequestResponse(result, pingedMember: pingedPeer) {
+        case .alive:
             fatalError("self.processGossipPayload(payload: payloadToProcess)") // FIXME: !!!!!
-        case .newlySuspect:
-            self.log.debug("Member [\(pingedMember)] marked as suspect")
+        case .newlySuspect(let previousStatus, let suspect):
+            self.log.debug("Member [\(suspect)] marked as suspect")
+            self.announceMembershipChange(SWIM.MemberStatusChange(previousStatus: previousStatus, member: suspect))
         case .nackReceived:
-            self.log.debug("Received `nack` from indirect probing of [\(pingedMember)]")
+            self.log.debug("Received `nack` from indirect probing of [\(pingedPeer)]")
         case let other:
             self.log.trace("Handled ping request response, resulting directive: \(other), was ignored.") // TODO: explicitly list all cases
         }
+    }
+
+    private func announceMembershipChange(_ change: SWIM.MemberStatusChange) {
+        self.channel.triggerUserOutboundEvent(change, promise: nil)
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -341,9 +346,9 @@ public final class SWIMNIOShell: SWIM.Context {
         firstSuccessPromise.futureResult.whenComplete {
             switch $0 {
             case .success(let response):
-                self.receivePingRequestResponse(result: response, pingedMember: nodeToPing)
+                self.receivePingRequestResponse(result: response, pingedPeer: nodeToPing)
             case .failure(let error):
-                self.receivePingRequestResponse(result: .error(error, target: nodeToPing.node, sequenceNumber: 0), pingedMember: nodeToPing) // FIXME: that sequence number...
+                self.receivePingRequestResponse(result: .error(error, target: nodeToPing.node, sequenceNumber: 0), pingedPeer: nodeToPing) // FIXME: that sequence number...
             }
         }
     }
@@ -499,8 +504,7 @@ public final class SWIMNIOShell: SWIM.Context {
                     "swim/previousStatus": "\(previousStatus, orElse: "nil")",
                 ]
             )
-            let statusChange = SWIM.MemberStatusChange(fromStatus: previousStatus, member: latest)
-            self.tryAnnounceMemberReachability(change: statusChange)
+            self.tryAnnounceMemberReachability(change: SWIM.MemberStatusChange(previousStatus: previousStatus, member: latest))
         case .ignoredDueToOlderStatus:
             () // self.log.trace("No change \(latest), currentStatus remains [\(currentStatus)]. No reachability change to announce")
         }
@@ -508,7 +512,7 @@ public final class SWIMNIOShell: SWIM.Context {
 
     func handleGossipPayloadProcessedDirective(_ directive: SWIM.Instance.GossipProcessedDirective) {
         switch directive {
-        case .connect(let node):
+        case .connect:
             () // we don't need connections, we're udp based
 
         case .ignored(let level, let message): // TODO: allow the instance to log
@@ -554,16 +558,8 @@ public final class SWIMNIOShell: SWIM.Context {
             )
         }
 
-        let reachability: SWIM.MemberReachability
-        switch change.status {
-        case .alive, .suspect:
-            reachability = .reachable
-        case .unreachable, .dead:
-            reachability = .unreachable
-        }
-
         // emit the SWIM.MemberStatusChange as user event
-        self.channel.triggerUserOutboundEvent(change, promise: nil)
+        self.announceMembershipChange(change)
     }
 
     /// This is effectively joining the SWIM membership of the other member.
