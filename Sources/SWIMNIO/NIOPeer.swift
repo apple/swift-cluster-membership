@@ -129,7 +129,8 @@ extension SWIM {
         }
 
         public var description: String {
-            "NIOPeer(\(self.node), channel: \(self.channel != nil ? "<channel>" : "<nil>"))"
+            // "NIOPeer(\(self.node), channel: \(self.channel != nil ? "<channel>" : "<nil>"))"
+            "NIOPeer(\(self.node))"
         }
     }
 }

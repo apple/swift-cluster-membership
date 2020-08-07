@@ -33,7 +33,6 @@ extension SWIM.Instance {
             "swim/timeoutSuspectsBeforePeriodMin": "\(self.timeoutSuspectsBeforePeriodMin)",
             "swim/incarnation": "\(self.incarnation)",
             "swim/members/all": Logger.Metadata.Value.array(self.allMembers.map { "\($0)" }),
-            "swim/members/toPing": Logger.Metadata.Value.array(self.membersToPing.map { "\($0)" }),
             "swim/members/count": "\(self.notDeadMemberCount)",
             "swim/suspects/count": "\(self.suspects.count)",
         ]
