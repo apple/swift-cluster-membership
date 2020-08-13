@@ -174,7 +174,7 @@ public struct SWIMLifeguardSettings {
     /// To ensure ping origin have time to process .nack, indirect ping timeout should always be shorter than originator's timeout
     /// This property controls a multipler that's applied to `pingTimeout` when calculating indirect probe timeout.
     /// The default of 80% follows a proposal in the initial paper.
-    /// The values should be between 0 and 1.
+    /// The value should be between 0 and 1 (exclusive).
     ///
     /// - SeeAlso: `pingTimeout`
     /// - SeeAlso: [Lifeguard IV.B. Local Health Aware Suspicion (LHA-Suspicion)](https://arxiv.org/pdf/1707.00788.pdf)
