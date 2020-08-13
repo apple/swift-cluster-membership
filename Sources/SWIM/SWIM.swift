@@ -60,7 +60,7 @@ public enum SWIM {
         case nack(target: Node, sequenceNumber: SWIM.SequenceNumber)
 
         /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
-        case timeout(target: Node, pingReqOrigin: Node?, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber)
+        case timeout(target: Node, pingRequestOrigin: Node?, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber)
 
         /// Other error
         case error(Error, target: Node, sequenceNumber: SWIM.SequenceNumber)
@@ -246,29 +246,6 @@ extension SWIM.Status {
     ///   following ordering: `alive(N)` < `suspect(N)` < `alive(N+1)` < `suspect(N+1)` < `dead`
     public func supersedes(_ other: SWIM.Status) -> Bool {
         self >= other
-    }
-}
-
-// ==== ----------------------------------------------------------------------------------------------------------------
-// MARK: Extension: Reachability
-
-extension SWIM {
-    public enum MemberReachability: String, Equatable {
-        /// The member is reachable and responding to failure detector probing properly.
-        case reachable
-        /// Failure detector has determined this node as not reachable.
-        /// It may be a candidate to be downed.
-        case unreachable
-    }
-}
-
-extension SWIM.MemberReachability {
-    public var isReachable: Bool {
-        self == .reachable
-    }
-
-    public var isUnreachable: Bool {
-        self == .unreachable
     }
 }
 

@@ -28,17 +28,14 @@ extension SWIMNIOShell {
         _ type: TraceLogType, message: @autoclosure () -> String,
         file: String = #file, function: String = #function, line: UInt = #line
     ) {
-//        if let level = self.settings.traceLogLevel {
-//            self.log.log(
-//                level: level,
-        print(
-            "[\(self.myself.node)] \(type.description) :: \(message()) @ \(file):\(line)"
-        )
-//                    ,
-//                metadata: self.swim.metadata,
-//                file: file, function: function, line: line
-//            )
-//        }
+        if let level = self.settings.traceLogLevel {
+            self.log.log(
+                level: level,
+                "[\(self.myself.node)] \(type.description) :: \(message())",
+                metadata: self.swim.metadata,
+                file: file, function: function, line: line
+            )
+        }
     }
 
     internal enum TraceLogType: CustomStringConvertible {

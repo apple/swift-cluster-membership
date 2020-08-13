@@ -104,12 +104,15 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
                         callback(.failure(
                             SWIMNIOTimeoutError(
                                 timeout: writeCommand.replyTimeout,
-                                message: "No reply to [\(writeCommand.message.messageCaseDescription)] after \(writeCommand.replyTimeout.prettyDescription())"
+                                message: "Timeout of [\(callbackKey)], no reply to [\(writeCommand.message.messageCaseDescription)] after \(writeCommand.replyTimeout.prettyDescription())"
                             )
                         ))
                     } // else, task fired already (should have been removed)
                 }
 
+                self.log.trace("Store callback: \(callbackKey)", metadata: [
+                    "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
+                ])
                 self.pendingReplyCallbacks[callbackKey] = { reply in
                     timeoutTask.cancel() // when we trigger the callback, we should also cancel the timeout task
                     replyCallback(reply) // successful reply received

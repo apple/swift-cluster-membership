@@ -20,25 +20,19 @@ import SWIM
 import XCTest
 
 final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
-    override var alwaysPrintCaptureLogs: Bool {
-        true
-    }
-
     // ==== ----------------------------------------------------------------------------------------------------------------
     // MARK: Black box tests, we let the nodes run and inspect their state via logs
 
     func test_real_peers_2_connect() throws {
-        let (firstHandler, firstChannel) = self.makeClusterNode()
-        let firstNode = firstHandler.shell.node
+        let (firstHandler, _) = self.makeClusterNode()
 
-        let (secondHandler, secondChannel) = self.makeClusterNode() { settings in
+        let (secondHandler, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [firstHandler.shell.node]
         }
-        let secondNode = secondHandler.shell.node
 
         try self.capturedLogs(of: firstHandler.shell.node)
             .awaitLog(grep: #""swim/members/count": 2"#)
-        try self.capturedLogs(of: secondNode)
+        try self.capturedLogs(of: secondHandler.shell.node)
             .awaitLog(grep: #""swim/members/count": 2"#)
     }
 
@@ -47,15 +41,13 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             settings.pingTimeout = .milliseconds(100)
             settings.probeInterval = .milliseconds(500)
         }
-        let firstNode = firstHandler.shell.node
 
-        let (secondHandler, secondChannel) = self.makeClusterNode() { settings in
+        let (secondHandler, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [firstHandler.shell.node]
 
             settings.pingTimeout = .milliseconds(100)
             settings.probeInterval = .milliseconds(500)
         }
-        let secondNode = secondHandler.shell.node
 
         try self.capturedLogs(of: firstHandler.shell.node)
             .awaitLog(grep: #""swim/members/count": 2"#)
@@ -67,36 +59,33 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
 
         // we should get back down to a 1 node cluster
         // TODO: add same tests but embedded
-        try self.capturedLogs(of: secondNode)
+        try self.capturedLogs(of: secondHandler.shell.node)
             .awaitLog(grep: #""swim/suspects/count": 1"#, within: .seconds(20))
     }
 
     func test_real_peers_2_connectToNonExistingPeer_immediatelyMarksItSuspect() throws {
-        let (firstHandler, firstChannel) = self.makeClusterNode() { settings in
+        let (firstHandler, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [
                 Node(protocol: "test", host: "127.0.0.1", port: 8888, uid: nil),
             ]
         }
-        let firstNode = firstHandler.shell.node
 
         try self.capturedLogs(of: firstHandler.shell.node)
             .awaitLog(grep: #""swim/suspects/count": 1"#)
     }
 
     func test_real_peers_2_connect_peerCountNeverExceeds2() throws {
-        let (firstHandler, firstChannel) = self.makeClusterNode() { settings in
+        let (firstHandler, _) = self.makeClusterNode() { settings in
             settings.pingTimeout = .milliseconds(100)
             settings.probeInterval = .milliseconds(500)
         }
-        let firstNode = firstHandler.shell.node
 
-        let (secondHandler, secondChannel) = self.makeClusterNode() { settings in
+        let (secondHandler, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [firstHandler.shell.node]
 
             settings.pingTimeout = .milliseconds(100)
             settings.probeInterval = .milliseconds(500)
         }
-        let secondNode = secondHandler.shell.node
 
         try self.capturedLogs(of: firstHandler.shell.node)
             .awaitLog(grep: #""swim/members/count": 2"#)
@@ -104,7 +93,7 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
         sleep(5)
 
         do {
-            let found = try self.capturedLogs(of: secondNode)
+            let found = try self.capturedLogs(of: secondHandler.shell.node)
                 .awaitLog(grep: #""swim/members/count": 3"#, within: .seconds(5))
             XCTFail("Found unexpected members count: 3! Log message: \(found)")
             return
@@ -142,18 +131,29 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     }
 
     func test_real_peers_5_then1Dies_becomesSuspect() throws {
-        let (first, firstChannel) = self.makeClusterNode()
+        let (first, firstChannel) = self.makeClusterNode() { settings in
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
+        }
         let (second, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [first.shell.node]
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
         }
         let (third, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [second.shell.node]
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
         }
         let (fourth, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [third.shell.node]
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
         }
         let (fifth, _) = self.makeClusterNode() { settings in
             settings.initialContactPoints = [fourth.shell.node]
+            settings.pingTimeout = .milliseconds(100)
+            settings.probeInterval = .milliseconds(500)
         }
 
         try [first, second, third, fourth, fifth].forEach { handler in
@@ -161,7 +161,7 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
                 try self.capturedLogs(of: handler.shell.node)
                     .awaitLog(
                         grep: #""swim/members/count": 5"#,
-                        within: .seconds(10)
+                        within: .seconds(20)
                     )
             } catch {
                 throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)

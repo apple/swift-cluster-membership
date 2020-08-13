@@ -209,10 +209,6 @@ struct LogCaptureLogHandler: LogHandler {
     }
 
     public func log(level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?, file: String, function: String, line: UInt) {
-        let node = self.metadata["swim/node"].map {
-            "\($0)"
-        } ?? ""
-
         guard self.capture.settings.grep.isEmpty || self.capture.settings.grep.contains(where: { "\(message)".contains($0) }) else {
             return // log was included explicitly
         }
