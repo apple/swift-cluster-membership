@@ -340,7 +340,7 @@ extension SWIM {
             case applied(previousStatus: SWIM.Status?, currentStatus: SWIM.Status)
         }
 
-        public func incrementProtocolPeriod() { // TODO: make internal
+        internal func incrementProtocolPeriod() {
             self._protocolPeriod += 1
         }
 
