@@ -60,7 +60,7 @@ public protocol SWIMProtocol {
     /// - Returns:
     mutating func onPingResponse(response: SWIM.PingResponse, pingRequestOrigin: PingOriginSWIMPeer?) -> [SWIM.Instance.PingResponseDirective]
 
-    /// Must be invoked whenever a response to a `pingRequest` (an ack, nack or lack response i.e. a timeout) happens.
+    /// Must be invoked whenever a successful response to a `pingRequest` happens or all of `pingRequest`'s fail.
     ///
     // TODO: more docs
     ///
@@ -69,6 +69,16 @@ public protocol SWIMProtocol {
     ///   - member:
     /// - Returns:
     mutating func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) -> SWIM.Instance.PingRequestResponseDirective
+
+    /// Must be invoked whenever a response to a `pingRequest` (an ack, nack or lack response i.e. a timeout) happens.
+    ///
+    // TODO: more docs
+    ///
+    /// - Parameters:
+    ///   - response:
+    ///   - member:
+    /// - Returns:
+    mutating func onEveryPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer)
 }
 
 extension SWIM {
@@ -920,15 +930,15 @@ extension SWIM.Instance {
         }
     }
 
-    /// This callback is adjusting local health and should be executed on every pingReq
-    public func onEveryPingRequestResponse(_ result: Result<SWIM.PingResponse, Error>, pingedMember member: AddressableSWIMPeer) {
+    /// This callback is adjusting local health and should be executed for _every_ received response to a pingRequest
+    public func onEveryPingRequestResponse(_ result: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) {
         switch result {
-            case .failure, .success(.error), .success(.timeout):
-                // Failed pingRequestResponse indicates a missed nack, we should adjust LHMultiplier
-                self.adjustLHMultiplier(.probeWithMissedNack)
-            case .success:
-                // Successful pingRequestResponse should be handled only once
-                ()
+        case .error, .timeout:
+            // Failed pingRequestResponse indicates a missed nack, we should adjust LHMultiplier
+            self.adjustLHMultiplier(.probeWithMissedNack)
+        default:
+            // Successful pingRequestResponse should be handled only once
+            ()
         }
     }
 
