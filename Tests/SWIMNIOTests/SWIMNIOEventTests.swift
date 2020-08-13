@@ -35,7 +35,7 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
 
     override func setUp() {
         super.setUp()
-        
+
         self.settings = SWIM.Settings()
         self.settings.node = self.myselfNode
 
@@ -45,7 +45,7 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
     override func tearDown() {
         try! self.group.syncShutdownGracefully()
         self.group = nil
-        
+
         super.tearDown()
     }
 
@@ -55,25 +55,28 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
         let first = try bindShell(settings, probe: firstProbe)
         defer { try! first.close().wait() }
 
-        try firstProbe.expectEvent(SWIM.MemberStatusChangeEvent(previousStatus: nil, member: myselfMemberAliveInitial))
+        try firstProbe.expectEvent(SWIM.MemberStatusChangeEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
     }
-
 
     func test_memberStatusChange_suspect_emittedForNonExistentNode() throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
 
-        settings.initialContactPoints = [
-            nonExistentNode
+        self.settings.initialContactPoints = [
+            self.nonExistentNode,
         ]
         let first = try bindShell(settings, probe: firstProbe)
         defer { try! first.close().wait() }
 
-        try firstProbe.expectEvent(SWIM.MemberStatusChangeEvent(previousStatus: nil, member: myselfMemberAliveInitial))
+        try firstProbe.expectEvent(SWIM.MemberStatusChangeEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
         let event = try firstProbe.expectEvent()
+        XCTAssertTrue(event.isReachabilityChange)
+        XCTAssertTrue(event.status.isUnreachable)
+        XCTAssertEqual(event.member.node, self.nonExistentNode)
     }
 
-
     private func bindShell(_ settings: SWIM.Settings, probe probeHandler: ProbeEventHandler) throws -> Channel {
+        self._nodes.append(settings.node!)
+
         let channel = try DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in
@@ -91,13 +94,11 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Test Utils
 
-
 extension ProbeEventHandler {
-
     @discardableResult
     func expectEvent(
         _ expected: SWIM.MemberStatusChangeEvent? = nil,
-        file: StaticString = #file, line: UInt = #line
+        file: StaticString = (#file), line: UInt = #line
     ) throws -> SWIM.MemberStatusChangeEvent {
         let got = try self.expectEvent()
 
@@ -107,14 +108,13 @@ extension ProbeEventHandler {
 
         return got
     }
-
 }
 
 final class ProbeEventHandler: ChannelInboundHandler {
     typealias InboundIn = SWIM.MemberStatusChangeEvent
 
     var events: [SWIM.MemberStatusChangeEvent] = []
-    var waitingPromise: EventLoopPromise<SWIM.MemberStatusChangeEvent>? = nil
+    var waitingPromise: EventLoopPromise<SWIM.MemberStatusChangeEvent>?
     var loop: EventLoop
 
     init(loop: EventLoop) {

@@ -51,13 +51,7 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
         configureSettings(&settings)
 
         if self.captureLogs {
-            var captureSettings = LogCapture.Settings()
-            self.configureLogCapture(settings: &captureSettings)
-            let capture = LogCapture(settings: captureSettings)
-
-            settings.logger = capture.logger(label: name)
-
-            self._logCaptures.append(capture)
+            self.makeLogCapture(name: name, settings: &settings)
         }
 
         let handler = SWIMProtocolHandler(settings: settings)
@@ -120,16 +114,6 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
 
         return shell
     }
-
-    func makeLogCapture(name: String, settings: inout SWIM.Settings) {
-        var captureSettings = LogCapture.Settings()
-        self.configureLogCapture(settings: &captureSettings)
-        let capture = LogCapture(settings: captureSettings)
-
-        settings.logger = capture.logger(label: name)
-
-        self._logCaptures.append(capture)
-    }
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
@@ -172,6 +156,9 @@ class BaseClusteredXCTestCase: XCTestCase {
         super.tearDown()
 
         let testsFailed = self.testRun?.totalFailureCount ?? 0 > 0
+        print("self.captureLogs = \(self.captureLogs)")
+        print("self.alwaysPrintCaptureLogs = \(self.alwaysPrintCaptureLogs)")
+        print("testsFailed = \(testsFailed)")
         if self.captureLogs, self.alwaysPrintCaptureLogs || testsFailed {
             self.printAllCapturedLogs()
         }
@@ -186,6 +173,16 @@ class BaseClusteredXCTestCase: XCTestCase {
 
         self._nodes = []
         self._logCaptures = []
+    }
+
+    func makeLogCapture(name: String, settings: inout SWIM.Settings) {
+        var captureSettings = LogCapture.Settings()
+        self.configureLogCapture(settings: &captureSettings)
+        let capture = LogCapture(settings: captureSettings)
+
+        settings.logger = capture.logger(label: name)
+
+        self._logCaptures.append(capture)
     }
 }
 

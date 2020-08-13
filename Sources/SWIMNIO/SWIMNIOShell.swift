@@ -38,7 +38,7 @@ public final class SWIMNIOShell {
         self.myself
     }
 
-    let onMemberStatusChange: (SWIM.MemberStatusChangeEvent) -> ()
+    let onMemberStatusChange: (SWIM.MemberStatusChangeEvent) -> Void
 
     public var node: Node {
         self.myself.node
@@ -52,7 +52,7 @@ public final class SWIMNIOShell {
         settings: SWIM.Settings,
         channel: Channel,
         startPeriodicPingTimer: Bool = true,
-        onMemberStatusChange: @escaping (SWIM.MemberStatusChangeEvent) -> ()
+        onMemberStatusChange: @escaping (SWIM.MemberStatusChangeEvent) -> Void
     ) {
         self.log = settings.logger
 
@@ -576,10 +576,8 @@ public final class SWIMNIOShell {
         switch change.status {
         case .unreachable:
             self.log.info(
-                """
-                Node \(change.member.node) determined [.unreachable]! \
-                The node is not yet marked [.down], a downing strategy or other Cluster.Event subscriber may act upon this information.
-                """, metadata: [
+                "Node \(change.member.node) determined [.unreachable]!",
+                metadata: [
                     "swim/member": "\(change.member)",
                 ]
             )
@@ -634,9 +632,9 @@ public enum MemberReachability: String, Equatable {
 }
 
 struct Cancellable {
-    let cancel: () -> ()
+    let cancel: () -> Void
 
-    init(_ cancel: @escaping () -> ()) {
+    init(_ cancel: @escaping () -> Void) {
         self.cancel = cancel
     }
 }

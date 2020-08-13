@@ -41,15 +41,15 @@ extension SWIM {
 
         /// Settings of the Lifeguard extensions to the SWIM protocol.
         public var lifeguard: SWIMLifeguardSettings = .init()
-        
+
         /// Configures the node of this SWIM instance explicitly, including allowing setting it's UID.
         ///
         /// Depending on runtime, setting this value explicitly may not be necessary,
         /// as the node can be inferred from the host/port the specific shell is bound to.
         ///
         /// If neither, the node could be inferred, or is set explicitly, a fatal crash should be caused by the SWIM shell implementaiton.
-        public var node: Node? = nil
-        
+        public var node: Node?
+
         /// Number of indirect probes that will be issued once a direct ping probe has failed to reply in time with an ack.
         ///
         /// In case of small clusters where nr. of neighbors is smaller than this value, the most neighbors available will
