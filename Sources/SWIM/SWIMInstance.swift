@@ -669,7 +669,6 @@ extension SWIM.Instance {
                 )
             )
         } else {
-            // LHA-probe multiplier for pingReq responses is handled separately `handlePingRequestResult`
             self.adjustLHMultiplier(.successfulProbe)
         }
 
@@ -698,7 +697,6 @@ extension SWIM.Instance {
         var directives: [PingResponseDirective] = []
         if let pingRequestOrigin = pingRequestOrigin {
             // Meaning we were doing a ping on behalf of the pingReq origin, and we need to report back to it.
-            self.adjustLHMultiplier(.probeWithMissedNack)
             directives.append(
                 .sendNack(
                     peer: pingRequestOrigin,
@@ -862,7 +860,11 @@ extension SWIM.Instance {
             self.addMember(target, status: .alive(incarnation: 0))
         }
         let pingSequenceNumber = self.nextSequenceNumber()
-        directives.append(.sendPing(target: target, pingRequestOrigin: replyTo, timeout: self.dynamicLHMPingTimeout, sequenceNumber: pingSequenceNumber))
+        // Indirect ping timeout should always be shorter than pingRequest timeout.
+        // Setting it to a fraction of initial ping timeout as suggested in the original paper.
+        // SeeAlso: [Lifeguard IV.A. Local Health Multiplier (LHM)](https://arxiv.org/pdf/1707.00788.pdf)
+        let timeout: SWIMTimeAmount = self.settings.pingTimeout * self.settings.lifeguard.indirectPingTimeoutMultiplier
+        directives.append(.sendPing(target: target, pingRequestOrigin: replyTo, timeout: timeout, sequenceNumber: pingSequenceNumber))
 
         return directives
     }
@@ -876,6 +878,7 @@ extension SWIM.Instance {
     // ==== ----------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Request Response
 
+    /// This should be called on first successful (non-nack) pingRequestResponse
     public func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) -> PingRequestResponseDirective {
         guard let previousStatus = self.status(of: member) else {
             return .unknownMember
@@ -888,7 +891,6 @@ extension SWIM.Instance {
                 // TODO: make assert
             }
 
-            self.adjustLHMultiplier(.successfulProbe)
             switch self.mark(member, as: .alive(incarnation: incarnation)) {
             case .applied:
                 // TODO: we can be more interesting here, was it a move suspect -> alive or a reassurance?
@@ -897,12 +899,10 @@ extension SWIM.Instance {
                 return .ignoredDueToOlderStatus(currentStatus: currentStatus)
             }
         case .nack:
+            // TODO: this should never happen. How do we express it?
             return .nackReceived
 
         case .timeout, .error:
-            // missed pingRequest's nack may indicate a problem with local health
-            self.adjustLHMultiplier(.probeWithMissedNack)
-
             switch previousStatus {
             case .alive(let incarnation),
                  .suspect(let incarnation, _):
@@ -917,6 +917,18 @@ extension SWIM.Instance {
             case .dead:
                 return .alreadyDead
             }
+        }
+    }
+
+    /// This callback is adjusting local health and should be executed on every pingReq
+    public func onEveryPingRequestResponse(_ result: Result<SWIM.PingResponse, Error>, pingedMember member: AddressableSWIMPeer) {
+        switch result {
+            case .failure, .success(.error), .success(.timeout):
+                // Failed pingRequestResponse indicates a missed nack, we should adjust LHMultiplier
+                self.adjustLHMultiplier(.probeWithMissedNack)
+            case .success:
+                // Successful pingRequestResponse should be handled only once
+                ()
         }
     }
 

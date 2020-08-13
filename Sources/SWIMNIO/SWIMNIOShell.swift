@@ -287,6 +287,7 @@ public final class SWIMNIOShell: SWIM.Context {
         self.log.trace("Sending ping", metadata: self.swim.metadata([
             "swim/target": "\(target.node)",
             "swim/gossip/payload": "\(payload)",
+            "swim/timeout": "\(timeout)"
         ]))
 
         let targetPeer = target.peer(self.channel)
@@ -322,13 +323,16 @@ public final class SWIMNIOShell: SWIM.Context {
 
             self.tracelog(.send(to: peerToPingRequestThrough), message: "pingRequest(target: \(nodeToPing), replyTo: \(self.peer), payload: \(payload), sequenceNumber: \(sequenceNumber))")
             peerToPingRequestThrough.pingRequest(target: nodeToPing, payload: payload, from: self.peer, timeout: pingTimeout, sequenceNumber: sequenceNumber) { result in
-                // We choose to cascade only successes;
+                // We choose to cascade only successful ping responses (i.e. `ack`s);
                 // While this has a slight timing implication on time timeout of the pings -- the node that is last
                 // in the list that we ping, has slightly less time to fulfil the "total ping timeout"; as we set a total timeout on the entire `firstSuccess`.
                 // In practice those timeouts will be relatively large (seconds) and the few millis here should not have a large impact on correctness.
+                self.swim.onEveryPingRequestResponse(result, pingedMember: nodeToPing)
                 switch result {
                 case .success(let response):
-                    firstSuccessPromise.succeed(response)
+                    if case .ack = response {
+                        firstSuccessPromise.succeed(response)
+                    }
                 case .failure(let error):
                     // these are generally harmless thus we do not want to log them on higher levels
                     self.log.trace("Failed pingRequest", metadata: [
