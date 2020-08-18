@@ -37,8 +37,9 @@ public struct Node: Hashable, Comparable, CustomStringConvertible {
     }
 
     public var description: String {
-        /// uid is not printed by default since we only care about it when we do, not in every place where we log a node
-        "\(self.protocol)://\(self.host):\(self.port)"
+        // /// uid is not printed by default since we only care about it when we do, not in every place where we log a node
+        // "\(self.protocol)://\(self.host):\(self.port)"
+        self.detailedDescription
     }
 
     /// Prints a node's String representation including its `uid`.

@@ -31,7 +31,6 @@ import ClusterMembership
 /// - SeeAlso: `SWIM.Instance` for a detailed discussion on the implementation.
 /// - SeeAlso: `SWIM.Shell` for the interpretation and driving the interactions.
 public enum SWIM {
-    public typealias Context = SWIMContext
     public typealias Incarnation = UInt64
     public typealias Members = [SWIM.Member]
 

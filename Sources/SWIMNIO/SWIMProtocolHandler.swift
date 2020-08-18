@@ -20,7 +20,7 @@ import SWIM
 
 public final class SWIMProtocolHandler: ChannelDuplexHandler {
     public typealias InboundIn = AddressedEnvelope<ByteBuffer>
-    public typealias InboundOut = Never
+    public typealias InboundOut = SWIM.MemberStatusChangedEvent
     public typealias OutboundIn = WriteCommand
     public typealias OutboundOut = AddressedEnvelope<ByteBuffer>
 
@@ -34,7 +34,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
 
     // TODO: move callbacks into the shell?
     struct PendingResponseCallbackIdentifier: Hashable {
-        let peerAddress: SocketAddress // TODO: UID as well...
+        let peerAddress: SocketAddress // FIXME: UID as well...
         let sequenceNumber: SWIM.SequenceNumber
     }
 
@@ -53,11 +53,16 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
             fatalError("SWIM requires a known host IP, but was nil! Channel: \(context.channel)")
         }
 
-        let node: Node = .init(protocol: "udp", host: hostIP, port: hostPort, uid: .random(in: 0 ..< UInt64.max))
+        let node = self.settings.node ?? Node(protocol: "udp", host: hostIP, port: hostPort, uid: .random(in: 0 ..< UInt64.max))
         self.shell = SWIMNIOShell(
             node: node,
             settings: self.settings,
-            channel: context.channel
+            channel: context.channel,
+            onMemberStatusChange: { change in
+                context.eventLoop.execute {
+                    context.fireChannelRead(self.wrapInboundOut(change))
+                }
+            }
         )
 
         self.log.trace("Channel active", metadata: [
@@ -72,8 +77,8 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
 
     public func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
         switch event {
-        case let change as SWIM.MemberStatusChange:
-            self.log.info("Membership changed: \(change.member), \(String(describing: change.previousStatus)) -> \(change.status)")
+        case let change as SWIM.MemberStatusChangedEvent:
+            self.log.trace("Membership changed: \(change.member), \(String(describing: change.previousStatus)) -> \(change.status)")
         default:
             context.fireUserInboundEventTriggered(event)
         }
