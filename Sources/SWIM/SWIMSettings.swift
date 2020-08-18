@@ -13,7 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import struct Dispatch.DispatchTime // for time source overriding
+import struct Dispatch.DispatchTime
+import enum Dispatch.DispatchTimeInterval
 import Logging
 
 // ==== ----------------------------------------------------------------------------------------------------------------
@@ -70,7 +71,7 @@ extension SWIM {
         /// This property sets only a base value of probe interval, which will later be multiplied by `SWIM.Instance.localHealthMultiplier`.
         /// - SeeAlso: `maxLocalHealthMultiplier`
         /// Every `interval` a `fan-out` number of gossip messages will be sent. // TODO which fanout, better docs
-        public var probeInterval: SWIMTimeAmount = .seconds(1)
+        public var probeInterval: DispatchTimeInterval = .seconds(1)
 
         /// Time amount after which a sent ping without ack response is considered timed-out.
         /// This drives how a node becomes a suspect, by missing such ping/ack rounds.
@@ -81,7 +82,7 @@ extension SWIM {
         /// which results in an `Cluster.MemberReachabilityChange` `Cluster.Event` which downing strategies may act upon.
         ///
         /// - SeeAlso: `lifeguard.maxLocalHealthMultiplier`
-        public var pingTimeout: SWIMTimeAmount = .milliseconds(300)
+        public var pingTimeout: DispatchTimeInterval = .milliseconds(300)
 
         /// Optional SWIM Protocol Extension: `SWIM.MemberStatus.unreachable`
         ///
@@ -173,14 +174,14 @@ public struct SWIMLifeguardSettings {
     /// it will be marked `.dead` in SWIM, and `.down` in the high-level membership.
     ///
     /// - SeeAlso: [Lifeguard IV.B. Local Health Aware Suspicion (LHA-Suspicion)](https://arxiv.org/pdf/1707.00788.pdf)
-    public var suspicionTimeoutMax: SWIMTimeAmount = .seconds(10) {
+    public var suspicionTimeoutMax: DispatchTimeInterval = .seconds(10) {
         willSet {
-            precondition(newValue >= self.suspicionTimeoutMin, "`suspicionTimeoutMax` MUST BE >= `suspicionTimeoutMin`")
+            precondition(newValue.nanoseconds >= self.suspicionTimeoutMin.nanoseconds, "`suspicionTimeoutMax` MUST BE >= `suspicionTimeoutMin`")
         }
     }
 
     /// To ensure ping origin have time to process .nack, indirect ping timeout should always be shorter than originator's timeout
-    /// This property controls a multipler that's applied to `pingTimeout` when calculating indirect probe timeout.
+    /// This property controls a multiplier that's applied to `pingTimeout` when calculating indirect probe timeout.
     /// The default of 80% follows a proposal in the initial paper.
     /// The value should be between 0 and 1 (exclusive).
     ///
@@ -188,8 +189,8 @@ public struct SWIMLifeguardSettings {
     /// - SeeAlso: [Lifeguard IV.B. Local Health Aware Suspicion (LHA-Suspicion)](https://arxiv.org/pdf/1707.00788.pdf)
     public var indirectPingTimeoutMultiplier: Double = 0.8 {
         willSet {
-            precondition(newValue > 0, "Ping timeout multipler should be > 0")
-            precondition(newValue < 1, "Ping timeout multipler should be < 1")
+            precondition(newValue > 0, "Ping timeout multiplier should be > 0")
+            precondition(newValue < 1, "Ping timeout multiplier should be < 1")
         }
     }
 
@@ -209,9 +210,9 @@ public struct SWIMLifeguardSettings {
     /// it will be marked `.dead` in swim, and `.down` in the high-level membership.
     ///
     /// - SeeAlso: [Lifeguard IV.B. Local Health Aware Suspicion (LHA-Suspicion)](https://arxiv.org/pdf/1707.00788.pdf)
-    public var suspicionTimeoutMin: SWIMTimeAmount = .seconds(3) {
+    public var suspicionTimeoutMin: DispatchTimeInterval = .seconds(3) {
         willSet {
-            precondition(newValue <= self.suspicionTimeoutMax, "`suspicionTimeoutMin` MUST BE <= `suspicionTimeoutMax`")
+            precondition(newValue.nanoseconds <= self.suspicionTimeoutMax.nanoseconds, "`suspicionTimeoutMin` MUST BE <= `suspicionTimeoutMax`")
         }
     }
 

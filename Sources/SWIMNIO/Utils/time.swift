@@ -12,12 +12,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Dispatch
 import NIO
 import SWIM
 
-extension SWIMTimeAmount {
-    public var toNIO: NIO.TimeAmount {
-        NIO.TimeAmount.nanoseconds(Int64(self.nanoseconds))
+extension DispatchTimeInterval {
+    var toNIO: NIO.TimeAmount {
+        .nanoseconds(self.nanoseconds)
     }
 }
 
@@ -25,10 +26,15 @@ protocol PrettyTimeAmountDescription {
     var nanoseconds: Int64 { get }
     var isEffectivelyInfinite: Bool { get }
 
+    var prettyDescription: String { get }
     func prettyDescription(precision: Int) -> String
 }
 
 extension PrettyTimeAmountDescription {
+    public var prettyDescription: String {
+        self.prettyDescription()
+    }
+
     public func prettyDescription(precision: Int = 2) -> String {
         assert(precision > 0, "precision MUST BE > 0")
         if self.isEffectivelyInfinite {
@@ -126,4 +132,21 @@ extension NIO.TimeAmount: PrettyTimeAmountDescription {
     }
 }
 
-extension SWIMTimeAmount: PrettyTimeAmountDescription {}
+extension DispatchTimeInterval: PrettyTimeAmountDescription {
+    /// Total amount of nanoseconds represented by this interval.
+    ///
+    /// We need this to compare amounts, yet we don't want to make to Comparable publicly.
+    var nanoseconds: Int64 {
+        switch self {
+        case .nanoseconds(let ns): return Int64(ns)
+        case .microseconds(let us): return Int64(us) * 1000
+        case .milliseconds(let ms): return Int64(ms) * 1_000_000
+        case .seconds(let s): return Int64(s) * 1_000_000_000
+        default: return .max
+        }
+    }
+
+    var isEffectivelyInfinite: Bool {
+        self == .never
+    }
+}
