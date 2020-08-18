@@ -262,61 +262,61 @@ final class SWIMInstanceTests: XCTestCase {
         let p = self.myself!
 
         XCTAssertTrue(
-            SWIM.MemberStatusChangeEvent(previousStatus: nil, member: SWIM.Member(peer: p, status: .alive(incarnation: 1), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: nil, member: SWIM.Member(peer: p, status: .alive(incarnation: 1), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertTrue(
-            SWIM.MemberStatusChangeEvent(previousStatus: nil, member: SWIM.Member(peer: p, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: nil, member: SWIM.Member(peer: p, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertTrue(
-            SWIM.MemberStatusChangeEvent(previousStatus: nil, member: SWIM.Member(peer: p, status: .unreachable(incarnation: 1), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: nil, member: SWIM.Member(peer: p, status: .unreachable(incarnation: 1), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertTrue(
-            SWIM.MemberStatusChangeEvent(previousStatus: nil, member: SWIM.Member(peer: p, status: .dead, protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: nil, member: SWIM.Member(peer: p, status: .dead, protocolPeriod: 1))
                 .isReachabilityChange)
 
         XCTAssertFalse(
-            SWIM.MemberStatusChangeEvent(previousStatus: .alive(incarnation: 1), member: SWIM.Member(peer: p, status: .alive(incarnation: 2), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .alive(incarnation: 1), member: SWIM.Member(peer: p, status: .alive(incarnation: 2), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertFalse(
-            SWIM.MemberStatusChangeEvent(previousStatus: .alive(incarnation: 1), member: SWIM.Member(peer: p, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .alive(incarnation: 1), member: SWIM.Member(peer: p, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertTrue(
-            SWIM.MemberStatusChangeEvent(previousStatus: .alive(incarnation: 1), member: SWIM.Member(peer: p, status: .unreachable(incarnation: 1), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .alive(incarnation: 1), member: SWIM.Member(peer: p, status: .unreachable(incarnation: 1), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertTrue(
-            SWIM.MemberStatusChangeEvent(previousStatus: .alive(incarnation: 1), member: SWIM.Member(peer: p, status: .dead, protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .alive(incarnation: 1), member: SWIM.Member(peer: p, status: .dead, protocolPeriod: 1))
                 .isReachabilityChange)
 
         XCTAssertFalse(
-            SWIM.MemberStatusChangeEvent(previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), member: SWIM.Member(peer: p, status: .alive(incarnation: 2), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), member: SWIM.Member(peer: p, status: .alive(incarnation: 2), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertFalse(
-            SWIM.MemberStatusChangeEvent(previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), member: SWIM.Member(peer: p, status: .suspect(incarnation: 2, suspectedBy: [self.thirdNode]), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), member: SWIM.Member(peer: p, status: .suspect(incarnation: 2, suspectedBy: [self.thirdNode]), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertTrue(
-            SWIM.MemberStatusChangeEvent(previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), member: SWIM.Member(peer: p, status: .unreachable(incarnation: 2), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), member: SWIM.Member(peer: p, status: .unreachable(incarnation: 2), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertTrue(
-            SWIM.MemberStatusChangeEvent(previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), member: SWIM.Member(peer: p, status: .dead, protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), member: SWIM.Member(peer: p, status: .dead, protocolPeriod: 1))
                 .isReachabilityChange)
 
         XCTAssertTrue(
-            SWIM.MemberStatusChangeEvent(previousStatus: .unreachable(incarnation: 1), member: SWIM.Member(peer: p, status: .alive(incarnation: 2), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .unreachable(incarnation: 1), member: SWIM.Member(peer: p, status: .alive(incarnation: 2), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertTrue(
-            SWIM.MemberStatusChangeEvent(previousStatus: .unreachable(incarnation: 1), member: SWIM.Member(peer: p, status: .suspect(incarnation: 2, suspectedBy: [self.thirdNode]), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .unreachable(incarnation: 1), member: SWIM.Member(peer: p, status: .suspect(incarnation: 2, suspectedBy: [self.thirdNode]), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertFalse(
-            SWIM.MemberStatusChangeEvent(previousStatus: .unreachable(incarnation: 1), member: SWIM.Member(peer: p, status: .unreachable(incarnation: 2), protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .unreachable(incarnation: 1), member: SWIM.Member(peer: p, status: .unreachable(incarnation: 2), protocolPeriod: 1))
                 .isReachabilityChange)
         XCTAssertFalse(
-            SWIM.MemberStatusChangeEvent(previousStatus: .unreachable(incarnation: 1), member: SWIM.Member(peer: p, status: .dead, protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .unreachable(incarnation: 1), member: SWIM.Member(peer: p, status: .dead, protocolPeriod: 1))
                 .isReachabilityChange)
 
         // those are illegal, but even IF they happened at least we'd never bubble them up to high level
         // moving from .dead to any other state is illegal and should assert // TODO: sanity check
         XCTAssertFalse(
-            SWIM.MemberStatusChangeEvent(previousStatus: .dead, member: SWIM.Member(peer: p, status: .dead, protocolPeriod: 1))
+            SWIM.MemberStatusChangedEvent(previousStatus: .dead, member: SWIM.Member(peer: p, status: .dead, protocolPeriod: 1))
                 .isReachabilityChange)
     }
 

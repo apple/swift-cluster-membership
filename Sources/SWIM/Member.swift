@@ -105,7 +105,7 @@ extension SWIM.Member: CustomStringConvertible {
 
 extension SWIM {
     /// Emitted whenever a membership change happens.
-    public struct MemberStatusChangeEvent: CustomStringConvertible, Equatable {
+    public struct MemberStatusChangedEvent: CustomStringConvertible, Equatable {
         public let member: SWIM.Member
 
         /// The resulting ("current") status of the `member`.

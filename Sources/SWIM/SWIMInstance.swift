@@ -762,10 +762,10 @@ extension SWIM.Instance {
             }
 
             switch self.mark(target, as: self.makeSuspicion(incarnation: lastKnownIncarnation)) {
-            case .applied(_, _):
+            case .applied:
                 // log.debug("No members to ping-req through, marked [\(target)] immediately as [\(currentStatus)].") // TODO: logging
                 return nil
-            case .ignoredDueToOlderStatus(_):
+            case .ignoredDueToOlderStatus:
                 // log.debug("No members to ping-req through to [\(target)], was already [\(currentStatus)].") // TODO: logging
                 return nil
             }
@@ -1084,7 +1084,7 @@ extension SWIM.Instance {
     }
 
     public enum GossipProcessedDirective {
-        case applied(change: SWIM.MemberStatusChangeEvent?, level: Logger.Level?, message: Logger.Message?)
+        case applied(change: SWIM.MemberStatusChangedEvent?, level: Logger.Level?, message: Logger.Message?)
         /// Ignoring a gossip update is perfectly fine: it may be "too old" or other reasons
         case ignored(level: Logger.Level?, message: Logger.Message?) // TODO: allow the instance to log
         /// Warning! Even though we have an `ClusterMembership.Node` here, we need to ensure that we are actually connected to the node,
@@ -1096,7 +1096,7 @@ extension SWIM.Instance {
         /// thus we need to ensure we have a connection to them, before we consider adding them to the membership).
         case connect(node: ClusterMembership.Node) // FIXME: should be able to remove this
 
-        static func applied(change: SWIM.MemberStatusChangeEvent?) -> SWIM.Instance.GossipProcessedDirective {
+        static func applied(change: SWIM.MemberStatusChangedEvent?) -> SWIM.Instance.GossipProcessedDirective {
             .applied(change: change, level: nil, message: nil)
         }
 

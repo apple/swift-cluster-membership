@@ -55,7 +55,7 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
         let first = try bindShell(settings, probe: firstProbe)
         defer { try! first.close().wait() }
 
-        try firstProbe.expectEvent(SWIM.MemberStatusChangeEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
+        try firstProbe.expectEvent(SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
     }
 
     func test_memberStatusChange_suspect_emittedForNonExistentNode() throws {
@@ -67,7 +67,7 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
         let first = try bindShell(settings, probe: firstProbe)
         defer { try! first.close().wait() }
 
-        try firstProbe.expectEvent(SWIM.MemberStatusChangeEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
+        try firstProbe.expectEvent(SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
         let event = try firstProbe.expectEvent()
         XCTAssertTrue(event.isReachabilityChange)
         XCTAssertTrue(event.status.isUnreachable)
@@ -97,9 +97,9 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
 extension ProbeEventHandler {
     @discardableResult
     func expectEvent(
-        _ expected: SWIM.MemberStatusChangeEvent? = nil,
+        _ expected: SWIM.MemberStatusChangedEvent? = nil,
         file: StaticString = (#file), line: UInt = #line
-    ) throws -> SWIM.MemberStatusChangeEvent {
+    ) throws -> SWIM.MemberStatusChangedEvent {
         let got = try self.expectEvent()
 
         if let expected = expected {
@@ -111,10 +111,10 @@ extension ProbeEventHandler {
 }
 
 final class ProbeEventHandler: ChannelInboundHandler {
-    typealias InboundIn = SWIM.MemberStatusChangeEvent
+    typealias InboundIn = SWIM.MemberStatusChangedEvent
 
-    var events: [SWIM.MemberStatusChangeEvent] = []
-    var waitingPromise: EventLoopPromise<SWIM.MemberStatusChangeEvent>?
+    var events: [SWIM.MemberStatusChangedEvent] = []
+    var waitingPromise: EventLoopPromise<SWIM.MemberStatusChangedEvent>?
     var loop: EventLoop
 
     init(loop: EventLoop) {
@@ -132,8 +132,8 @@ final class ProbeEventHandler: ChannelInboundHandler {
         }
     }
 
-    func expectEvent(file: StaticString = #file, line: UInt = #line) throws -> SWIM.MemberStatusChangeEvent {
-        let p = self.loop.makePromise(of: SWIM.MemberStatusChangeEvent.self, file: file, line: line)
+    func expectEvent(file: StaticString = #file, line: UInt = #line) throws -> SWIM.MemberStatusChangedEvent {
+        let p = self.loop.makePromise(of: SWIM.MemberStatusChangedEvent.self, file: file, line: line)
         self.loop.execute {
             assert(self.waitingPromise == nil, "Already waiting on an event")
             if !self.events.isEmpty {

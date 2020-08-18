@@ -38,7 +38,7 @@ public final class SWIMNIOShell {
         self.myself
     }
 
-    let onMemberStatusChange: (SWIM.MemberStatusChangeEvent) -> Void
+    let onMemberStatusChange: (SWIM.MemberStatusChangedEvent) -> Void
 
     public var node: Node {
         self.myself.node
@@ -52,7 +52,7 @@ public final class SWIMNIOShell {
         settings: SWIM.Settings,
         channel: Channel,
         startPeriodicPingTimer: Bool = true,
-        onMemberStatusChange: @escaping (SWIM.MemberStatusChangeEvent) -> Void
+        onMemberStatusChange: @escaping (SWIM.MemberStatusChangedEvent) -> Void
     ) {
         self.log = settings.logger
 
@@ -282,7 +282,7 @@ public final class SWIMNIOShell {
             fatalError("self.processGossipPayload(payload: payloadToProcess)") // FIXME: !!!!!
         case .newlySuspect(let previousStatus, let suspect):
             self.log.debug("Member [\(suspect)] marked as suspect")
-            self.announceMembershipChange(SWIM.MemberStatusChangeEvent(previousStatus: previousStatus, member: suspect))
+            self.announceMembershipChange(SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: suspect))
         case .nackReceived:
             self.log.debug("Received `nack` from indirect probing of [\(pingedPeer)]")
         case let other:
@@ -290,7 +290,7 @@ public final class SWIMNIOShell {
         }
     }
 
-    private func announceMembershipChange(_ change: SWIM.MemberStatusChangeEvent) {
+    private func announceMembershipChange(_ change: SWIM.MemberStatusChangedEvent) {
         self.onMemberStatusChange(change)
     }
 
@@ -538,7 +538,7 @@ public final class SWIMNIOShell {
                     "swim/previousStatus": "\(previousStatus, orElse: "nil")",
                 ]
             )
-            self.tryAnnounceMemberReachability(change: SWIM.MemberStatusChangeEvent(previousStatus: previousStatus, member: latest))
+            self.tryAnnounceMemberReachability(change: SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: latest))
         case .ignoredDueToOlderStatus:
             () // self.log.trace("No change \(latest), currentStatus remains [\(currentStatus)]. No reachability change to announce")
         }
@@ -560,7 +560,7 @@ public final class SWIMNIOShell {
     }
 
     /// Announce to the a change in reachability of a member.
-    private func tryAnnounceMemberReachability(change: SWIM.MemberStatusChangeEvent?) {
+    private func tryAnnounceMemberReachability(change: SWIM.MemberStatusChangedEvent?) {
         guard let change = change else {
             // this means it likely was a change to the same status or it was about us, so we do not need to announce anything
             return

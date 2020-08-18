@@ -20,7 +20,7 @@ import SWIM
 
 public final class SWIMProtocolHandler: ChannelDuplexHandler {
     public typealias InboundIn = AddressedEnvelope<ByteBuffer>
-    public typealias InboundOut = SWIM.MemberStatusChangeEvent
+    public typealias InboundOut = SWIM.MemberStatusChangedEvent
     public typealias OutboundIn = WriteCommand
     public typealias OutboundOut = AddressedEnvelope<ByteBuffer>
 
@@ -77,7 +77,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
 
     public func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
         switch event {
-        case let change as SWIM.MemberStatusChangeEvent:
+        case let change as SWIM.MemberStatusChangedEvent:
             self.log.trace("Membership changed: \(change.member), \(String(describing: change.previousStatus)) -> \(change.status)")
         default:
             context.fireUserInboundEventTriggered(event)
