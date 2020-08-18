@@ -762,10 +762,10 @@ extension SWIM.Instance {
             }
 
             switch self.mark(target, as: self.makeSuspicion(incarnation: lastKnownIncarnation)) {
-            case .applied(_, let currentStatus):
+            case .applied(_, _):
                 // log.debug("No members to ping-req through, marked [\(target)] immediately as [\(currentStatus)].") // TODO: logging
                 return nil
-            case .ignoredDueToOlderStatus(let currentStatus):
+            case .ignoredDueToOlderStatus(_):
                 // log.debug("No members to ping-req through to [\(target)], was already [\(currentStatus)].") // TODO: logging
                 return nil
             }

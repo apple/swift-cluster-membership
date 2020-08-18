@@ -156,9 +156,6 @@ class BaseClusteredXCTestCase: XCTestCase {
         super.tearDown()
 
         let testsFailed = self.testRun?.totalFailureCount ?? 0 > 0
-        print("self.captureLogs = \(self.captureLogs)")
-        print("self.alwaysPrintCaptureLogs = \(self.alwaysPrintCaptureLogs)")
-        print("testsFailed = \(testsFailed)")
         if self.captureLogs, self.alwaysPrintCaptureLogs || testsFailed {
             self.printAllCapturedLogs()
         }
