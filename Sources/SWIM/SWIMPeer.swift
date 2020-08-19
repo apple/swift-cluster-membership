@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import struct Dispatch.DispatchTime
+import enum Dispatch.DispatchTimeInterval
 
 extension SWIM {
     public typealias Peer = SWIMPeer
@@ -61,7 +63,7 @@ public protocol SWIMPeer: PingOriginSWIMPeer {
     func ping(
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,
-        timeout: SWIMTimeAmount,
+        timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     )
@@ -80,7 +82,7 @@ public protocol SWIMPeer: PingOriginSWIMPeer {
         target: AddressableSWIMPeer,
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,
-        timeout: SWIMTimeAmount,
+        timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     )

@@ -13,11 +13,11 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import Dispatch
 import Logging
 import NIO
 import NIOConcurrencyHelpers
 import SWIM
-import struct SWIM.SWIMTimeAmount
 
 extension SWIM {
     public struct NIOPeer: SWIMPeer, CustomStringConvertible {
@@ -39,7 +39,7 @@ extension SWIM {
         public func ping(
             payload: GossipPayload,
             from origin: AddressableSWIMPeer,
-            timeout: SWIMTimeAmount,
+            timeout: DispatchTimeInterval,
             sequenceNumber: SWIM.SequenceNumber,
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
         ) {
@@ -70,7 +70,7 @@ extension SWIM {
             target: AddressableSWIMPeer,
             payload: GossipPayload,
             from origin: AddressableSWIMPeer,
-            timeout: SWIMTimeAmount,
+            timeout: DispatchTimeInterval,
             sequenceNumber: SWIM.SequenceNumber,
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
         ) {
@@ -146,15 +146,15 @@ extension SWIM.NIOPeer: Hashable {
 }
 
 public struct SWIMNIOTimeoutError: Error, CustomStringConvertible {
-    let timeout: SWIMTimeAmount
+    let timeout: DispatchTimeInterval
     let message: String
 
     init(timeout: NIO.TimeAmount, message: String) {
-        self.timeout = SWIMTimeAmount.nanoseconds(timeout.nanoseconds)
+        self.timeout = .nanoseconds(Int(timeout.nanoseconds))
         self.message = message
     }
 
-    init(timeout: SWIMTimeAmount, message: String) {
+    init(timeout: DispatchTimeInterval, message: String) {
         self.timeout = timeout
         self.message = message
     }

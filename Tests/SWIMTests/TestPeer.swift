@@ -23,8 +23,8 @@ final class TestPeer: Hashable, SWIMPeer {
     var messages: [TestPeer.Message] = []
 
     enum Message {
-        case ping(payload: SWIM.GossipPayload, origin: AddressableSWIMPeer, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
-        case pingReq(target: AddressableSWIMPeer, payload: SWIM.GossipPayload, origin: AddressableSWIMPeer, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
+        case ping(payload: SWIM.GossipPayload, origin: AddressableSWIMPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
+        case pingReq(target: AddressableSWIMPeer, payload: SWIM.GossipPayload, origin: AddressableSWIMPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
         case ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload)
         case nack(target: AddressableSWIMPeer)
     }
@@ -36,7 +36,7 @@ final class TestPeer: Hashable, SWIMPeer {
     func ping(
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,
-        timeout: SWIMTimeAmount,
+        timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     ) {
@@ -50,7 +50,7 @@ final class TestPeer: Hashable, SWIMPeer {
         target: AddressableSWIMPeer,
         payload: SWIM.GossipPayload,
         from origin: AddressableSWIMPeer,
-        timeout: SWIMTimeAmount,
+        timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
     ) {

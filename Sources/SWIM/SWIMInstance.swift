@@ -18,6 +18,7 @@ import Darwin
 #else
 import Glibc
 #endif
+import enum Dispatch.DispatchTimeInterval
 import Logging
 
 public protocol SWIMProtocol {
@@ -146,14 +147,12 @@ extension SWIM {
         /// Events which cause the specified changes to the LHM counter are defined as `SWIM.LHModifierEvent`
         public var localHealthMultiplier = 0
 
-        // TODO: docs; could be internal?
-        public var dynamicLHMProtocolInterval: SWIMTimeAmount {
-            SWIMTimeAmount.nanoseconds(self.settings.probeInterval.nanoseconds * Int64(1 + self.localHealthMultiplier))
+        public var dynamicLHMProtocolInterval: DispatchTimeInterval {
+            .nanoseconds(Int(self.settings.probeInterval.nanoseconds * Int64(1 + self.localHealthMultiplier)))
         }
 
-        // TODO: docs; could be internal?
-        public var dynamicLHMPingTimeout: SWIMTimeAmount {
-            SWIMTimeAmount.nanoseconds(self.settings.pingTimeout.nanoseconds * Int64(1 + self.localHealthMultiplier))
+        public var dynamicLHMPingTimeout: DispatchTimeInterval {
+            .nanoseconds(Int(self.settings.pingTimeout.nanoseconds * Int64(1 + self.localHealthMultiplier)))
         }
 
         /// The incarnation number is used to get a sense of ordering of events, so if an `.alive` or `.suspect`
@@ -399,10 +398,18 @@ extension SWIM {
         /// - `K` is the number of independent suspicions required to be received before setting the suspicion timeout to `Min`.
         ///   We default `K` to `3`.
         /// - `C` is the number of independent suspicions about that member received since the local suspicion was raised.
-        public func suspicionTimeout(suspectedByCount: Int) -> SWIMTimeAmount {
-            let minTimeout = self.settings.lifeguard.suspicionTimeoutMin
-            let maxTimeout = self.settings.lifeguard.suspicionTimeoutMax
-            return max(minTimeout, .nanoseconds(maxTimeout.nanoseconds - Int64(round(Double(maxTimeout.nanoseconds - minTimeout.nanoseconds) * (log2(Double(suspectedByCount + 1)) / log2(Double(self.settings.lifeguard.maxIndependentSuspicions + 1)))))))
+        public func suspicionTimeout(suspectedByCount: Int) -> DispatchTimeInterval {
+            let minTimeout = self.settings.lifeguard.suspicionTimeoutMin.nanoseconds
+            let maxTimeout = self.settings.lifeguard.suspicionTimeoutMax.nanoseconds
+
+            return .nanoseconds(
+                Int(
+                    max(
+                        minTimeout,
+                        maxTimeout - Int64(round(Double(maxTimeout - minTimeout) * (log2(Double(suspectedByCount + 1)) / log2(Double(self.settings.lifeguard.maxIndependentSuspicions + 1)))))
+                    )
+                )
+            )
         }
 
         /// Checks if a deadline is expired (relating to current time).
@@ -596,7 +603,7 @@ extension SWIM.Instance {
 
     public enum PeriodicPingTickDirective {
         case ignore
-        case sendPing(target: SWIMPeer, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber)
+        case sendPing(target: SWIMPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -702,7 +709,7 @@ extension SWIM.Instance {
 
     func onPingResponseTimeout(
         target pingedNode: Node,
-        timeout: SWIMTimeAmount,
+        timeout: DispatchTimeInterval,
         pingRequestOrigin: PingOriginSWIMPeer?,
         sequenceNumber pingResponseSequenceNumber: SWIM.SequenceNumber
     ) -> [PingResponseDirective] {
@@ -878,8 +885,8 @@ extension SWIM.Instance {
         // Indirect ping timeout should always be shorter than pingRequest timeout.
         // Setting it to a fraction of initial ping timeout as suggested in the original paper.
         // SeeAlso: [Lifeguard IV.A. Local Health Multiplier (LHM)](https://arxiv.org/pdf/1707.00788.pdf)
-        let timeout: SWIMTimeAmount = self.settings.pingTimeout * self.settings.lifeguard.indirectPingTimeoutMultiplier
-        directives.append(.sendPing(target: target, pingRequestOrigin: replyTo, timeout: timeout, sequenceNumber: pingSequenceNumber))
+        let timeoutNanos = Int(Double(self.settings.pingTimeout.nanoseconds) * self.settings.lifeguard.indirectPingTimeoutMultiplier)
+        directives.append(.sendPing(target: target, pingRequestOrigin: replyTo, timeout: .nanoseconds(timeoutNanos), sequenceNumber: pingSequenceNumber))
 
         return directives
     }
@@ -887,7 +894,7 @@ extension SWIM.Instance {
     public enum PingRequestDirective {
         case gossipProcessed(GossipProcessedDirective)
         case ignore
-        case sendPing(target: SWIMPeer, pingRequestOrigin: SWIMPeer, timeout: SWIMTimeAmount, sequenceNumber: SWIM.SequenceNumber)
+        case sendPing(target: SWIMPeer, pingRequestOrigin: SWIMPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
     }
 
     // ==== ----------------------------------------------------------------------------------------------------------------

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import enum Dispatch.DispatchTimeInterval
 import Logging
 import NIO
 import SWIM
@@ -96,7 +97,7 @@ public final class SWIMNIOShell {
 
     /// Start a *single* timer, to run the passed task after given delay.
     @discardableResult
-    private func schedule(key: String, delay: SWIMTimeAmount, _ task: @escaping () -> Void) -> Cancellable {
+    private func schedule(key: String, delay: DispatchTimeInterval, _ task: @escaping () -> Void) -> Cancellable {
         self.eventLoop.assertInEventLoop()
 
         let scheduled: Scheduled<Void> = self.eventLoop.scheduleTask(in: delay.toNIO) { () in task() }
@@ -303,7 +304,7 @@ public final class SWIMNIOShell {
     func sendPing(
         to target: AddressableSWIMPeer,
         pingRequestOriginPeer: SWIMPeer?,
-        timeout: SWIMTimeAmount,
+        timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber
     ) {
         let payload = self.swim.makeGossipPayload(to: target)
@@ -658,12 +659,4 @@ extension ClusterMembership.Node {
     func peer(on channel: Channel) -> SWIM.NIOPeer {
         .init(node: self.node, channel: channel)
     }
-}
-
-// ==== ----------------------------------------------------------------------------------------------------------------
-// MARK: Errors
-
-struct TimeoutError: Error {
-    let task: String
-    let timeout: SWIMTimeAmount
 }
