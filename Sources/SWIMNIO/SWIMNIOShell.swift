@@ -147,7 +147,7 @@ public final class SWIMNIOShell {
         }
     }
 
-    private func receivePing(replyTo: PingOriginSWIMPeer /* <SWIM.PingResponse> */, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) {
+    private func receivePing(replyTo: SWIMPingOriginPeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) {
         self.log.trace("Received ping@\(sequenceNumber)", metadata: self.swim.metadata([
             "swim/ping/replyTo": "\(replyTo.node)",
             "swim/ping/payload": "\(payload)",
@@ -184,8 +184,8 @@ public final class SWIMNIOShell {
     }
 
     private func receivePingRequest(
-        target: SWIM.NIOPeer /* <SWIM.Message> */,
-        replyTo: SWIM.NIOPeer /* <SWIM.PingResponse> */,
+        target: SWIM.NIOPeer,
+        replyTo: SWIM.NIOPeer,
         payload: SWIM.GossipPayload,
         sequenceNumber pingReqSequenceNr: SWIM.SequenceNumber
     ) {
@@ -200,6 +200,7 @@ public final class SWIMNIOShell {
             "swim/target": "\(target.node)",
             "swim/gossip/payload": "\(payload)",
         ])
+
         let directives: [SWIM.Instance.PingRequestDirective] = self.swim.onPingRequest(target: target, replyTo: replyTo, payload: payload)
         directives.forEach { directive in
             switch directive {
@@ -222,7 +223,7 @@ public final class SWIMNIOShell {
     /// - parameter pingRequestOrigin: is set only when the ping that this is a reply to was originated as a `pingReq`.
     func receivePingResponse(
         response: SWIM.PingResponse,
-        pingRequestOriginPeer: SWIMPeer?
+        pingRequestOriginPeer: SWIMPingOriginPeer?
     ) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
@@ -268,7 +269,7 @@ public final class SWIMNIOShell {
         self.swim.onEveryPingRequestResponse(result, pingedMember: pingedPeer)
     }
 
-    func receivePingRequestResponse(result: SWIM.PingResponse, pingedPeer: AddressableSWIMPeer /* <SWIM.Message> */ ) {
+    func receivePingRequestResponse(result: SWIM.PingResponse, pingedPeer: AddressableSWIMPeer) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
                 self.receivePingRequestResponse(result: result, pingedPeer: pingedPeer)
@@ -303,7 +304,7 @@ public final class SWIMNIOShell {
     /// - parameter pingRequestOrigin: is set only when the ping that this is a reply to was originated as a `pingReq`.
     func sendPing(
         to target: AddressableSWIMPeer,
-        pingRequestOriginPeer: SWIMPeer?,
+        pingRequestOriginPeer: SWIMPingOriginPeer?,
         timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber
     ) {

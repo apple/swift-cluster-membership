@@ -49,7 +49,7 @@ public protocol SWIMProtocol {
     ///   - replyTo:
     ///   - payload:
     /// - Returns:
-    mutating func onPingRequest(target: SWIMPeer, replyTo: SWIMPeer, payload: SWIM.GossipPayload) -> [SWIM.Instance.PingRequestDirective]
+    mutating func onPingRequest(target: SWIMPeer, replyTo: SWIMPingOriginPeer, payload: SWIM.GossipPayload) -> [SWIM.Instance.PingRequestDirective]
 
     /// Must be invoked when a ping response, timeout, or error for a specific ping is received.
     ///
@@ -59,7 +59,7 @@ public protocol SWIMProtocol {
     ///   - response:
     ///   - pingRequestOrigin:
     /// - Returns:
-    mutating func onPingResponse(response: SWIM.PingResponse, pingRequestOrigin: PingOriginSWIMPeer?) -> [SWIM.Instance.PingResponseDirective]
+    mutating func onPingResponse(response: SWIM.PingResponse, pingRequestOrigin: SWIMPingOriginPeer?) -> [SWIM.Instance.PingResponseDirective]
 
     /// Must be invoked whenever a successful response to a `pingRequest` happens or all of `pingRequest`'s fail.
     ///
@@ -645,7 +645,7 @@ extension SWIM.Instance {
     // ==== ----------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Response Handlers
 
-    public func onPingResponse(response: SWIM.PingResponse, pingRequestOrigin: PingOriginSWIMPeer?) -> [PingResponseDirective] {
+    public func onPingResponse(response: SWIM.PingResponse, pingRequestOrigin: SWIMPingOriginPeer?) -> [PingResponseDirective] {
         switch response {
         case .ack(let target, let incarnation, let payload, let sequenceNumber):
             return self.onPingAckResponse(target: target, incarnation: incarnation, payload: payload, pingRequestOrigin: pingRequestOrigin, sequenceNumber: sequenceNumber)
@@ -662,7 +662,7 @@ extension SWIM.Instance {
         target pingedNode: Node,
         incarnation: SWIM.Incarnation,
         payload: SWIM.GossipPayload,
-        pingRequestOrigin: PingOriginSWIMPeer?,
+        pingRequestOrigin: SWIMPingOriginPeer?,
         sequenceNumber: SWIM.SequenceNumber
     ) -> [PingResponseDirective] {
         var directives: [PingResponseDirective] = []
@@ -699,7 +699,7 @@ extension SWIM.Instance {
 
     func onPingNackResponse(
         target pingedNode: Node,
-        pingRequestOrigin: PingOriginSWIMPeer?,
+        pingRequestOrigin: SWIMPingOriginPeer?,
         sequenceNumber: SWIM.SequenceNumber
     ) -> [PingResponseDirective] {
         let directives: [PingResponseDirective] = []
@@ -710,7 +710,7 @@ extension SWIM.Instance {
     func onPingResponseTimeout(
         target pingedNode: Node,
         timeout: DispatchTimeInterval,
-        pingRequestOrigin: PingOriginSWIMPeer?,
+        pingRequestOrigin: SWIMPingOriginPeer?,
         sequenceNumber pingResponseSequenceNumber: SWIM.SequenceNumber
     ) -> [PingResponseDirective] {
         assert(pingedNode != myself.node, "target pinged node MUST NOT equal myself, why would we ping our own node.")
@@ -828,10 +828,10 @@ extension SWIM.Instance {
         case gossipProcessed(GossipProcessedDirective)
 
         /// Send an `ack` message to `peer`
-        case sendAck(peer: PingOriginSWIMPeer, acknowledging: SWIM.SequenceNumber, target: Node, incarnation: UInt64, payload: SWIM.GossipPayload)
+        case sendAck(peer: SWIMPingOriginPeer, acknowledging: SWIM.SequenceNumber, target: Node, incarnation: UInt64, payload: SWIM.GossipPayload)
 
         /// Send a `nack` to `peer`
-        case sendNack(peer: PingOriginSWIMPeer, acknowledging: SWIM.SequenceNumber, target: Node)
+        case sendNack(peer: SWIMPingOriginPeer, acknowledging: SWIM.SequenceNumber, target: Node)
 
         /// Send a `pingRequest` as described by the `SendPingRequestDirective`.
         ///
@@ -855,7 +855,7 @@ extension SWIM.Instance {
     // ==== ----------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Request
 
-    public func onPingRequest(target: SWIMPeer, replyTo: SWIMPeer, payload: SWIM.GossipPayload) -> [PingRequestDirective] {
+    public func onPingRequest(target: SWIMPeer, replyTo: SWIMPingOriginPeer, payload: SWIM.GossipPayload) -> [PingRequestDirective] {
         var directives: [PingRequestDirective] = []
 
         // 1) Process gossip
@@ -894,7 +894,7 @@ extension SWIM.Instance {
     public enum PingRequestDirective {
         case gossipProcessed(GossipProcessedDirective)
         case ignore
-        case sendPing(target: SWIMPeer, pingRequestOrigin: SWIMPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
+        case sendPing(target: SWIMPeer, pingRequestOrigin: SWIMPingOriginPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
     }
 
     // ==== ----------------------------------------------------------------------------------------------------------------
