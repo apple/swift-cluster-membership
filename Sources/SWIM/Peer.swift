@@ -16,10 +16,6 @@ import ClusterMembership
 import struct Dispatch.DispatchTime
 import enum Dispatch.DispatchTimeInterval
 
-extension SWIM {
-    public typealias Peer = SWIMPeer
-}
-
 public protocol AddressableSWIMPeer {
     /// Node that this peer is representing.
     var node: ClusterMembership.Node { get set }
@@ -36,7 +32,7 @@ extension ClusterMembership.Node: AddressableSWIMPeer {
     }
 }
 
-public protocol PingOriginSWIMPeer: AddressableSWIMPeer {
+public protocol SWIMPingOriginPeer: AddressableSWIMPeer {
     /// Acknowledge a ping.
     func ack(
         acknowledging: SWIM.SequenceNumber,
@@ -52,7 +48,7 @@ public protocol PingOriginSWIMPeer: AddressableSWIMPeer {
     )
 }
 
-public protocol SWIMPeer: PingOriginSWIMPeer {
+public protocol SWIMPeer: AddressableSWIMPeer {
     /// "Ping" another SWIM peer.
     ///
     /// - Parameters:

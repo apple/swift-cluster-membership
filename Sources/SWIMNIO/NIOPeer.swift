@@ -20,7 +20,7 @@ import NIOConcurrencyHelpers
 import SWIM
 
 extension SWIM {
-    public struct NIOPeer: SWIMPeer, CustomStringConvertible {
+    public struct NIOPeer: SWIMPeer, SWIMPingOriginPeer, CustomStringConvertible {
         public var node: Node
 
         // TODO: can we always have a channel here?
