@@ -18,6 +18,7 @@
 /// and if the `uid` is available "the specific instance of a node".
 public struct Node: Hashable, Comparable, CustomStringConvertible {
     public var `protocol`: String
+    public var name: String?
     public var host: String
     public var port: Int
 
@@ -25,6 +26,19 @@ public struct Node: Hashable, Comparable, CustomStringConvertible {
 
     public init(protocol: String, host: String, port: Int, uid: UInt64?) {
         self.protocol = `protocol`
+        self.name = nil
+        self.host = host
+        self.port = port
+        self.uid = uid
+    }
+
+    public init(protocol: String, name: String?, host: String, port: Int, uid: UInt64?) {
+        self.protocol = `protocol`
+        if let name = name, name.isEmpty {
+            self.name = nil
+        } else {
+            self.name = name
+        }
         self.host = host
         self.port = port
         self.uid = uid

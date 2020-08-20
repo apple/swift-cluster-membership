@@ -91,7 +91,7 @@ extension SWIM.Member: Hashable, Equatable {
 
 extension SWIM.Member: CustomStringConvertible {
     public var description: String {
-        var res = "SWIM.Member(\(self.peer.node.detailedDescription), \(self.status), protocolPeriod: \(self.protocolPeriod)"
+        var res = "SWIM.Member(\(self.peer.node), \(self.status), protocolPeriod: \(self.protocolPeriod)"
         if let suspicionStartedAt = self.suspicionStartedAt {
             res.append(", suspicionStartedAt: \(suspicionStartedAt)")
         }

@@ -285,14 +285,20 @@ public final class SWIMNIOShell {
             switch $0 {
             case .gossipProcessed(let gossipDirective):
                 self.handleGossipPayloadProcessedDirective(gossipDirective)
+
             case .alive(let previousStatus):
                 self.log.debug("Member [\(pingedPeer.node)] marked as alive")
+
                 if previousStatus.isUnreachable, let member = swim.member(for: pingedPeer) {
-                    self.announceMembershipChange(SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: member))
+                    let event = SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: member) // FIXME: make SWIM emit an option of the event
+                    self.announceMembershipChange(event)
                 }
+
             case .newlySuspect(let previousStatus, let suspect):
                 self.log.debug("Member [\(suspect)] marked as suspect")
-                self.announceMembershipChange(SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: suspect))
+                let event = SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: suspect) // FIXME: make SWIM emit an option of the event
+                self.announceMembershipChange(event)
+
             case .nackReceived:
                 self.log.debug("Received `nack` from indirect probing of [\(pingedPeer)]")
             case let other:

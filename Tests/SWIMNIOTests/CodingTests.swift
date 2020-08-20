@@ -40,6 +40,11 @@ final class CodingTests: XCTestCase {
         try self.shared_serializationRoundtrip(
             Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: .random(in: 0 ... UInt64.max))
         )
+
+        // with name
+        try self.shared_serializationRoundtrip(
+            Node(protocol: "udp", name: "kappa", host: "127.0.0.1", port: 2222, uid: .random(in: 0 ... UInt64.max))
+        )
     }
 
     func test_serializationOf_peer() throws {
