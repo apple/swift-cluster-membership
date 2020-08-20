@@ -26,12 +26,7 @@ extension SWIM {
 
         /// `Node` of the member's `peer`.
         public var node: ClusterMembership.Node {
-            get {
-                self.peer.node
-            }
-            set {
-                self.peer.node = newValue
-            }
+            self.peer.node
         }
 
         /// Membership status of this cluster member
