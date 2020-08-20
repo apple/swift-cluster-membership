@@ -224,10 +224,10 @@ final class SWIMInstanceTests: XCTestCase {
         let res = swim.onPing(payload: .none, sequenceNumber: 0).first!
 
         switch res {
-        case .reply(.ack(let pinged, _, _, _)):
+        case .sendAck(let pinged, _, _, _):
             XCTAssertEqual(pinged, self.myselfNode) // which was added as myself to this swim instance
-        case let reply:
-            XCTFail("Expected .ack, but got \(reply)")
+        case let other:
+            XCTFail("Expected .sendAck, but got \(other)")
         }
     }
 
@@ -245,11 +245,11 @@ final class SWIMInstanceTests: XCTestCase {
         let res = swim.onPing(payload: .none, sequenceNumber: 0).first!
 
         switch res {
-        case .reply(.ack(_, let incarnation, _, _)):
+        case .sendAck(_, let incarnation, _, _):
             // did not have to increment its incarnation number:
             XCTAssertEqual(incarnation, 0)
         case let reply:
-            XCTFail("Expected .ack ping response, but got \(reply)")
+            XCTFail("Expected .sendAck ping response, but got \(reply)")
         }
     }
 
