@@ -171,15 +171,23 @@ extension ClusterMembership.Node: Codable {
         guard repr[repr.index(after: protocolEndIndex)] == "/" else {
             throw SWIMSerializationError.missingData("Node format illegal, was: \(repr)")
         }
+        atIndex = repr.index(after: atIndex)
+
+        let name: String?
+        if let nameEndIndex = repr[atIndex...].firstIndex(of: "@"),
+            nameEndIndex < repr.endIndex {
+            name = String(repr[atIndex ..< nameEndIndex])
+            atIndex = repr.index(after: nameEndIndex)
+        } else {
+            name = nil
+        }
 
         // host
-        let hostStartIndex = repr.index(after: atIndex)
-        guard let hostEndIndex = repr[hostStartIndex...].firstIndex(of: ":") else {
-            throw SWIMSerializationError.missingData("Node format illegal, was: \(repr)")
+        guard let hostEndIndex = repr[atIndex...].firstIndex(of: ":") else {
+            throw SWIMSerializationError.missingData("Node format illegal, was: \(repr), failed at `host` part")
         }
+        let host = String(repr[atIndex ..< hostEndIndex])
         atIndex = hostEndIndex
-        // TODO: probably missing a guard if there was no : here
-        let host = String(repr[hostStartIndex ..< hostEndIndex])
 
         // :
         atIndex = repr.index(after: atIndex)
@@ -202,12 +210,16 @@ extension ClusterMembership.Node: Codable {
             uid = nil
         }
 
-        self.init(protocol: proto, host: host, port: port, uid: uid)
+        self.init(protocol: proto, name: name, host: host, port: port, uid: uid)
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        var repr = "\(self.protocol)://\(self.host):\(self.port)"
+        var repr = "\(self.protocol)://"
+        if let name = self.name {
+            repr += "\(name)@"
+        }
+        repr.append("\(self.host):\(self.port)")
         if let uid = self.uid {
             repr.append("#\(uid)")
         }
