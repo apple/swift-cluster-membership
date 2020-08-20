@@ -624,13 +624,11 @@ extension SWIM.Instance {
         }
 
         // 2) Prepare reply
-        let reply = PingDirective.reply(
-            .ack(
-                target: self.myself.node,
-                incarnation: self._incarnation,
-                payload: self.makeGossipPayload(to: nil),
-                sequenceNumber: sequenceNumber
-            )
+        let reply = PingDirective.sendAck(
+            myself: self.myself.node,
+            incarnation: self._incarnation,
+            payload: self.makeGossipPayload(to: nil),
+            sequenceNumber: sequenceNumber
         )
         directives.append(reply)
 
@@ -639,7 +637,7 @@ extension SWIM.Instance {
 
     public enum PingDirective {
         case gossipProcessed(GossipProcessedDirective)
-        case reply(SWIM.PingResponse)
+        case sendAck(myself: Node, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber)
     }
 
     // ==== ----------------------------------------------------------------------------------------------------------------

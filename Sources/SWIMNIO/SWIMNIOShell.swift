@@ -160,21 +160,10 @@ public final class SWIMNIOShell {
             case .gossipProcessed(let gossipDirective):
                 self.handleGossipPayloadProcessedDirective(gossipDirective)
 
-            case .reply(let reply):
-                self.tracelog(.reply(to: replyTo), message: "\(reply)")
-
-                switch reply {
-                case .ack(let targetNode, let incarnation, let payload, let identifier):
-                    assert(targetNode == self.node, "Since we are replying to a ping, the target has to be myself node")
-                    replyTo.peer(self.channel).ack(acknowledging: identifier, target: self.myself, incarnation: incarnation, payload: payload)
-
-                case .nack(let targetNode, let identifier):
-                    assert(targetNode == self.node, "Since we are replying to a ping, the target has to be myself node")
-                    replyTo.peer(self.channel).nack(acknowledging: identifier, target: self.myself)
-
-                case .timeout:
-                    fatalError("FIXME this should not happen: \(#function) caused directive \(directive)") // FIXME!
-                }
+            case .sendAck(let targetNode, let incarnation, let payload, let identifier):
+                self.tracelog(.reply(to: replyTo), message: "\(directive)")
+                assert(targetNode == self.node, "Since we are replying to a ping, the target has to be myself node")
+                replyTo.peer(self.channel).ack(acknowledging: identifier, target: self.myself, incarnation: incarnation, payload: payload)
             }
         }
     }
