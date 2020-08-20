@@ -69,16 +69,18 @@ public protocol SWIMProtocol {
     ///   - response:
     ///   - member:
     /// - Returns:
-    mutating func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) -> SWIM.Instance.PingRequestResponseDirective
+    mutating func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) -> [SWIM.Instance.PingRequestResponseDirective]
 
     /// Must be invoked whenever a response to a `pingRequest` (an ack, nack or lack response i.e. a timeout) happens.
+    ///
+    /// This function is adjusting Local Health and MUST be invoked on _every_ received response to a pingRequest,
+    /// in order for the local health adjusted timeouts to be calculated correctly.
     ///
     // TODO: more docs
     ///
     /// - Parameters:
     ///   - response:
     ///   - member:
-    /// - Returns:
     mutating func onEveryPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer)
 }
 
@@ -901,10 +903,12 @@ extension SWIM.Instance {
     // MARK: On Ping Request Response
 
     /// This should be called on first successful (non-nack) pingRequestResponse
-    public func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) -> PingRequestResponseDirective {
+    public func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) -> [PingRequestResponseDirective] {
         guard let previousStatus = self.status(of: member) else {
-            return .unknownMember
+            // we do not process replies from an unknown member; it likely means we have removed it already for some reason.
+            return [.unknownMember]
         }
+        var directives: [PingRequestResponseDirective] = []
 
         switch response {
         case .ack(let target, let incarnation, let payload, _):
@@ -913,16 +917,23 @@ extension SWIM.Instance {
                 // TODO: make assert
             }
 
+            let gossipDirectives = self.onGossipPayload(payload)
+            directives += gossipDirectives.map {
+                PingRequestResponseDirective.gossipProcessed($0)
+            }
+
             switch self.mark(member, as: .alive(incarnation: incarnation)) {
             case .applied:
-                // TODO: we can be more interesting here, was it a move suspect -> alive or a reassurance?
-                return .alive(previousStatus: previousStatus, payloadToProcess: payload)
+                directives.append(.alive(previousStatus: previousStatus))
+                return directives
             case .ignoredDueToOlderStatus(let currentStatus):
-                return .ignoredDueToOlderStatus(currentStatus: currentStatus)
+                directives.append(.ignoredDueToOlderStatus(currentStatus: currentStatus))
+                return directives
             }
         case .nack:
             // TODO: this should never happen. How do we express it?
-            return .nackReceived
+            directives.append(.nackReceived)
+            return directives
 
         case .timeout, .error:
             switch previousStatus {
@@ -930,19 +941,22 @@ extension SWIM.Instance {
                  .suspect(let incarnation, _):
                 switch self.mark(member, as: self.makeSuspicion(incarnation: incarnation)) {
                 case .applied:
-                    return .newlySuspect(previousStatus: previousStatus, suspect: self.member(for: member.node)!)
+                    directives.append(.newlySuspect(previousStatus: previousStatus, suspect: self.member(for: member.node)!))
+                    return directives
                 case .ignoredDueToOlderStatus(let status):
-                    return .ignoredDueToOlderStatus(currentStatus: status)
+                    directives.append(.ignoredDueToOlderStatus(currentStatus: status))
+                    return directives
                 }
             case .unreachable:
-                return .alreadyUnreachable
+                directives.append(.alreadyUnreachable)
+                return directives
             case .dead:
-                return .alreadyDead
+                directives.append(.alreadyDead)
+                return directives
             }
         }
     }
 
-    /// This callback is adjusting local health and should be executed for _every_ received response to a pingRequest
     public func onEveryPingRequestResponse(_ result: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) {
         switch result {
         case .error, .timeout:
@@ -955,7 +969,9 @@ extension SWIM.Instance {
     }
 
     public enum PingRequestResponseDirective {
-        case alive(previousStatus: SWIM.Status, payloadToProcess: SWIM.GossipPayload)
+        case gossipProcessed(GossipProcessedDirective)
+
+        case alive(previousStatus: SWIM.Status) // TODO: offer a membership change option rather?
         case nackReceived
         /// Indicates that the `target` of the ping response is not known to this peer anymore,
         /// it could be that we already marked it as dead and removed it.

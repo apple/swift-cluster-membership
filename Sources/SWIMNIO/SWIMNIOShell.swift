@@ -279,16 +279,25 @@ public final class SWIMNIOShell {
         self.tracelog(.receive(pinged: pingedPeer.node), message: "\(result)")
         // TODO: do we know here WHO replied to us actually? We know who they told us about (with the ping-req), could be useful to know
 
-        switch self.swim.onPingRequestResponse(result, pingedMember: pingedPeer) {
-        case .alive:
-            fatalError("self.processGossipPayload(payload: payloadToProcess)") // FIXME: !!!!!
-        case .newlySuspect(let previousStatus, let suspect):
-            self.log.debug("Member [\(suspect)] marked as suspect")
-            self.announceMembershipChange(SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: suspect))
-        case .nackReceived:
-            self.log.debug("Received `nack` from indirect probing of [\(pingedPeer)]")
-        case let other:
-            self.log.trace("Handled ping request response, resulting directive: \(other), was ignored.") // TODO: explicitly list all cases
+        // FIXME: change those directives
+        let directives: [SWIM.Instance.PingRequestResponseDirective] = self.swim.onPingRequestResponse(result, pingedMember: pingedPeer)
+        directives.forEach {
+            switch $0 {
+            case .gossipProcessed(let gossipDirective):
+                self.handleGossipPayloadProcessedDirective(gossipDirective)
+            case .alive(let previousStatus):
+                self.log.debug("Member [\(pingedPeer.node)] marked as alive")
+                if previousStatus.isUnreachable, let member = swim.member(for: pingedPeer) {
+                    self.announceMembershipChange(SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: member))
+                }
+            case .newlySuspect(let previousStatus, let suspect):
+                self.log.debug("Member [\(suspect)] marked as suspect")
+                self.announceMembershipChange(SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: suspect))
+            case .nackReceived:
+                self.log.debug("Received `nack` from indirect probing of [\(pingedPeer)]")
+            case let other:
+                self.log.trace("Handled ping request response, resulting directive: \(other), was ignored.") // TODO: explicitly list all cases
+            }
         }
     }
 
@@ -349,14 +358,16 @@ public final class SWIMNIOShell {
 
             self.tracelog(.send(to: peerToPingRequestThrough), message: "pingRequest(target: \(nodeToPing), replyTo: \(self.peer), payload: \(payload), sequenceNumber: \(sequenceNumber))")
             peerToPingRequestThrough.pingRequest(target: nodeToPing, payload: payload, from: self.peer, timeout: pingTimeout, sequenceNumber: sequenceNumber) { result in
-                // We choose to cascade only successful ping responses (i.e. `ack`s);
-                // While this has a slight timing implication on time timeout of the pings -- the node that is last
-                // in the list that we ping, has slightly less time to fulfil the "total ping timeout"; as we set a total timeout on the entire `firstSuccess`.
-                // In practice those timeouts will be relatively large (seconds) and the few millis here should not have a large impact on correctness.
                 switch result {
                 case .success(let response):
                     self.receiveEveryPingRequestResponse(result: response, pingedPeer: nodeToPing)
+
                     if case .ack = response {
+                        // We only cascade successful ping responses (i.e. `ack`s);
+                        //
+                        // While this has a slight timing implication on time timeout of the pings -- the node that is last
+                        // in the list that we ping, has slightly less time to fulfil the "total ping timeout"; as we set a total timeout on the entire `firstSuccess`.
+                        // In practice those timeouts will be relatively large (seconds) and the few millis here should not have a large impact on correctness.
                         firstSuccessPromise.succeed(response)
                     }
                 case .failure(let error):
