@@ -51,33 +51,33 @@ public enum SWIM {
         /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
         /// - parameter incarnation: TODO: docs
         /// - parameter payload: TODO: docs
-        // case ack(target: AnyPeer, incarnation: Incarnation, payload: GossipPayload)
         case ack(target: Node, incarnation: Incarnation, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
 
         /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
         /// - parameter incarnation: TODO: docs
         /// - parameter payload: TODO: docs
-        // case nack(target: AnyPeer)
         case nack(target: Node, sequenceNumber: SWIM.SequenceNumber)
 
+        /// Used to signal a response did not arrive within the expected `timeout`.
+        ///
+        /// If a response for some reason produces a different error immediately rather than through a timeout,
+        /// the shell should also emit a `.timeout` response and feed it into the `SWIM.Instance` as it is important for
+        /// timeout adjustments that the instance makes. The instance does not need to know specifics about the reason of
+        /// a response not arriving, thus they are all handled via the same timeout response rather than extra "error" responses.
+        ///
         /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
         case timeout(target: Node, pingRequestOrigin: Node?, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
-
-        /// Other error
-        case error(Error, target: Node, sequenceNumber: SWIM.SequenceNumber)
 
         /// Sequence number of the initial request this is a response to.
         /// Used to pair up responses to the requests which initially caused them.
         public var sequenceNumber: SWIM.SequenceNumber {
             switch self {
-            case .ack(_, _, _, let identifier):
-                return identifier
-            case .nack(_, let identifier):
-                return identifier
-            case .timeout(_, _, _, let identifier):
-                return identifier
-            case .error(_, _, let identifier):
-                return identifier
+            case .ack(_, _, _, let sequenceNumber):
+                return sequenceNumber
+            case .nack(_, let sequenceNumber):
+                return sequenceNumber
+            case .timeout(_, _, _, let sequenceNumber):
+                return sequenceNumber
             }
         }
     }

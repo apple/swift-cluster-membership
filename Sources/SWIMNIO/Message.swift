@@ -36,9 +36,6 @@ extension SWIM {
                 return "response/ack@\(nr)"
             case .response(.nack(_, let nr)):
                 return "response/nack@\(nr)"
-            case .response(.error(_, _, let nr)):
-                // not a "real message"
-                return "response/error@\(nr)"
             case .response(.timeout(_, _, _, let nr)):
                 // not a "real message"
                 return "response/timeout@\(nr)"
@@ -66,8 +63,6 @@ extension SWIM {
             case .response(.nack(_, let sequenceNumber)):
                 return sequenceNumber
             case .response(.timeout(_, _, _, let sequenceNumber)):
-                return sequenceNumber
-            case .response(.error(_, _, let sequenceNumber)):
                 return sequenceNumber
             }
         }
