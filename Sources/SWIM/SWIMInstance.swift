@@ -494,18 +494,16 @@ extension SWIM {
 
 extension SWIM.Instance {
     func notMyself(_ member: SWIM.Member) -> Bool {
-        self.isMyself(member) == nil
+        self.whenMyself(member) == nil
     }
 
     func notMyself(_ peer: AddressableSWIMPeer) -> Bool {
         !self.isMyself(peer)
     }
 
-    func isMyself(_ member: SWIM.Member) -> SWIM.Member? {
+    func whenMyself(_ member: SWIM.Member) -> SWIM.Member? {
         if self.isMyself(member.peer) {
-            var m = member
-            m.node = self.node // this ensures the UID is present, even if an incoming gossip was UIDless (because it's their first message, and there was no handshake to exchange the UIDs)
-            return m
+            return member
         } else {
             return nil
         }
@@ -999,7 +997,7 @@ extension SWIM.Instance {
     }
 
     internal func onGossipPayload(about member: SWIM.Member) -> GossipProcessedDirective {
-        if let myself = self.isMyself(member) {
+        if let myself = self.whenMyself(member) {
             return onMyselfGossipPayload(myself: myself)
         } else {
             return onOtherMemberGossipPayload(member: member)

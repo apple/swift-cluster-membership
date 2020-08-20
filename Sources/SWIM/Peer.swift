@@ -18,7 +18,7 @@ import enum Dispatch.DispatchTimeInterval
 
 public protocol AddressableSWIMPeer {
     /// Node that this peer is representing.
-    var node: ClusterMembership.Node { get set }
+    var node: ClusterMembership.Node { get }
 }
 
 extension ClusterMembership.Node: AddressableSWIMPeer {
