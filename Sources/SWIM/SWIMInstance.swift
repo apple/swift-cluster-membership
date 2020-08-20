@@ -653,8 +653,6 @@ extension SWIM.Instance {
             return self.onPingNackResponse(target: target, pingRequestOrigin: pingRequestOrigin, sequenceNumber: sequenceNumber)
         case .timeout(let target, _, let timeout, let sequenceNumber):
             return self.onPingResponseTimeout(target: target, timeout: timeout, pingRequestOrigin: pingRequestOrigin, sequenceNumber: sequenceNumber)
-        case .error:
-            fatalError() // FIXME: what to do here
         }
     }
 
@@ -933,7 +931,7 @@ extension SWIM.Instance {
             directives.append(.nackReceived)
             return directives
 
-        case .timeout, .error:
+        case .timeout:
             switch previousStatus {
             case .alive(let incarnation),
                  .suspect(let incarnation, _):
@@ -957,12 +955,11 @@ extension SWIM.Instance {
 
     public func onEveryPingRequestResponse(_ result: SWIM.PingResponse, pingedMember member: AddressableSWIMPeer) {
         switch result {
-        case .error, .timeout:
+        case .timeout:
             // Failed pingRequestResponse indicates a missed nack, we should adjust LHMultiplier
             self.adjustLHMultiplier(.probeWithMissedNack)
         default:
-            // Successful pingRequestResponse should be handled only once
-            ()
+            () // Successful pingRequestResponse should be handled only once (and thus in `onPingRequestResponse` only)
         }
     }
 

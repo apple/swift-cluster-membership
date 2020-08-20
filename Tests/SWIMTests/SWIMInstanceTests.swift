@@ -201,9 +201,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         swim.addMember(self.second, status: .suspect(incarnation: 1, suspectedBy: [self.secondNode]))
 
-        struct TestError: Error {}
-
-        _ = swim.onPingRequestResponse(.error(TestError(), target: self.second.node, sequenceNumber: 1), pingedMember: self.second)
+        _ = swim.onPingRequestResponse(.timeout(target: self.second.node, pingRequestOrigin: nil, timeout: .milliseconds(800), sequenceNumber: 1), pingedMember: self.second)
         let resultStatus = swim.member(for: self.second)!.status
         if case .suspect(_, let confirmations) = resultStatus {
             XCTAssertEqual(confirmations, [secondNode, myselfNode])
@@ -534,8 +532,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         swim.addMember(secondPeer, status: .alive(incarnation: 0))
 
-        struct TestError: Error {}
-        swim.onEveryPingRequestResponse(.error(TestError(), target: self.secondNode, sequenceNumber: 1), pingedMember: secondPeer)
+        swim.onEveryPingRequestResponse(.timeout(target: self.secondNode, pingRequestOrigin: nil, timeout: .milliseconds(300), sequenceNumber: 1), pingedMember: secondPeer)
         XCTAssertEqual(swim.localHealthMultiplier, 1)
     }
 
