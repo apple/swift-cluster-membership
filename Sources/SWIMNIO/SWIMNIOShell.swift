@@ -160,9 +160,9 @@ public final class SWIMNIOShell {
             case .gossipProcessed(let gossipDirective):
                 self.handleGossipPayloadProcessedDirective(gossipDirective)
 
-            case .sendAck(let myselfNode, let incarnation, let payload, let identifier):
+            case .sendAck(let myself, let incarnation, let payload, let identifier):
                 self.tracelog(.reply(to: replyTo), message: "\(directive)")
-                assert(myselfNode == self.node, "Since we are replying to a ping, the target has to be myself node")
+                assert(myself.node == self.node, "Since we are replying to a ping, the target has to be myself node")
                 replyTo.peer(self.channel).ack(acknowledging: identifier, target: self.myself, incarnation: incarnation, payload: payload)
             }
         }
