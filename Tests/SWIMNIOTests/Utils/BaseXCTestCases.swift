@@ -162,7 +162,7 @@ class BaseClusteredXCTestCase: XCTestCase {
 
         self._shells.forEach { shell in
             do {
-                try shell.myself.channel?.close().wait()
+                try shell.myself.channel.close().wait()
             } catch {
                 () // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
             }

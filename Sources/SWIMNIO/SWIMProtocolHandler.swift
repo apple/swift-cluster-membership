@@ -143,7 +143,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
 
         do {
             // deserialize ----------------------------------------
-            let message = try self.deserialize(addressedEnvelope.data)
+            let message = try self.deserialize(addressedEnvelope.data, channel: context.channel)
 
             self.log.trace("Read successful: \(message.messageCaseDescription)", metadata: [
                 "remoteAddress": "\(remoteAddress)",
@@ -194,13 +194,14 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
 // MARK: Serialization
 
 extension SWIMProtocolHandler {
-    private func deserialize(_ bytes: ByteBuffer) throws -> SWIM.Message {
+    private func deserialize(_ bytes: ByteBuffer, channel: Channel) throws -> SWIM.Message {
         var bytes = bytes
         guard let data = bytes.readData(length: bytes.readableBytes) else {
             throw MissingDataError("No data to read")
         }
 
         let decoder = SWIMNIODefaultDecoder()
+        decoder.userInfo[.channelUserInfoKey] = channel
         return try decoder.decode(SWIM.Message.self, from: data)
     }
 

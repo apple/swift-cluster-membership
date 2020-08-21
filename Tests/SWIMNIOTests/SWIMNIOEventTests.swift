@@ -25,11 +25,11 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
 
     var settings: SWIM.Settings!
     lazy var myselfNode = Node(protocol: "udp", host: "127.0.0.1", port: 7001, uid: 1111)
-    lazy var myselfPeer = SWIM.NIOPeer(node: myselfNode, channel: nil)
+    lazy var myselfPeer = SWIM.NIOPeer(node: myselfNode, channel: EmbeddedChannel())
     lazy var myselfMemberAliveInitial = SWIM.Member(peer: myselfPeer, status: .alive(incarnation: 0), protocolPeriod: 0)
 
     let nonExistentNode = Node(protocol: "udp", host: "127.0.0.222", port: 7834, uid: 9324)
-    lazy var nonExistentPeer = SWIM.NIOPeer(node: nonExistentNode, channel: nil)
+    lazy var nonExistentPeer = SWIM.NIOPeer(node: nonExistentNode, channel: EmbeddedChannel())
 
     var group: MultiThreadedEventLoopGroup!
 
@@ -45,7 +45,6 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
     override func tearDown() {
         try! self.group.syncShutdownGracefully()
         self.group = nil
-
         super.tearDown()
     }
 
