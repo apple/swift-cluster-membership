@@ -625,7 +625,7 @@ extension SWIM.Instance {
 
         // 2) Prepare reply
         let reply = PingDirective.sendAck(
-            myself: self.myself.node,
+            myself: self.myself,
             incarnation: self._incarnation,
             payload: self.makeGossipPayload(to: nil),
             sequenceNumber: sequenceNumber
@@ -637,7 +637,7 @@ extension SWIM.Instance {
 
     public enum PingDirective {
         case gossipProcessed(GossipProcessedDirective)
-        case sendAck(myself: Node, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber)
+        case sendAck(myself: SWIMAddressablePeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber)
     }
 
     // ==== ----------------------------------------------------------------------------------------------------------------
@@ -739,7 +739,7 @@ extension SWIM.Instance {
 
             // if we have other peers, we should ping request through them,
             // if not then there's no-one to ping request through and we just continue.
-            if let pingRequestDirective = self.preparePingRequests(target: target) {
+            if let pingRequestDirective = self.preparePingRequests(target: pingedMember.peer as! SWIMPeer) { // as-! safe, because we always store a peer
                 directives.append(.sendPingRequests(pingRequestDirective))
             }
         }
@@ -748,7 +748,7 @@ extension SWIM.Instance {
     }
 
     /// Prepare ping request directives such that the shell can easily fire those messages
-    func preparePingRequests(target: SWIMAddressablePeer) -> SendPingRequestDirective? {
+    func preparePingRequests(target: SWIMPeer) -> SendPingRequestDirective? {
         guard let lastKnownStatus = self.status(of: target) else {
             // context.log.info("Skipping ping requests after failed ping to [\(toPing)] because node has been removed from member list") // FIXME allow logging
             return nil
@@ -803,7 +803,7 @@ extension SWIM.Instance {
     }
 
     public struct SendPingRequestDirective {
-        public let target: SWIMAddressablePeer
+        public let target: SWIMPeer
         public let requestDetails: [PingRequestDetail]
 
         public struct PingRequestDetail {
