@@ -625,7 +625,7 @@ extension SWIM.Instance {
 
         // 2) Prepare reply
         let reply = PingDirective.sendAck(
-            myself: self.myself.node,
+            myself: self.myself,
             incarnation: self._incarnation,
             payload: self.makeGossipPayload(to: nil),
             sequenceNumber: sequenceNumber
@@ -637,7 +637,7 @@ extension SWIM.Instance {
 
     public enum PingDirective {
         case gossipProcessed(GossipProcessedDirective)
-        case sendAck(myself: Node, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber)
+        case sendAck(myself: SWIMAddressablePeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber)
     }
 
     // ==== ----------------------------------------------------------------------------------------------------------------

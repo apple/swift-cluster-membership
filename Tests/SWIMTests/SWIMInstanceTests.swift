@@ -225,7 +225,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         switch res {
         case .sendAck(let pinged, _, _, _):
-            XCTAssertEqual(pinged, self.myselfNode) // which was added as myself to this swim instance
+            XCTAssertEqual(pinged.node, self.myselfNode) // which was added as myself to this swim instance
         case let other:
             XCTFail("Expected .sendAck, but got \(other)")
         }
