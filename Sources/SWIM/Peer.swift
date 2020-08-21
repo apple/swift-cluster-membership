@@ -16,27 +16,16 @@ import ClusterMembership
 import struct Dispatch.DispatchTime
 import enum Dispatch.DispatchTimeInterval
 
-public protocol AddressableSWIMPeer {
+public protocol SWIMAddressablePeer {
     /// Node that this peer is representing.
     var node: ClusterMembership.Node { get }
 }
 
-extension ClusterMembership.Node: AddressableSWIMPeer {
-    public var node: ClusterMembership.Node {
-        get {
-            self
-        }
-        set {
-            self = newValue
-        }
-    }
-}
-
-public protocol SWIMPingOriginPeer: AddressableSWIMPeer {
+public protocol SWIMPingOriginPeer: SWIMAddressablePeer {
     /// Acknowledge a ping.
     func ack(
         acknowledging: SWIM.SequenceNumber,
-        target: AddressableSWIMPeer,
+        target: SWIMAddressablePeer,
         incarnation: SWIM.Incarnation,
         payload: SWIM.GossipPayload
     )
@@ -44,11 +33,11 @@ public protocol SWIMPingOriginPeer: AddressableSWIMPeer {
     /// "NegativeAcknowledge" a ping.
     func nack(
         acknowledging: SWIM.SequenceNumber,
-        target: AddressableSWIMPeer
+        target: SWIMAddressablePeer
     )
 }
 
-public protocol SWIMPeer: AddressableSWIMPeer {
+public protocol SWIMPeer: SWIMAddressablePeer {
     /// "Ping" another SWIM peer.
     ///
     /// - Parameters:
@@ -58,7 +47,7 @@ public protocol SWIMPeer: AddressableSWIMPeer {
     ///   - onComplete:
     func ping(
         payload: SWIM.GossipPayload,
-        from origin: AddressableSWIMPeer,
+        from origin: SWIMAddressablePeer,
         timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
@@ -75,9 +64,9 @@ public protocol SWIMPeer: AddressableSWIMPeer {
     ///   - onComplete: must be invoked when the a corresponding reply (ack, nack) or timeout event for this ping request occurs.
     ///     It may be necessary to generate and pass a `SWIM.SequenceNumber` when sending the request, such that the replies can be correlated to this request and completion block.
     func pingRequest(
-        target: AddressableSWIMPeer,
+        target: SWIMAddressablePeer,
         payload: SWIM.GossipPayload,
-        from origin: AddressableSWIMPeer,
+        from origin: SWIMAddressablePeer,
         timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void

@@ -57,14 +57,14 @@ extension SWIM.Message: Codable {
             self = .pingRequest(target: target, replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
 
         case .response_ack:
-            let target = try container.decode(Node.self, forKey: .target)
+            let target = try container.decode(SWIM.NIOPeer.self, forKey: .target)
             let incarnation = try container.decode(SWIM.Incarnation.self, forKey: .incarnation)
             let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
             let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
             self = .response(.ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
 
         case .response_nack:
-            let target = try container.decode(Node.self, forKey: .target)
+            let target = try container.decode(SWIM.NIOPeer.self, forKey: .target)
             let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
             self = .response(.nack(target: target, sequenceNumber: sequenceNumber))
         }
@@ -89,14 +89,14 @@ extension SWIM.Message: Codable {
 
         case .response(.ack(let target, let incarnation, let payload, let sequenceNumber)):
             try container.encode(DiscriminatorKeys.response_ack, forKey: ._case)
-            try container.encode(target, forKey: .target)
+            try container.encode(target.node, forKey: .target)
             try container.encode(incarnation, forKey: .incarnation)
             try container.encode(payload, forKey: .payload)
             try container.encode(sequenceNumber, forKey: .sequenceNumber)
 
         case .response(.nack(let target, let sequenceNumber)):
             try container.encode(DiscriminatorKeys.response_nack, forKey: ._case)
-            try container.encode(target, forKey: .target)
+            try container.encode(target.node, forKey: .target)
             try container.encode(sequenceNumber, forKey: .sequenceNumber)
 
         case .response(let other):
@@ -105,11 +105,18 @@ extension SWIM.Message: Codable {
     }
 }
 
+public extension CodingUserInfoKey {
+    static let channelUserInfoKey: CodingUserInfoKey = CodingUserInfoKey(rawValue: "nio_peer_channel")!
+}
+
 extension SWIM.NIOPeer: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         self.node = try container.decode(Node.self)
-        self.channel = nil
+        guard let channel = decoder.userInfo[.channelUserInfoKey] as? Channel else {
+            fatalError("Expected channelUserInfoKey to be present in userInfo, unable to decode SWIM.NIOPeer!")
+        }
+        self.channel = channel
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -128,9 +135,7 @@ extension SWIM.Member: Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        // FIXME: use to get the channel decoder.userInfo[]
-        let peer = SWIM.NIOPeer(node: try container.decode(Node.self, forKey: .node), channel: nil)
+        let peer = try container.decode(SWIM.NIOPeer.self, forKey: .node)
         let status = try container.decode(SWIM.Status.self, forKey: .status)
         let protocolPeriod = try container.decode(Int.self, forKey: .protocolPeriod)
         let suspicionStartedAt = try container.decodeIfPresent(Int64.self, forKey: .suspicionStartedAt)

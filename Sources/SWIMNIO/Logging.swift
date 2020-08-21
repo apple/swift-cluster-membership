@@ -39,9 +39,9 @@ extension SWIMNIOShell {
     }
 
     internal enum TraceLogType: CustomStringConvertible {
-        case send(to: AddressableSWIMPeer)
-        case reply(to: AddressableSWIMPeer)
-        case receive(pinged: AddressableSWIMPeer?)
+        case send(to: SWIMAddressablePeer)
+        case reply(to: SWIMAddressablePeer)
+        case receive(pinged: SWIMAddressablePeer?)
 
         static var receive: TraceLogType {
             .receive(pinged: nil)

@@ -51,12 +51,12 @@ public enum SWIM {
         /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
         /// - parameter incarnation: TODO: docs
         /// - parameter payload: TODO: docs
-        case ack(target: Node, incarnation: Incarnation, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
+        case ack(target: SWIMAddressablePeer, incarnation: Incarnation, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
 
         /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
         /// - parameter incarnation: TODO: docs
         /// - parameter payload: TODO: docs
-        case nack(target: Node, sequenceNumber: SWIM.SequenceNumber)
+        case nack(target: SWIMAddressablePeer, sequenceNumber: SWIM.SequenceNumber)
 
         /// Used to signal a response did not arrive within the expected `timeout`.
         ///
@@ -66,7 +66,7 @@ public enum SWIM {
         /// a response not arriving, thus they are all handled via the same timeout response rather than extra "error" responses.
         ///
         /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
-        case timeout(target: Node, pingRequestOrigin: Node?, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
+        case timeout(target: SWIMAddressablePeer, pingRequestOrigin: SWIMAddressablePeer?, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
 
         /// Sequence number of the initial request this is a response to.
         /// Used to pair up responses to the requests which initially caused them.
@@ -163,6 +163,7 @@ extension SWIM.Status {
         }
     }
 
+    /// Returns true if the underlying member status is `.alive`, false otherwise.
     public var isAlive: Bool {
         switch self {
         case .alive:
@@ -172,6 +173,7 @@ extension SWIM.Status {
         }
     }
 
+    /// Returns true if the underlying member status is `.suspect`, false otherwise.
     public var isSuspect: Bool {
         switch self {
         case .suspect:
@@ -181,6 +183,7 @@ extension SWIM.Status {
         }
     }
 
+    /// Returns true if the underlying member status is `.unreachable`, false otherwise.
     public var isUnreachable: Bool {
         switch self {
         case .unreachable:

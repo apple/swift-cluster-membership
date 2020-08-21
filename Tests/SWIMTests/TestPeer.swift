@@ -23,10 +23,10 @@ final class TestPeer: Hashable, SWIMPeer {
     var messages: [TestPeer.Message] = []
 
     enum Message {
-        case ping(payload: SWIM.GossipPayload, origin: AddressableSWIMPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
-        case pingReq(target: AddressableSWIMPeer, payload: SWIM.GossipPayload, origin: AddressableSWIMPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
-        case ack(target: AddressableSWIMPeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload)
-        case nack(target: AddressableSWIMPeer)
+        case ping(payload: SWIM.GossipPayload, origin: SWIMAddressablePeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
+        case pingReq(target: SWIMAddressablePeer, payload: SWIM.GossipPayload, origin: SWIMAddressablePeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber, onComplete: (Result<SWIM.PingResponse, Error>) -> Void)
+        case ack(target: SWIMAddressablePeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload)
+        case nack(target: SWIMAddressablePeer)
     }
 
     init(node: Node) {
@@ -35,7 +35,7 @@ final class TestPeer: Hashable, SWIMPeer {
 
     func ping(
         payload: SWIM.GossipPayload,
-        from origin: AddressableSWIMPeer,
+        from origin: SWIMAddressablePeer,
         timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
@@ -47,9 +47,9 @@ final class TestPeer: Hashable, SWIMPeer {
     }
 
     func pingRequest(
-        target: AddressableSWIMPeer,
+        target: SWIMAddressablePeer,
         payload: SWIM.GossipPayload,
-        from origin: AddressableSWIMPeer,
+        from origin: SWIMAddressablePeer,
         timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber,
         onComplete: @escaping (Result<SWIM.PingResponse, Error>) -> Void
@@ -62,7 +62,7 @@ final class TestPeer: Hashable, SWIMPeer {
 
     func ack(
         acknowledging: SWIM.SequenceNumber,
-        target: AddressableSWIMPeer,
+        target: SWIMAddressablePeer,
         incarnation: SWIM.Incarnation,
         payload: SWIM.GossipPayload
     ) {
@@ -74,7 +74,7 @@ final class TestPeer: Hashable, SWIMPeer {
 
     func nack(
         acknowledging: SWIM.SequenceNumber,
-        target: AddressableSWIMPeer
+        target: SWIMAddressablePeer
     ) {
         self.lock.lock()
         defer { self.lock.unlock() }

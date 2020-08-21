@@ -74,7 +74,7 @@ final class SWIMInstanceTests: XCTestCase {
         swim.addMember(otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
         swim.incrementProtocolPeriod()
 
-        try self.validateMark(swim: swim, member: otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), shouldSucceed: false)
+        try self.validateMark(swim: swim, peer: otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), shouldSucceed: false)
 
         XCTAssertEqual(swim.member(for: otherPeer)!.protocolPeriod, 0)
     }
@@ -87,8 +87,8 @@ final class SWIMInstanceTests: XCTestCase {
 
         for i: SWIM.Incarnation in 0 ... 5 {
             swim.incrementProtocolPeriod()
-            try self.validateMark(swim: swim, member: otherPeer, status: .suspect(incarnation: SWIM.Incarnation(i), suspectedBy: [self.thirdNode]), shouldSucceed: true)
-            try self.validateMark(swim: swim, member: otherPeer, status: .alive(incarnation: SWIM.Incarnation(i + 1)), shouldSucceed: true)
+            try self.validateMark(swim: swim, peer: otherPeer, status: .suspect(incarnation: SWIM.Incarnation(i), suspectedBy: [self.thirdNode]), shouldSucceed: true)
+            try self.validateMark(swim: swim, peer: otherPeer, status: .alive(incarnation: SWIM.Incarnation(i + 1)), shouldSucceed: true)
         }
 
         XCTAssertEqual(swim.member(for: otherPeer)!.protocolPeriod, 6)
@@ -102,8 +102,8 @@ final class SWIMInstanceTests: XCTestCase {
         swim.addMember(suspectMember, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
         swim.incrementProtocolPeriod()
 
-        try self.validateMark(swim: swim, member: suspectMember, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), shouldSucceed: false)
-        try self.validateMark(swim: swim, member: suspectMember, status: .alive(incarnation: 1), shouldSucceed: false)
+        try self.validateMark(swim: swim, peer: suspectMember, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), shouldSucceed: false)
+        try self.validateMark(swim: swim, peer: suspectMember, status: .alive(incarnation: 1), shouldSucceed: false)
 
         XCTAssertEqual(swim.member(for: suspectMember)!.protocolPeriod, 0)
     }
@@ -115,8 +115,8 @@ final class SWIMInstanceTests: XCTestCase {
         swim.addMember(unreachableMember, status: .unreachable(incarnation: 1))
         swim.incrementProtocolPeriod()
 
-        try self.validateMark(swim: swim, member: unreachableMember, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), shouldSucceed: false)
-        try self.validateMark(swim: swim, member: unreachableMember, status: .alive(incarnation: 1), shouldSucceed: false)
+        try self.validateMark(swim: swim, peer: unreachableMember, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), shouldSucceed: false)
+        try self.validateMark(swim: swim, peer: unreachableMember, status: .alive(incarnation: 1), shouldSucceed: false)
 
         XCTAssertEqual(swim.member(for: unreachableMember)!.protocolPeriod, 0)
     }
@@ -129,7 +129,7 @@ final class SWIMInstanceTests: XCTestCase {
         swim.addMember(otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
         swim.incrementProtocolPeriod()
 
-        try self.validateMark(swim: swim, member: otherPeer, status: .dead, shouldSucceed: true)
+        try self.validateMark(swim: swim, peer: otherPeer, status: .dead, shouldSucceed: true)
 
         XCTAssertEqual(swim.member(for: otherPeer)!.protocolPeriod, 1)
     }
@@ -142,9 +142,9 @@ final class SWIMInstanceTests: XCTestCase {
         swim.addMember(otherPeer, status: .dead)
         swim.incrementProtocolPeriod()
 
-        try self.validateMark(swim: swim, member: otherPeer, status: .alive(incarnation: 99), shouldSucceed: false)
-        try self.validateMark(swim: swim, member: otherPeer, status: .suspect(incarnation: 99, suspectedBy: [self.thirdNode]), shouldSucceed: false)
-        try self.validateMark(swim: swim, member: otherPeer, status: .dead, shouldSucceed: false)
+        try self.validateMark(swim: swim, peer: otherPeer, status: .alive(incarnation: 99), shouldSucceed: false)
+        try self.validateMark(swim: swim, peer: otherPeer, status: .suspect(incarnation: 99, suspectedBy: [self.thirdNode]), shouldSucceed: false)
+        try self.validateMark(swim: swim, peer: otherPeer, status: .dead, shouldSucceed: false)
 
         XCTAssertEqual(swim.member(for: otherPeer)!.protocolPeriod, 0)
     }
@@ -166,7 +166,7 @@ final class SWIMInstanceTests: XCTestCase {
         // thirdPeer pings secondPeer, gets an ack back -- and there secondPeer had to bump its incarnation number // TODO test for that, using Swim.instance?
 
         // and now we get an `ack` back, secondPeer claims that thirdPeer is indeed alive!
-        _ = swim.onPingRequestResponse(.ack(target: thirdPeer.node, incarnation: 2, payload: .none, sequenceNumber: 1), pingedMember: thirdPeer)
+        _ = swim.onPingRequestResponse(.ack(target: thirdPeer, incarnation: 2, payload: .none, sequenceNumber: 1), pingedMember: thirdPeer)
         // may print the result for debugging purposes if one wanted to
 
         // thirdPeer should be alive; after all, secondPeer told us so!
@@ -187,7 +187,7 @@ final class SWIMInstanceTests: XCTestCase {
         // thirdPeer pings secondPeer, yet secondPeer somehow didn't bump its incarnation... so we should NOT accept its refutation
 
         // and now we get an `ack` back, secondPeer claims that thirdPeer is indeed alive!
-        _ = swim.onPingRequestResponse(.ack(target: thirdPeer.node, incarnation: 1, payload: .none, sequenceNumber: 1), pingedMember: thirdPeer)
+        _ = swim.onPingRequestResponse(.ack(target: thirdPeer, incarnation: 1, payload: .none, sequenceNumber: 1), pingedMember: thirdPeer)
         // may print the result for debugging purposes if one wanted to
 
         // thirdPeer should be alive; after all, secondPeer told us so!
@@ -201,7 +201,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         swim.addMember(self.second, status: .suspect(incarnation: 1, suspectedBy: [self.secondNode]))
 
-        _ = swim.onPingRequestResponse(.timeout(target: self.second.node, pingRequestOrigin: nil, timeout: .milliseconds(800), sequenceNumber: 1), pingedMember: self.second)
+        _ = swim.onPingRequestResponse(.timeout(target: self.second, pingRequestOrigin: nil, timeout: .milliseconds(800), sequenceNumber: 1), pingedMember: self.second)
         let resultStatus = swim.member(for: self.second)!.status
         if case .suspect(_, let confirmations) = resultStatus {
             XCTAssertEqual(confirmations, [secondNode, myselfNode])
@@ -532,7 +532,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         swim.addMember(secondPeer, status: .alive(incarnation: 0))
 
-        swim.onEveryPingRequestResponse(.timeout(target: self.secondNode, pingRequestOrigin: nil, timeout: .milliseconds(300), sequenceNumber: 1), pingedMember: secondPeer)
+        swim.onEveryPingRequestResponse(.timeout(target: secondPeer, pingRequestOrigin: nil, timeout: .milliseconds(300), sequenceNumber: 1), pingedMember: secondPeer)
         XCTAssertEqual(swim.localHealthMultiplier, 1)
     }
 
@@ -544,7 +544,7 @@ final class SWIMInstanceTests: XCTestCase {
         swim.addMember(secondPeer, status: .alive(incarnation: 0))
         swim.localHealthMultiplier = 1
         _ = swim.onPingAckResponse(
-            target: secondPeer.node,
+            target: secondPeer,
             incarnation: 0,
             payload: .none,
             pingRequestOrigin: nil,
@@ -580,7 +580,7 @@ final class SWIMInstanceTests: XCTestCase {
         swim.addMember(secondPeer, status: .alive(incarnation: 0))
         swim.localHealthMultiplier = 1
 
-        _ = swim.onPingRequestResponse(.nack(target: secondPeer.node, sequenceNumber: 1), pingedMember: secondPeer)
+        _ = swim.onPingRequestResponse(.nack(target: secondPeer, sequenceNumber: 1), pingedMember: secondPeer)
         XCTAssertEqual(swim.localHealthMultiplier, 1)
     }
 
@@ -837,24 +837,17 @@ final class SWIMInstanceTests: XCTestCase {
     // MARK: utility functions
 
     func validateMark(
-        swim: SWIM.Instance, member: SWIMPeer, status: SWIM.Status, shouldSucceed: Bool,
-        file: StaticString = (#file), line: UInt = #line
-    ) throws {
-        try self.validateMark(swim: swim, node: member.node, status: status, shouldSucceed: shouldSucceed, file: file, line: line)
-    }
-
-    func validateMark(
         swim: SWIM.Instance, member: SWIM.Member, status: SWIM.Status, shouldSucceed: Bool,
         file: StaticString = (#file), line: UInt = #line
     ) throws {
-        try self.validateMark(swim: swim, node: member.node, status: status, shouldSucceed: shouldSucceed, file: file, line: line)
+        try self.validateMark(swim: swim, peer: member.peer, status: status, shouldSucceed: shouldSucceed, file: file, line: line)
     }
 
     func validateMark(
-        swim: SWIM.Instance, node: Node, status: SWIM.Status, shouldSucceed: Bool,
+        swim: SWIM.Instance, peer: SWIMAddressablePeer, status: SWIM.Status, shouldSucceed: Bool,
         file: StaticString = (#file), line: UInt = #line
     ) throws {
-        let markResult = swim.mark(node, as: status)
+        let markResult = swim.mark(peer, as: status)
 
         if shouldSucceed {
             guard case .applied = markResult else {

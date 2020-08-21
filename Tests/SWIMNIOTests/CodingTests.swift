@@ -14,13 +14,14 @@
 
 import ClusterMembership
 import Foundation
+import NIO
 import SWIM
 @testable import SWIMNIO
 import XCTest
 
 final class CodingTests: XCTestCase {
-    lazy var nioPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121), channel: nil)
-    lazy var nioPeerOther = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324), channel: nil)
+    lazy var nioPeer: SWIM.NIOPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121), channel: EmbeddedChannel())
+    lazy var nioPeerOther: SWIM.NIOPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324), channel: EmbeddedChannel())
 
     lazy var memberOne = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 1), protocolPeriod: 0)
     lazy var memberTwo = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0)
@@ -81,7 +82,9 @@ final class CodingTests: XCTestCase {
 
     func shared_serializationRoundtrip<T: Codable>(_ obj: T) throws {
         let repr = try SWIMNIODefaultEncoder().encode(obj)
-        let deserialized = try SWIMNIODefaultDecoder().decode(T.self, from: repr)
+        let decoder = SWIMNIODefaultDecoder()
+        decoder.userInfo[.channelUserInfoKey] = EmbeddedChannel()
+        let deserialized = try decoder.decode(T.self, from: repr)
 
         XCTAssertEqual("\(obj)", "\(deserialized)")
     }

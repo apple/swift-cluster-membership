@@ -23,31 +23,23 @@ extension SWIM {
     public struct NIOPeer: SWIMPeer, SWIMPingOriginPeer, CustomStringConvertible {
         public var node: Node
 
-        // TODO: can we always have a channel here?
-        var channel: Channel?
+        var channel: Channel
 
-        public init(node: Node, channel: Channel?) {
+        public init(node: Node, channel: Channel) {
             self.node = node
-            self.channel = channel
-        }
-
-        public mutating func associateWith(channel: Channel) {
-            assert(self.channel == nil, "Tried to associate \(channel) with already associated \(self)")
             self.channel = channel
         }
 
         public func ping(
             payload: GossipPayload,
-            from origin: AddressableSWIMPeer,
+            from origin: SWIMAddressablePeer,
             timeout: DispatchTimeInterval,
             sequenceNumber: SWIM.SequenceNumber,
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
         ) {
-            guard let channel = self.channel else {
-                fatalError("\(#function) failed, channel was not initialized for \(self)!")
+            guard let originPeer = origin as? SWIM.NIOPeer else {
+                fatalError("Peers MUST be of type SWIM.NIOPeer, yet was: \(origin)")
             }
-
-            let originPeer = NIOPeer(node: origin.node, channel: nil)
             let message = SWIM.Message.ping(replyTo: originPeer, payload: payload, sequenceNumber: sequenceNumber)
 
             let command = WriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
@@ -63,23 +55,23 @@ extension SWIM {
                 }
             })
 
-            channel.writeAndFlush(command, promise: nil)
+            self.channel.writeAndFlush(command, promise: nil)
         }
 
         public func pingRequest(
-            target: AddressableSWIMPeer,
+            target: SWIMAddressablePeer,
             payload: GossipPayload,
-            from origin: AddressableSWIMPeer,
+            from origin: SWIMAddressablePeer,
             timeout: DispatchTimeInterval,
             sequenceNumber: SWIM.SequenceNumber,
             onComplete: @escaping (Result<PingResponse, Error>) -> Void
         ) {
-            guard let channel = self.channel else {
-                fatalError("\(#function) failed, channel was not initialized for \(self)!")
+            guard let targetPeer = target as? SWIM.NIOPeer else {
+                fatalError("Peers MUST be of type SWIM.NIOPeer, yet was: \(target)")
             }
-
-            let targetPeer = NIOPeer(node: target.node, channel: nil)
-            let originPeer = NIOPeer(node: origin.node, channel: nil)
+            guard let originPeer = origin as? SWIM.NIOPeer else {
+                fatalError("Peers MUST be of type SWIM.NIOPeer, yet was: \(origin)")
+            }
             let message = SWIM.Message.pingRequest(target: targetPeer, replyTo: originPeer, payload: payload, sequenceNumber: sequenceNumber)
 
             let command = WriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
@@ -95,37 +87,29 @@ extension SWIM {
                 }
             })
 
-            channel.writeAndFlush(command, promise: nil)
+            self.channel.writeAndFlush(command, promise: nil)
         }
 
         public func ack(
             acknowledging sequenceNumber: SWIM.SequenceNumber,
-            target: AddressableSWIMPeer,
+            target: SWIMAddressablePeer,
             incarnation: Incarnation,
             payload: GossipPayload
         ) {
-            guard let channel = self.channel else {
-                fatalError("\(#function) failed, channel was not initialized for \(self)!")
-            }
-
-            let message = SWIM.Message.response(.ack(target: target.node, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
+            let message = SWIM.Message.response(.ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
             let command = WriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)
 
-            channel.writeAndFlush(command, promise: nil)
+            self.channel.writeAndFlush(command, promise: nil)
         }
 
         public func nack(
             acknowledging sequenceNumber: SWIM.SequenceNumber,
-            target: AddressableSWIMPeer
+            target: SWIMAddressablePeer
         ) {
-            guard let channel = self.channel else {
-                fatalError("\(#function) failed, channel was not initialized for \(self)!")
-            }
-
-            let message = SWIM.Message.response(.nack(target: target.node, sequenceNumber: sequenceNumber))
+            let message = SWIM.Message.response(.nack(target: target, sequenceNumber: sequenceNumber))
             let command = WriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)
 
-            channel.writeAndFlush(command, promise: nil)
+            self.channel.writeAndFlush(command, promise: nil)
         }
 
         public var description: String {

@@ -244,24 +244,24 @@ public final class SWIMNIOShell {
         }
     }
 
-    func receiveEveryPingRequestResponse(result: SWIM.PingResponse, pingedPeer: AddressableSWIMPeer) {
+    func receiveEveryPingRequestResponse(result: SWIM.PingResponse, pingedPeer: SWIMAddressablePeer) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
                 self.receiveEveryPingRequestResponse(result: result, pingedPeer: pingedPeer)
             }
         }
-        self.tracelog(.receive(pinged: pingedPeer.node), message: "\(result)")
+        self.tracelog(.receive(pinged: pingedPeer), message: "\(result)")
         self.swim.onEveryPingRequestResponse(result, pingedMember: pingedPeer)
     }
 
-    func receivePingRequestResponse(result: SWIM.PingResponse, pingedPeer: AddressableSWIMPeer) {
+    func receivePingRequestResponse(result: SWIM.PingResponse, pingedPeer: SWIMAddressablePeer) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
                 self.receivePingRequestResponse(result: result, pingedPeer: pingedPeer)
             }
         }
 
-        self.tracelog(.receive(pinged: pingedPeer.node), message: "\(result)")
+        self.tracelog(.receive(pinged: pingedPeer), message: "\(result)")
         // TODO: do we know here WHO replied to us actually? We know who they told us about (with the ping-req), could be useful to know
 
         // FIXME: change those directives
@@ -303,7 +303,7 @@ public final class SWIMNIOShell {
     ///
     /// - parameter pingRequestOrigin: is set only when the ping that this is a reply to was originated as a `pingReq`.
     func sendPing(
-        to target: AddressableSWIMPeer,
+        to target: SWIMAddressablePeer,
         pingRequestOriginPeer: SWIMPingOriginPeer?,
         timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber
@@ -324,10 +324,10 @@ public final class SWIMNIOShell {
             case .success(let response):
                 self.receivePingResponse(response: response, pingRequestOriginPeer: pingRequestOriginPeer)
             case .failure(let error as SWIMNIOTimeoutError):
-                self.receivePingResponse(response: .timeout(target: target.node, pingRequestOrigin: pingRequestOriginPeer?.node, timeout: error.timeout, sequenceNumber: sequenceNumber), pingRequestOriginPeer: pingRequestOriginPeer)
+                self.receivePingResponse(response: .timeout(target: target, pingRequestOrigin: pingRequestOriginPeer, timeout: error.timeout, sequenceNumber: sequenceNumber), pingRequestOriginPeer: pingRequestOriginPeer)
             case .failure(let error):
-                self.log.debug("Failed to ping", metadata: ["ping/target": "\(target.node)", "error": "\(error)"])
-                self.receivePingResponse(response: .timeout(target: target.node, pingRequestOrigin: pingRequestOriginPeer?.node, timeout: timeout, sequenceNumber: sequenceNumber), pingRequestOriginPeer: pingRequestOriginPeer)
+                self.log.debug("Failed to ping", metadata: ["ping/target": "\(target)", "error": "\(error)"])
+                self.receivePingResponse(response: .timeout(target: target, pingRequestOrigin: pingRequestOriginPeer, timeout: timeout, sequenceNumber: sequenceNumber), pingRequestOriginPeer: pingRequestOriginPeer)
             }
         }
     }
@@ -338,7 +338,7 @@ public final class SWIMNIOShell {
         // The failure case is handled through the timeout of the whole operation.
         let firstSuccessPromise = self.eventLoop.makePromise(of: SWIM.PingResponse.self)
         let pingTimeout = self.swim.dynamicLHMPingTimeout
-        let target = directive.targetNode
+        let target = directive.target
         for pingRequest in directive.requestDetails {
             let memberToPingRequestThrough = pingRequest.memberToPingRequestThrough
             let payload = pingRequest.payload
@@ -363,7 +363,7 @@ public final class SWIMNIOShell {
                         firstSuccessPromise.succeed(response)
                     }
                 case .failure(let error):
-                    self.receiveEveryPingRequestResponse(result: .timeout(target: target, pingRequestOrigin: self.myself.node, timeout: pingTimeout, sequenceNumber: sequenceNumber), pingedPeer: target)
+                    self.receiveEveryPingRequestResponse(result: .timeout(target: target, pingRequestOrigin: self.myself, timeout: pingTimeout, sequenceNumber: sequenceNumber), pingedPeer: target)
                     // these are generally harmless thus we do not want to log them on higher levels
                     self.log.trace("Failed pingRequest", metadata: [
                         "swim/target": "\(target)",
@@ -382,7 +382,7 @@ public final class SWIMNIOShell {
                 self.receivePingRequestResponse(result: response, pingedPeer: target)
             case .failure(let error):
                 self.log.debug("Failed to pingRequest via \(directive.requestDetails.count) peers", metadata: ["pingRequest/target": "\(target)", "error": "\(error)"])
-                self.receivePingRequestResponse(result: .timeout(target: target.node, pingRequestOrigin: nil, timeout: pingTimeout, sequenceNumber: 0), pingedPeer: target) // sequence number does not matter
+                self.receivePingRequestResponse(result: .timeout(target: target, pingRequestOrigin: nil, timeout: pingTimeout, sequenceNumber: 0), pingedPeer: target) // sequence number does not matter
             }
         }
     }
@@ -648,12 +648,12 @@ struct Cancellable {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Peer "resolve"
 
-extension AddressableSWIMPeer {
+extension SWIMAddressablePeer {
     /// Since we're an implementation over UDP, all messages are sent to the same channel anyway,
     /// and simply wrapped in `NIO.AddressedEnvelope`, thus we can easily take any addressable and
     /// convert it into a real NIO peer by simply providing the channel we're running on.
     func peer(_ channel: Channel) -> SWIM.NIOPeer {
-        node.peer(on: channel)
+        self.node.peer(on: channel)
     }
 }
 
@@ -662,6 +662,6 @@ extension ClusterMembership.Node {
     /// and simply wrapped in `NIO.AddressedEnvelope`, thus we can easily take any addressable and
     /// convert it into a real NIO peer by simply providing the channel we're running on.
     func peer(on channel: Channel) -> SWIM.NIOPeer {
-        .init(node: self.node, channel: channel)
+        .init(node: self, channel: channel)
     }
 }
