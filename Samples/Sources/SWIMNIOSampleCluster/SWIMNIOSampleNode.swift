@@ -36,7 +36,7 @@ struct SampleSWIMNIONode {
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in
                 return channel.pipeline
-                    .addHandler(SWIMProtocolHandler(settings: settings)).flatMap {
+                    .addHandler(SWIMNIOHandler(settings: settings)).flatMap {
                         channel.pipeline.addHandler(SWIMNIOSampleHandler())
                     }
             }

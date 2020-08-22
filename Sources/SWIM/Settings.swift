@@ -25,7 +25,7 @@ extension SWIM {
     public struct Settings {
         public init() {}
 
-        /// Logger used by the instance and shell (unless the specific shell implememntation states otherwise).
+        /// Logger used by the instance and shell (unless the specific shell implementation states otherwise).
         public var logger: Logger = Logger(label: "swim")
 
         public var logLevel: Logger.Level {
@@ -101,7 +101,29 @@ extension SWIM {
         ///
         /// By default this option is disabled, and the SWIM implementation behaves same as documented in the papers,
         /// meaning that when a node remains unresponsive for an exceeded amount of time it is marked as `.dead` immediately.
-        public var useUnreachableState: Bool = false // TODO: https://github.com/apple/swift-cluster-membership/issues/5
+        public var unreachability: UnreachabilitySettings = .disabled
+        public enum UnreachabilitySettings {
+            /// Do not use the .unreachable state and just like classic SWIM automatically announce a node as `.dead`,
+            /// if failure detection triggers.
+            ///
+            /// Warning: DO NOT run clusters with mixed reachability settings.
+            ///     In mixed deployments having a single node not understand unreachability will result
+            ///     in it promoting an incoming `.unreachable` status to `.dead` and continue spreading this information.
+            ///
+            ///     This can defeat the purpose of unreachability, as it can be used to wait to announce the final `.dead`,
+            ///     move after consulting an external participant, and with a node unaware of unreachability this would short circut
+            /// this "wait for decision".
+            case disabled
+            /// Enables the `.unreachable` status extension.
+            /// Most deployments will not need to utilize this mode.
+            ///
+            /// Reachability changes are emitted as `SWIM.MemberStatusChangedEvent` and allow an external participant to
+            /// decide the final `confirmDead` which should be invoked on the swim instance when decided.
+            ///
+            /// For other intents and purposes, unreachable is operationally equivalent to a suspect node,
+            /// in that it MAY return to being alive again.
+            case enabled
+        }
 
         /// This is not a part of public API. SWIM is using time to schedule pings/calculate timeouts.
         /// When designing tests one may want to simulate scenarios when events are coming in particular order.

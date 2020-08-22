@@ -16,7 +16,7 @@ import ClusterMembership
 @testable import SWIM
 import XCTest
 
-final class TestPeer: Hashable, SWIMPeer {
+final class TestPeer: Hashable, SWIMPeer, CustomStringConvertible {
     var node: Node
 
     let lock: NSLock = NSLock()
@@ -97,5 +97,9 @@ final class TestPeer: Hashable, SWIMPeer {
             return false
         }
         return true
+    }
+
+    var description: String {
+        "TestPeer(\(self.node))"
     }
 }

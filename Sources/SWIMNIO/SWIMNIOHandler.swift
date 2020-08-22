@@ -18,7 +18,7 @@ import NIO
 import NIOFoundationCompat
 import SWIM
 
-public final class SWIMProtocolHandler: ChannelDuplexHandler {
+public final class SWIMNIOHandler: ChannelDuplexHandler {
     public typealias InboundIn = AddressedEnvelope<ByteBuffer>
     public typealias InboundOut = SWIM.MemberStatusChangedEvent
     public typealias OutboundIn = WriteCommand
@@ -193,7 +193,7 @@ public final class SWIMProtocolHandler: ChannelDuplexHandler {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Serialization
 
-extension SWIMProtocolHandler {
+extension SWIMNIOHandler {
     private func deserialize(_ bytes: ByteBuffer, channel: Channel) throws -> SWIM.Message {
         var bytes = bytes
         guard let data = bytes.readData(length: bytes.readableBytes) else {

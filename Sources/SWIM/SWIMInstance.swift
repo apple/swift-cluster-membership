@@ -105,6 +105,7 @@ extension SWIM {
 
         // We store the owning SWIMShell peer in order avoid adding it to the `membersToPing` list
         private let myself: SWIMPeer
+
         private var node: ClusterMembership.Node {
             self.myself.node
         }
@@ -318,6 +319,11 @@ extension SWIM {
                 suspicionStartedAt = member.suspicionStartedAt
             } else if case .suspect = status {
                 suspicionStartedAt = self.nowNanos()
+            } else if case .unreachable = status,
+                case .disabled = self.settings.unreachability {
+                // This node is not configured to respect unreachability and thus will immediately promote this status to dead
+                // TODO: log warning here
+                status = .dead
             }
 
             if let previousStatus = previousStatusOption, previousStatus.supersedes(status) {
@@ -499,6 +505,10 @@ extension SWIM.Instance {
 
     func notMyself(_ peer: SWIMAddressablePeer) -> Bool {
         !self.isMyself(peer)
+    }
+
+    func isMyself(_ member: SWIM.Member) -> Bool {
+        self.whenMyself(member) != nil
     }
 
     func whenMyself(_ member: SWIM.Member) -> SWIM.Member? {
@@ -957,13 +967,16 @@ extension SWIM.Instance {
     }
 
     internal func onGossipPayload(about member: SWIM.Member) -> GossipProcessedDirective {
-        if let myself = self.whenMyself(member) {
-            return onMyselfGossipPayload(myself: myself)
+        if self.whenMyself(member) != nil {
+            return self.onMyselfGossipPayload(myself: member)
         } else {
-            return onOtherMemberGossipPayload(member: member)
+            return self.onOtherMemberGossipPayload(member: member)
         }
     }
 
+    /// ### Unreachability status handling
+    /// Performs all special handling of `.unreachable` such that if it is disabled members are automatically promoted to `.dead`.
+    /// See `settings.unreachability` for more details.
     private func onMyselfGossipPayload(myself incoming: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
         assert(self.myself.node == incoming.peer.node, "Attempted to process gossip as-if about myself, but was not the same peer, was: \(incoming). Myself: \(self.myself, orElse: "nil")")
 
@@ -999,23 +1012,31 @@ extension SWIM.Instance {
             }
 
         case .unreachable(let unreachableInIncarnation):
-            // someone suspected us, so we need to increment our incarnation number to spread our alive status with
-            // the incremented incarnation
-            // TODO: this could be the right spot to reply with a .nack, to prove that we're still alive
-            if unreachableInIncarnation == self.incarnation {
-                self._incarnation += 1
-            } else if unreachableInIncarnation > self.incarnation {
-                return .applied(
-                    change: nil,
-                    level: .warning,
-                    message: """
-                    Received gossip about self with incarnation number [\(unreachableInIncarnation)] > current incarnation [\(self._incarnation)], \
-                    which should never happen and while harmless is highly suspicious, please raise an issue with logs. This MAY be an issue in the library.
-                    """
-                )
-            }
+            switch self.settings.unreachability {
+            case .enabled:
+                // someone suspected us,
+                // so we need to increment our incarnation number to spread our alive status with the incremented incarnation
+                if unreachableInIncarnation == self.incarnation {
+                    self._incarnation += 1
+                    return .ignored
+                } else if unreachableInIncarnation > self.incarnation {
+                    return .applied(
+                        change: nil,
+                        level: .warning,
+                        message: """
+                        Received gossip about self with incarnation number [\(unreachableInIncarnation)] > current incarnation [\(self._incarnation)], \
+                        which should never happen and while harmless is highly suspicious, please raise an issue with logs. This MAY be an issue in the library.
+                        """
+                    )
+                } else {
+                    return .ignored(level: .debug, message: "Incoming .unreachable about myself, however current incarnation [\(self.incarnation)] is greater than incoming \(incoming.status)")
+                }
 
-            return .applied(change: nil)
+            case .disabled:
+                // we don't use unreachable states, and in any case, would not apply it to myself
+                // as we always consider "us" to be reachable after all
+                return .ignored
+            }
 
         case .dead:
             guard var myselfMember = self.member(for: self.myself) else {
@@ -1032,6 +1053,9 @@ extension SWIM.Instance {
         }
     }
 
+    /// ### Unreachability status handling
+    /// Performs all special handling of `.unreachable` such that if it is disabled members are automatically promoted to `.dead`.
+    /// See `settings.unreachability` for more details.
     private func onOtherMemberGossipPayload(member: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
         assert(self.node != member.node, "Attempted to process gossip as-if not-myself, but WAS same peer, was: \(member). Myself: \(self.myself, orElse: "nil")")
 
@@ -1137,5 +1161,29 @@ extension SWIM.Instance {
                 return 1 // increase the LHM
             }
         }
+    }
+}
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: SWIM Logging Metadata
+
+extension SWIM.Instance {
+    public func metadata(_ additional: Logger.Metadata) -> Logger.Metadata {
+        var metadata = self.metadata
+        metadata.merge(additional, uniquingKeysWith: { _, r in r })
+        return metadata
+    }
+
+    /// While the SWIM.Instance is not meant to be logging by itself, it does offer metadata for loggers to use.
+    public var metadata: Logger.Metadata {
+        [
+            "swim/protocolPeriod": "\(self.protocolPeriod)",
+            "swim/timeoutSuspectsBeforePeriodMax": "\(self.timeoutSuspectsBeforePeriodMax)",
+            "swim/timeoutSuspectsBeforePeriodMin": "\(self.timeoutSuspectsBeforePeriodMin)",
+            "swim/incarnation": "\(self.incarnation)",
+            "swim/members/all": Logger.Metadata.Value.array(self.allMembers.map { "\($0)" }),
+            "swim/members/count": "\(self.notDeadMemberCount)",
+            "swim/suspects/count": "\(self.suspects.count)",
+        ]
     }
 }

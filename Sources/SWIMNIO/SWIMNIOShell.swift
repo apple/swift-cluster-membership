@@ -434,7 +434,7 @@ public final class SWIMNIOShell {
 
     // TODO: test in isolation
     private func receiveConfirmDead(deadNode node: Node) {
-        guard self.settings.useUnreachableState else {
+        guard case .enabled = self.settings.unreachability else {
             self.log.warning("Received confirm .dead for [\(node)], however shell is not configured to use unreachable state, thus this results in no action.")
             return
         }
