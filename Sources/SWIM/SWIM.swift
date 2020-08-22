@@ -16,23 +16,7 @@ import ClusterMembership
 import struct Dispatch.DispatchTime
 import enum Dispatch.DispatchTimeInterval
 
-/// # SWIM (Scalable Weakly-consistent Infection-style Process Group Membership Protocol).
-///
-/// SWIM serves as a low-level distributed failure detector mechanism.
-/// It also maintains its own membership in order to monitor and select nodes to ping with periodic health checks,
-/// however this membership is not directly the same as the high-level membership exposed by the `Cluster`.
-///
-/// SWIM is first and foremost used to determine if nodes are reachable or not (in SWIM terms if they are `.dead`),
-/// however the final decision to mark a node `.dead` is made by the cluster by issuing a `Cluster.MemberStatus.down`
-/// (usually in reaction to SWIM informing it about a node being `SWIM.Member.Status
-///
-/// Cluster members may be discovered though SWIM gossip, yet will be asked to participate in the high-level
-/// cluster membership as driven by the `ClusterShell`.
-///
-/// ### See Also
-/// - SeeAlso: `SWIM.Instance` for a detailed discussion on the implementation.
-/// - SeeAlso: `SWIM.Shell` for the interpretation and driving the interactions.
-public enum SWIM {
+extension SWIM {
     public typealias Incarnation = UInt64
     public typealias Members = [SWIM.Member]
 
@@ -42,7 +26,9 @@ public enum SWIM {
 
     // TODO: or index by just the Node?
     public typealias MembersValues = Dictionary<Node, SWIM.Member>.Values
+}
 
+extension SWIM {
     /// Message sent in reply to a `SWIM.RemoteMessage.ping`.
     ///
     /// The ack may be delivered directly in a request-response fashion between the probing and pinged members,
@@ -82,137 +68,22 @@ public enum SWIM {
         }
     }
 
+}
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: Gossip
+
+extension SWIM {
+
+    /// A piece of "gossip" about a specific member of the cluster.
+    ///
+    /// A gossip will only be spread a limited number of times, as configured by `settings.gossip.gossipedEnoughTimes(_:members:)`.
     public struct Gossip: Equatable {
         public let member: SWIM.Member
         public internal(set) var numberOfTimesGossiped: Int
     }
-}
 
-// ==== ----------------------------------------------------------------------------------------------------------------
-// MARK: SWIM Member Status
-
-// TODO: reduce the nesting since types now show up as SWIM.SWIM.TheType
-
-extension SWIM {
-    /// The SWIM membership status reflects how a node is perceived by the distributed failure detector.
-    ///
-    /// ### Modification: Unreachable status
-    /// The `.unreachable` state is set when a classic SWIM implementation would have declared a node `.down`,
-    /// yet since we allow for the higher level membership to decide when and how to eject members from a cluster,
-    /// only the `.unreachable` state is set and an `Cluster.ReachabilityChange` cluster event is emitted. In response to this
-    /// most clusters will immediately adhere to SWIM's advice and mark the unreachable node as `.down`, resulting in
-    /// confirming the node as `.dead` in SWIM terms.
-    ///
-    /// ### Legal transitions:
-    /// - `alive -> suspect`
-    /// - `alive -> suspect`, with next `SWIM.Incarnation`, e.g. during flaky network situations, we suspect and un-suspect a node depending on probing
-    /// - `suspect -> unreachable | alive`, if in SWIM terms, a node is "most likely dead" we declare it `.unreachable` instead, and await for high-level confirmation to mark it `.dead`.
-    /// - `unreachable -> alive | suspect`, with next `SWIM.Incarnation`
-    /// - `alive | suspect | unreachable -> dead`
-    ///
-    /// - SeeAlso: `SWIM.Incarnation`
-    public enum Status: Hashable {
-        case alive(incarnation: Incarnation)
-        case suspect(incarnation: Incarnation, suspectedBy: Set<Node>)
-        case unreachable(incarnation: Incarnation)
-        case dead
-    }
-}
-
-extension SWIM.Status: Comparable {
-    public static func < (lhs: SWIM.Status, rhs: SWIM.Status) -> Bool {
-        switch (lhs, rhs) {
-        case (.alive(let selfIncarnation), .alive(let rhsIncarnation)):
-            return selfIncarnation < rhsIncarnation
-        case (.alive(let selfIncarnation), .suspect(let rhsIncarnation, _)):
-            return selfIncarnation <= rhsIncarnation
-        case (.alive(let selfIncarnation), .unreachable(let rhsIncarnation)):
-            return selfIncarnation <= rhsIncarnation
-        case (.suspect(let selfIncarnation, let selfSuspectedBy), .suspect(let rhsIncarnation, let rhsSuspectedBy)):
-            return selfIncarnation < rhsIncarnation || (selfIncarnation == rhsIncarnation && selfSuspectedBy.isStrictSubset(of: rhsSuspectedBy))
-        case (.suspect(let selfIncarnation, _), .alive(let rhsIncarnation)):
-            return selfIncarnation < rhsIncarnation
-        case (.suspect(let selfIncarnation, _), .unreachable(let rhsIncarnation)):
-            return selfIncarnation <= rhsIncarnation
-        case (.unreachable(let selfIncarnation), .alive(let rhsIncarnation)):
-            return selfIncarnation < rhsIncarnation
-        case (.unreachable(let selfIncarnation), .suspect(let rhsIncarnation, _)):
-            return selfIncarnation < rhsIncarnation
-        case (.unreachable(let selfIncarnation), .unreachable(let rhsIncarnation)):
-            return selfIncarnation < rhsIncarnation
-        case (.dead, _):
-            return false
-        case (_, .dead):
-            return true
-        }
-    }
-}
-
-extension SWIM.Status {
-    /// Only `alive` or `suspect` members carry an incarnation number.
-    public var incarnation: SWIM.Incarnation? {
-        switch self {
-        case .alive(let incarnation):
-            return incarnation
-        case .suspect(let incarnation, _):
-            return incarnation
-        case .unreachable(let incarnation):
-            return incarnation
-        case .dead:
-            return nil
-        }
-    }
-
-    /// Returns true if the underlying member status is `.alive`, false otherwise.
-    public var isAlive: Bool {
-        switch self {
-        case .alive:
-            return true
-        case .suspect, .unreachable, .dead:
-            return false
-        }
-    }
-
-    /// Returns true if the underlying member status is `.suspect`, false otherwise.
-    public var isSuspect: Bool {
-        switch self {
-        case .suspect:
-            return true
-        case .alive, .unreachable, .dead:
-            return false
-        }
-    }
-
-    /// Returns true if the underlying member status is `.unreachable`, false otherwise.
-    public var isUnreachable: Bool {
-        switch self {
-        case .unreachable:
-            return true
-        case .alive, .suspect, .dead:
-            return false
-        }
-    }
-
-    public var isDead: Bool {
-        switch self {
-        case .dead:
-            return true
-        case .alive, .suspect, .unreachable:
-            return false
-        }
-    }
-
-    /// - Returns `true` if `self` is greater than or equal to `other` based on the
-    ///   following ordering: `alive(N)` < `suspect(N)` < `alive(N+1)` < `suspect(N+1)` < `dead`
-    public func supersedes(_ other: SWIM.Status) -> Bool {
-        self >= other
-    }
-}
-
-// ==== ----------------------------------------------------------------------------------------------------------------
-// MARK: SWIM Gossip Payload
-
-extension SWIM {
+    /// A `GossipPayload` is used to spread gossips about members.
     public enum GossipPayload {
         case none
         case membership(SWIM.Members)

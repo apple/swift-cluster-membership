@@ -33,6 +33,9 @@ struct SWIMNIOSampleCluster: ParsableCommand {
     @Option(help: "Configures which nodes should be passed in as initial contact points, format: host:port,")
     var initialContactPoints: String = ""
 
+    @Option(help: "Configures log level")
+    var logLevel: String = "info"
+
     mutating func run() throws {
         LoggingSystem.bootstrap(_PrettyMetadataLogHandler.init)
 
@@ -48,7 +51,7 @@ struct SWIMNIOSampleCluster: ParsableCommand {
         if count == nil || count == 1 {
             let nodePort = self.port ?? 7001
             settings.logger = Logger(label: "swim-\(nodePort)")
-            settings.logger.logLevel = .error
+            settings.logger.logLevel = self.parseLogLevel()
             settings.initialContactPoints = self.parseContactPoints()
 
             let node = SampleSWIMNIONode(port: nodePort, settings: settings, group: group)
@@ -64,7 +67,6 @@ struct SWIMNIOSampleCluster: ParsableCommand {
                 let nodePort = basePort + i
 
                 settings.logger = Logger(label: "swim-\(nodePort)")
-                settings.logger.logLevel = .trace
                 settings.initialContactPoints = self.parseContactPoints()
 
                 let node = SampleSWIMNIONode(
@@ -84,22 +86,26 @@ struct SWIMNIOSampleCluster: ParsableCommand {
         try lifecycle.startAndWait()
     }
 
-    private func parseContactPoints() -> [ClusterMembership.Node] {
+    private func parseLogLevel() -> Logger.Level {
+        guard let level = Logger.Level.init(rawValue: self.logLevel) else {
+            fatalError("Unknown log level: \(self.logLevel)")
+        }
+        return level
+    }
+
+    private func parseContactPoints() -> Set<ClusterMembership.Node> {
         guard self.initialContactPoints.trimmingCharacters(in: .whitespacesAndNewlines) != "" else {
             return []
         }
         
-        return self.initialContactPoints.split(separator: ",").map { hostPort in
-            let host: String
-            if hostPort.starts(with: ":") {
-                host = self.host ?? "127.0.0.1"
-            } else {
-                host = String(hostPort.split(separator: ":")[0])
-            }
+        let contactPoints: [Node] = self.initialContactPoints.split(separator: ",").map { hostPort in
+            let host = String(hostPort.split(separator: ":")[0])
             let port = Int(String(hostPort.split(separator: ":")[1]))!
 
             return Node(protocol: "udp", host: host, port: port, uid: nil)
         }
+
+        return Set(contactPoints)
     }
 }
 

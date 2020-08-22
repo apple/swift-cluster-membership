@@ -11,11 +11,3 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-
-// TODO: make a struct for compat
-public enum SWIMSerializationError: Error {
-    case notSerializable(String)
-    case missingField(String, type: String)
-    case missingData(String)
-    case unknownEnumValue(Int)
-}

@@ -21,6 +21,9 @@ import XCTest
 
 final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: White box tests // TODO: implement more of the tests in terms of inspecting events
+
+    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Black box tests, we let the nodes run and inspect their state via logs
 
     func test_real_peers_2_connect() throws {
@@ -103,17 +106,23 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     }
 
     func test_real_peers_5_connect() throws {
-        let (first, _) = self.makeClusterNode()
+        let (first, _) = self.makeClusterNode() { settings in
+            settings.probeInterval = .milliseconds(200)
+        }
         let (second, _) = self.makeClusterNode() { settings in
+            settings.probeInterval = .milliseconds(200)
             settings.initialContactPoints = [first.shell.node]
         }
         let (third, _) = self.makeClusterNode() { settings in
+            settings.probeInterval = .milliseconds(200)
             settings.initialContactPoints = [second.shell.node]
         }
         let (fourth, _) = self.makeClusterNode() { settings in
+            settings.probeInterval = .milliseconds(200)
             settings.initialContactPoints = [third.shell.node]
         }
         let (fifth, _) = self.makeClusterNode() { settings in
+            settings.probeInterval = .milliseconds(200)
             settings.initialContactPoints = [fourth.shell.node]
         }
 
@@ -122,7 +131,49 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
                 try self.capturedLogs(of: handler.shell.node)
                     .awaitLog(
                         grep: #""swim/members/count": 5"#,
-                        within: .seconds(10)
+                        within: .seconds(5)
+                    )
+            } catch {
+                throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
+            }
+        }
+    }
+
+    func test_real_peers_5_connect_butSlowly() throws {
+        let (first, _) = self.makeClusterNode() { settings in
+            settings.probeInterval = .milliseconds(200)
+        }
+        let (second, _) = self.makeClusterNode() { settings in
+            settings.probeInterval = .milliseconds(200)
+            settings.initialContactPoints = [first.shell.node]
+        }
+        // we sleep in order to ensure we exhaust the "gossip at most ... times" logic
+        sleep(2)
+        let (third, _) = self.makeClusterNode() { settings in
+            settings.probeInterval = .milliseconds(200)
+            settings.initialContactPoints = [second.shell.node]
+        }
+        let (fourth, _) = self.makeClusterNode() { settings in
+            settings.probeInterval = .milliseconds(200)
+            settings.initialContactPoints = [third.shell.node]
+        }
+        // after joining two more, we sleep again to make sure they all exhaust their gossip message counts
+        sleep(2)
+        let (fifth, _) = self.makeClusterNode() { settings in
+            settings.probeInterval = .milliseconds(200)
+            // we connect fir the first, they should exchange all information
+            settings.initialContactPoints = [
+                first.shell.node,
+                fourth.shell.node,
+            ]
+        }
+
+        try [first, second, third, fourth, fifth].forEach { handler in
+            do {
+                try self.capturedLogs(of: handler.shell.node)
+                    .awaitLog(
+                        grep: #""swim/members/count": 5"#,
+                        within: .seconds(5)
                     )
             } catch {
                 throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)

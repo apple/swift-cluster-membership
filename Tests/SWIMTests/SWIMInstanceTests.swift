@@ -217,13 +217,10 @@ final class SWIMInstanceTests: XCTestCase {
     func test_onPing_shouldOfferAckMessageWithMyselfReference() throws {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        let secondPeer = self.second!
+        swim.addMember(self.second, status: .alive(incarnation: 0))
 
-        swim.addMember(secondPeer, status: .alive(incarnation: 0))
-
-        let res = swim.onPing(payload: .none, sequenceNumber: 0).first!
-
-        switch res {
+        let directive = swim.onPing(pingOrigin: self.second, payload: .none, sequenceNumber: 0).first!
+        switch directive {
         case .sendAck(let pinged, _, _, _):
             XCTAssertEqual(pinged.node, self.myselfNode) // which was added as myself to this swim instance
         case let other:
@@ -234,15 +231,13 @@ final class SWIMInstanceTests: XCTestCase {
     func test_onPing_withAlive_shouldReplyWithAlive_withIncrementedIncarnation() throws {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        let secondPeer = self.second!
-
         // from our perspective, all nodes are alive...
-        swim.addMember(secondPeer, status: .alive(incarnation: 0))
+        swim.addMember(self.second, status: .alive(incarnation: 0))
 
         // Imagine: thirdPeer pings us, it suspects us (!)
         // we (p1) receive the ping and want to refute the suspicion, we are Still Alive:
         // (thirdPeer has heard from someone that we are suspect in incarnation 10 (for some silly reason))
-        let res = swim.onPing(payload: .none, sequenceNumber: 0).first!
+        let res = swim.onPing(pingOrigin: self.third, payload: .none, sequenceNumber: 0).first!
 
         switch res {
         case .sendAck(_, let incarnation, _, _):
@@ -440,7 +435,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_myself_withUnreachable_unreachabilityEnabled() throws {
         var settings = SWIM.Settings()
-        settings.unreachability = .enabled
+        settings.extensionUnreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         var myselfMember = swim.myselfMember
@@ -464,7 +459,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_other_withUnreachable_unreachabilityEnabled() throws {
         var settings = SWIM.Settings()
-        settings.unreachability = .enabled
+        settings.extensionUnreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         let other = self.second!
 
@@ -484,7 +479,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_myself_withOldUnreachable_unreachabilityEnabled() throws {
         var settings = SWIM.Settings()
-        settings.unreachability = .enabled
+        settings.extensionUnreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         swim.incrementProtocolPeriod()
 
@@ -505,7 +500,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_other_withOldUnreachable_unreachabilityEnabled() throws {
         var settings = SWIM.Settings()
-        settings.unreachability = .enabled
+        settings.extensionUnreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         let other = self.second!
 
@@ -525,7 +520,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_myself_withUnreachable_unreachabilityDisabled() throws {
         var settings = SWIM.Settings()
-        settings.unreachability = .disabled
+        settings.extensionUnreachability = .disabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         var myselfMember = swim.myselfMember
@@ -548,7 +543,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_other_withUnreachable_unreachabilityDisabled() throws {
         var settings = SWIM.Settings()
-        settings.unreachability = .disabled
+        settings.extensionUnreachability = .disabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         let other = self.second!
 
@@ -579,7 +574,7 @@ final class SWIMInstanceTests: XCTestCase {
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.secondNode])
         let res = swim.onGossipPayload(about: otherMember)
         if case .applied(.some(let change), _, _) = res,
-            case .suspect(_, let confirmations) = change.status {
+           case .suspect(_, let confirmations) = change.status {
             XCTAssertEqual(confirmations.count, 2)
             XCTAssertTrue(confirmations.contains(secondNode), "expected \(confirmations) to contain \(secondNode)")
             XCTAssertTrue(confirmations.contains(thirdNode), "expected \(confirmations) to contain \(thirdNode)")
@@ -620,7 +615,7 @@ final class SWIMInstanceTests: XCTestCase {
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.fourthNode])
         let res = swim.onGossipPayload(about: otherMember)
         if case .applied(.some(let change), _, _) = res,
-            case .suspect(_, let confirmation) = change.status {
+           case .suspect(_, let confirmation) = change.status {
             XCTAssertEqual(confirmation.count, swim.settings.lifeguard.maxIndependentSuspicions)
         } else {
             XCTFail("Expected `.applied(.some(suspectedBy)) where suspectedBy.count = maxIndependentSuspicions`, got \(res)")
@@ -786,7 +781,7 @@ final class SWIMInstanceTests: XCTestCase {
     func test_nextMemberToPingRequest() {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        let res1 = swim.addMember(self.second!, status: .alive(incarnation: 0))
+        let res1 = swim.addMember(self.second, status: .alive(incarnation: 0))
         guard case .added(let firstMember) = res1 else {
             return XCTFail("Expected to successfully add peer, was: \(res1)")
         }
@@ -915,7 +910,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_memberCount_shouldCountUnreachableMembers() {
         var settings = SWIM.Settings()
-        settings.unreachability = .enabled
+        settings.extensionUnreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         let aliveAtZero = SWIM.Status.alive(incarnation: 0)
@@ -943,45 +938,77 @@ final class SWIMInstanceTests: XCTestCase {
         try self.validateGossip(swim: swim, expected: [.init(peer: self.myself, status: .alive(incarnation: 0), protocolPeriod: 0)])
     }
 
-    func test_makeGossipPayload_shouldReturnEachEntryOnlyTheConfiguredNumberOfTimes() throws {
-        var settings: SWIM.Settings = .init()
-        settings.gossip.maxGossipCountPerMessage = 2
-        let shell = self.myself!
-        let swim = SWIM.Instance(settings: settings, myself: shell)
+    func test_makeGossipPayload_shouldEventuallyStopGossips() throws {
+        let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
+        swim.addMember(self.second, status: .alive(incarnation: 0))
+        swim.addMember(self.third, status: .alive(incarnation: 0))
 
-        let p1 = self.myself!
-        let secondPeer = self.second!
-        let thirdPeer = self.third!
-
-        swim.addMember(p1, status: .alive(incarnation: 0))
-        let myself = SWIM.Member(peer: shell, status: .alive(incarnation: 0), protocolPeriod: 0)
-        try self.validateGossip(swim: swim, expected: [.init(peer: p1, status: .alive(incarnation: 0), protocolPeriod: 0), myself])
-
-        swim.addMember(secondPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
-        try self.validateGossip(swim: swim, expected: [.init(peer: p1, status: .alive(incarnation: 0), protocolPeriod: 0), .init(peer: secondPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), protocolPeriod: 0), myself])
-
-        swim.addMember(thirdPeer, status: .dead)
-        try self.validateGossip(swim: swim, expected: [.init(peer: secondPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), protocolPeriod: 0), .init(peer: thirdPeer, status: .dead, protocolPeriod: 0)])
-        try self.validateGossip(swim: swim, expected: [.init(peer: thirdPeer, status: .dead, protocolPeriod: 0)])
-        try self.validateGossip(swim: swim, expected: [])
+        var count = 0
+        var gossip = swim.makeGossipPayload(to: nil)
+        while case .membership(let members) = gossip, members.count > 1 {
+            gossip = swim.makeGossipPayload(to: nil)
+            count += 1
+        }
+        
+        XCTAssertEqual(count, 7) // based on the default values of the
     }
 
-    func test_makeGossipPayload_shouldResetCounterWhenStatusChanged() throws {
-        var settings: SWIM.Settings = .init()
-        settings.gossip.maxGossipCountPerMessage = 2
+    func test_makeGossipPayload_shouldReset_whenNewMemberChangedStatus() throws {
+        let settings: SWIM.Settings = .init()
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
-        let otherPeer = self.second!
+        swim.addMember(self.second, status: .alive(incarnation: 0))
+        swim.addMember(self.third, status: .alive(incarnation: 0))
+        let myselfMember = SWIM.Member(peer: self.myself, status: .alive(incarnation: 0), protocolPeriod: 0)
+        let thirdMember = SWIM.Member(peer: self.third, status: .alive(incarnation: 0), protocolPeriod: 0)
 
-        swim.addMember(otherPeer, status: .alive(incarnation: 0))
+        try self.validateGossip(swim: swim, expected: [.init(peer: self.second, status: .alive(incarnation: 0), protocolPeriod: 0), myselfMember, thirdMember])
+
+        _ = swim.mark(self.second, as: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]))
+        try self.validateGossip(swim: swim, expected: [
+            .init(peer: self.second, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0),
+            myselfMember,
+            thirdMember,
+        ])
+        try self.validateGossip(swim: swim, expected: [
+            .init(peer: self.second, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0),
+            myselfMember,
+            thirdMember,
+        ])
+
+        // turns out it is alive after all, and it bumped its incarnation (it had to, to refute the suspicion)
+        swim.mark(self.second, as: .alive(incarnation: 1))
+
+        try self.validateGossip(swim: swim, expected: [
+            .init(peer: self.second, status: .alive(incarnation: 1), protocolPeriod: 0),
+            .init(peer: self.third, status: .alive(incarnation: 0), protocolPeriod: 0),
+            myselfMember,
+        ])
+    }
+
+    func test_makeGossipPayload_shouldReset_whenNewMembersJoin() throws {
+        let settings: SWIM.Settings = .init()
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        swim.addMember(self.second, status: .alive(incarnation: 0))
         let myselfMember = SWIM.Member(peer: self.myself, status: .alive(incarnation: 0), protocolPeriod: 0)
 
-        try self.validateGossip(swim: swim, expected: [.init(peer: otherPeer, status: .alive(incarnation: 0), protocolPeriod: 0), myselfMember])
+        try self.validateGossip(swim: swim, expected: [.init(peer: self.second, status: .alive(incarnation: 0), protocolPeriod: 0), myselfMember])
 
-        _ = swim.mark(otherPeer, as: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]))
-        try self.validateGossip(swim: swim, expected: [.init(peer: otherPeer, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0), myselfMember])
-        try self.validateGossip(swim: swim, expected: [.init(peer: otherPeer, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0)])
-        try self.validateGossip(swim: swim, expected: [])
+        _ = swim.mark(self.second, as: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]))
+        try self.validateGossip(swim: swim, expected: [.init(peer: self.second, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0), myselfMember])
+        try self.validateGossip(swim: swim, expected: [.init(peer: self.second, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0), myselfMember])
+        try self.validateGossip(swim: swim, expected: [.init(peer: self.second, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0), myselfMember])
+        try self.validateGossip(swim: swim, expected: [.init(peer: self.second, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0), myselfMember])
+
+        // a new member joins, and we must ensure it'd get some of the gossip
+        swim.addMember(self.third, status: .alive(incarnation: 0))
+
+        try self.validateGossip(swim: swim, expected: [
+            .init(peer: self.second, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0),
+            .init(peer: self.third, status: .alive(incarnation: 0), protocolPeriod: 0),
+            myselfMember,
+        ])
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -989,7 +1016,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_confirmDead_anUnknownNode_shouldDoNothing() throws {
         var settings = SWIM.Settings()
-        settings.unreachability = .enabled
+        settings.extensionUnreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         let directive = swim.confirmDead(peer: self.second)
@@ -1003,7 +1030,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_confirmDead_aKnownOtherNode_shouldApply() throws {
         var settings = SWIM.Settings()
-        settings.unreachability = .enabled
+        settings.extensionUnreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         swim.addMember(self.second, status: .alive(incarnation: 10))
@@ -1022,7 +1049,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_confirmDead_myself_shouldApply() throws {
         var settings = SWIM.Settings()
-        settings.unreachability = .enabled
+        settings.extensionUnreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         swim.addMember(self.second, status: .alive(incarnation: 10))
@@ -1037,6 +1064,15 @@ final class SWIMInstanceTests: XCTestCase {
         default:
             XCTFail("Expected confirmingDead a node to be `.applied`, got: \(directive)")
         }
+    }
+
+    // ==== ----------------------------------------------------------------------------------------------------------------
+    // MARK: Sanity checks
+
+    /// This test is weird and should "never" fail, but it did, on some toolchains.
+    /// This test is to remain here as a sanity check if timeouts or something else would suddenly return unexpected values.
+    func test_log_becauseWeSawItReturnWronglyOnSomeToolchains() {
+        XCTAssertEqual(log2(4.0), 2)
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------

@@ -8,12 +8,8 @@
     {
       "name": "Documentation",
       "children": [
-        "SWIM"
-      ]
-    },
-    {
-      "name": "Examples",
-      "children": [
+        "SWIM",
+        "SWIMNIO",
       ]
     }
   ]
