@@ -1010,7 +1010,9 @@ final class SWIMInstanceTests: XCTestCase {
 
         let directive = swim.confirmDead(peer: self.second)
         switch directive {
-        case .applied(let member, let previousStatus):
+        case .applied(let change):
+            let previousStatus = change.previousStatus
+            let member = change.member
             XCTAssertEqual(previousStatus, SWIM.Status.alive(incarnation: 10))
             XCTAssertEqual("\(reflecting: member.peer)", "\(reflecting: self.second!)")
         default:
@@ -1027,7 +1029,9 @@ final class SWIMInstanceTests: XCTestCase {
 
         let directive = swim.confirmDead(peer: self.myself)
         switch directive {
-        case .applied(let member, let previousStatus):
+        case .applied(let change):
+            let previousStatus = change.previousStatus
+            let member = change.member
             XCTAssertEqual(previousStatus, SWIM.Status.alive(incarnation: 0))
             XCTAssertEqual("\(reflecting: member.peer)", "\(reflecting: self.myself!)")
         default:

@@ -1133,10 +1133,15 @@ extension SWIM.Instance {
             return .ignored
         }
 
+        guard !member.isDead else {
+            // the member seems to be already dead, no need to mark it dead again
+            return .ignored
+        }
+
         switch self.mark(peer, as: .dead) {
         case .applied(let previousStatus, let currentStatus):
             member.status = currentStatus
-            return .applied(member, previousStatus: previousStatus)
+            return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: member))
 
         case .ignoredDueToOlderStatus:
             return .ignored // it was already dead for example
@@ -1144,10 +1149,14 @@ extension SWIM.Instance {
     }
 
     public enum ConfirmDeadDirective {
-        case applied(SWIM.Member, previousStatus: SWIM.Status?)
+        /// The change was applied and caused a membership change.
+        ///
+        /// The change should be emitted as an event by an interpreting shell.
+        case applied(change: SWIM.MemberStatusChangedEvent)
+
+        /// The confirmation had not effect, either the peer was not known, or is already dead.
         case ignored
     }
-
 }
 
 extension SWIM.Instance: CustomDebugStringConvertible {
