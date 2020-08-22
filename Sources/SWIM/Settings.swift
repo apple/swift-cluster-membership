@@ -17,6 +17,13 @@ import struct Dispatch.DispatchTime
 import enum Dispatch.DispatchTimeInterval
 import Logging
 
+#if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
+import func Darwin.log2
+#else
+import Glibc
+#endif
+
+
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Settings
 
@@ -28,6 +35,7 @@ extension SWIM {
         /// Logger used by the instance and shell (unless the specific shell implementation states otherwise).
         public var logger: Logger = Logger(label: "swim")
 
+        /// Convenience setting to change the `logger`'s log level.
         public var logLevel: Logger.Level {
             get {
                 self.logger.logLevel
@@ -62,10 +70,16 @@ extension SWIM {
             }
         }
 
-        /// When the instance is first started, it may attempt to reach out to a few "known" nodes in an attempt to join an existing cluster.
+        /// Optional feature: Set of "initial contact points" to automatically contact and join upon starting a node
         ///
-        /// It is up to a Shell to interpret and initiate these contacts, as it is responsible for the IO / messaging.
-        public var initialContactPoints: [ClusterMembership.Node] = []
+        /// Optionally, a Shell implementation MAY use this setting automatically contact a set of initial contact point nodes,
+        /// allowing a new member to easily join existing clusters (e.g. if there is one "known" address to contact upon starting).
+        ///
+        /// Consult your Shell implementations of frameworks' documentation if this feature is supported, or handled in alternative ways.
+        /// // TODO: This could be made more generic with "pluggable" discovery mechanism.
+        ///
+        /// Note: This is sometimes also referred to "seed nodes" and a "seed node join process".
+        public var initialContactPoints: Set<ClusterMembership.Node> = []
 
         /// Interval at which gossip messages should be issued.
         /// This property sets only a base value of probe interval, which will later be multiplied by `SWIM.Instance.localHealthMultiplier`.
@@ -101,7 +115,7 @@ extension SWIM {
         ///
         /// By default this option is disabled, and the SWIM implementation behaves same as documented in the papers,
         /// meaning that when a node remains unresponsive for an exceeded amount of time it is marked as `.dead` immediately.
-        public var unreachability: UnreachabilitySettings = .disabled
+        public var extensionUnreachability: UnreachabilitySettings = .disabled
         public enum UnreachabilitySettings {
             /// Do not use the .unreachable state and just like classic SWIM automatically announce a node as `.dead`,
             /// if failure detection triggers.
@@ -151,18 +165,51 @@ extension SWIM {
 public struct SWIMGossipSettings {
     public init() {}
 
-    // TODO: investigate size of messages and find good default
-    /// Max number of messages included in any gossip payload
-    public var maxNumberOfMessages: Int = 20
-
+    /// Limits the number of `GossipPayload`s to be piggy-backed in a single message.
     ///
-    public var maxGossipCountPerMessage: Int = 6
+    /// Notes: The Ping/Ack messages are used to piggy-back the gossip information along those messages.
+    /// In order to prevent these messages from growing too large, heuristics or a simple limit must be imposed on them/
+    /// Currently, we limit the message sizes by simply counting how many gossip payloads are allowed to be carried.
+    public var maxNumberOfMessagesPerGossip: Int = 12
+
+    /// Each gossip (i.e. an observation by this specific node of a specific node's specific status),
+    /// is gossiped only a limited number of times, after which the algorithms
+    ///
+    /// - Parameters:
+    ///   - n: total number of cluster members (including myself), MUST be >= 1 (or will crash)
+    ///
+    /// - SeeAlso: SWIM 4.1. Infection-Style Dissemination Component
+    /// - SeeAlso: SWIM 5. Performance Evaluation of a Prototype
+    public func gossipedEnoughTimes(_ gossip: SWIM.Gossip, members n: Int) -> Bool {
+        precondition(n >= 1, "number of members MUST be >= 1")
+        guard n > 1 else {
+            // no need to gossip ever in a single node cluster
+            return false
+        }
+        let maxTimesDouble = self.gossipedEnoughTimesBaseMultiplier * log2(Double(n + 1))
+        return gossip.numberOfTimesGossiped > Int(maxTimesDouble)
+    }
+    internal func needsToBeGossipedMoreTimes(_ gossip: SWIM.Gossip, members n: Int) -> Bool {
+        !self.gossipedEnoughTimes(gossip, members: n)
+    }
+
+    /// Used to adjust the `gossipedEnoughTimes` value.
+    ///
+    /// Should not be lower than 3, since for
+    ///
+    /// - SeeAlso: SWIM 5. Performance Evaluation of a Prototype
+    public var gossipedEnoughTimesBaseMultiplier: Double = 3 {
+        willSet {
+            precondition(newValue > 0, "number of members MUST be > 0")
+            self.gossipedEnoughTimesBaseMultiplier = newValue
+        }
+    }
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Lifeguard extensions Settings
 
-/// Lifeguard is a set of extensions to SWIM that helps reducing false positive failure detections
+/// Lifeguard is a set of extensions to SWIM that helps reducing false positive failure detections.
 ///
 /// - SeeAlso: [Lifeguard: Local Health Awareness for More Accurate Failure Detection](https://arxiv.org/pdf/1707.00788.pdf)
 public struct SWIMLifeguardSettings {
@@ -239,6 +286,7 @@ public struct SWIMLifeguardSettings {
     }
 
     /// A number of independent suspicions required for a suspicion timeout to fully decay to a minimal value.
+    ///
     /// When set to 1 will effectively disable LHA-suspicion.
     public var maxIndependentSuspicions = 4 {
         willSet {
@@ -246,3 +294,4 @@ public struct SWIMLifeguardSettings {
         }
     }
 }
+

@@ -19,7 +19,7 @@ my_path="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 root_path="$my_path/../.."
 
 short_version=$(git describe --abbrev=0 --tags 2> /dev/null || echo "0.0.0")
-long_version=$(git describe            --tags 2> /dev/null || echo "0.0.0")
+long_version=$(git describe             --tags 2> /dev/null || echo "0.0.0")
 if [[ "$short_version" == "$long_version" ]]; then
   version="${short_version}"
   doc_link_version="${version}"
@@ -32,6 +32,7 @@ echo "Project version: ${version}"
 # all our public modules which we want to document
 modules=(
   SWIM
+  SWIMNIO
 )
 
 declare -r build_path_linux='.build/x86_64-unknown-linux-gnu'
@@ -42,8 +43,10 @@ if [[ "$(uname -s)" == "Linux" ]]; then
   # setup source-kitten if required
   mkdir -p "$root_path/.build/sourcekitten"
   source_kitten_source_path="$root_path/.build/sourcekitten/source"
-    git clone https://github.com/jpsim/SourceKitten.git "$source_kitten_source_path"
   source_kitten_path="$source_kitten_source_path/$build_path_linux/release"
+  if [[ ! -f "$source_kitten_path/sourcekitten" ]]; then
+    git clone https://github.com/jpsim/SourceKitten.git "$source_kitten_source_path"
+  fi
     rm -rf "$source_kitten_source_path/.swift-version"
     cd "$source_kitten_source_path" && swift build -c release && cd "$root_path"
   # generate

@@ -314,3 +314,12 @@ extension SWIM.Status: Codable {
         }
     }
 }
+
+/// Thrown when serialization failed
+public enum SWIMSerializationError: Error {
+    case notSerializable(String)
+    case missingField(String, type: String)
+    case missingData(String)
+    case unknownEnumValue(Int)
+    case __nonExhaustiveAlwaysIncludeADefaultCaseWhenSwitchingOverTheseErrorsPlease
+}

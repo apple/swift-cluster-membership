@@ -16,9 +16,6 @@ import ClusterMembership
 import struct Dispatch.DispatchTime
 import enum Dispatch.DispatchTimeInterval
 
-// ==== ----------------------------------------------------------------------------------------------------------------
-// MARK: MemberStatusChangeEvent
-
 extension SWIM {
     /// Emitted whenever a membership change happens.
     public struct MemberStatusChangedEvent: CustomStringConvertible, Equatable {
@@ -72,14 +69,14 @@ extension SWIM {
             case (.dead, .alive),
                  (.dead, .suspect),
                  (.dead, .unreachable):
-                fatalError("Change MUST NOT move status 'backwards' from .dead state to anything else, but did so, was: \(self)")
+                fatalError("SWIM.Membership MUST NOT move status 'backwards' from .dead state to anything else, but did so, was: \(self)")
             default:
                 return false
             }
         }
 
         public var description: String {
-            var res = "SWIM.MemberStatusChangeEvent(\(self.member), previousStatus: "
+            var res = "SWIM.MemberStatusChangedEvent(\(self.member), previousStatus: "
             if let previousStatus = self.previousStatus {
                 res += "\(previousStatus)"
             } else {

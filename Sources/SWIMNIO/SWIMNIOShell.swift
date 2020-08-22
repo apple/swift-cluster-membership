@@ -46,7 +46,7 @@ public final class SWIMNIOShell {
     }
 
     /// Cancellable of the periodicPingTimer (if it was kicked off)
-    private var nextPeriodicTickCancellable: Cancellable?
+    private var nextPeriodicTickCancellable: SWIMCancellable?
 
     internal init(
         node: Node,
@@ -75,12 +75,12 @@ public final class SWIMNIOShell {
 
         // Immediately attempt to connect to initial contact points
         self.settings.initialContactPoints.forEach { node in
-            self.swim.addMember(node.peer(on: self.channel), status: .alive(incarnation: 0)) // assume the best case; we'll find out soon enough its real status
+            self.receiveStartMonitoring(node: node)
         }
 
         if startPeriodicPingTimer {
             // Kick off timer for periodically pinging random cluster member (i.e. the periodic Gossip)
-            self.receivePeriodicProtocolPeriodTick()
+            self.handlePeriodicProtocolPeriodTick()
         }
     }
 
@@ -97,11 +97,11 @@ public final class SWIMNIOShell {
 
     /// Start a *single* timer, to run the passed task after given delay.
     @discardableResult
-    private func schedule(key: String, delay: DispatchTimeInterval, _ task: @escaping () -> Void) -> Cancellable {
+    private func schedule(key: String, delay: DispatchTimeInterval, _ task: @escaping () -> Void) -> SWIMCancellable {
         self.eventLoop.assertInEventLoop()
 
         let scheduled: Scheduled<Void> = self.eventLoop.scheduleTask(in: delay.toNIO) { () in task() }
-        return Cancellable { scheduled.cancel() }
+        return SWIMCancellable { scheduled.cancel() }
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -148,13 +148,19 @@ public final class SWIMNIOShell {
     }
 
     private func receivePing(replyTo: SWIMPingOriginPeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) {
-        self.log.trace("Received ping@\(sequenceNumber)", metadata: self.swim.metadata([
+        guard self.eventLoop.inEventLoop else {
+            return self.eventLoop.execute {
+                self.receivePing(replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
+            }
+        }
+
+        self.log.debug("Received ping@\(sequenceNumber)", metadata: self.swim.metadata([
             "swim/ping/replyTo": "\(replyTo.node)",
             "swim/ping/payload": "\(payload)",
             "swim/ping/seqNr": "\(sequenceNumber)",
         ]))
 
-        let directives: [SWIM.Instance.PingDirective] = self.swim.onPing(payload: payload, sequenceNumber: sequenceNumber)
+        let directives: [SWIM.Instance.PingDirective] = self.swim.onPing(pingOrigin: replyTo, payload: payload, sequenceNumber: sequenceNumber)
         directives.forEach { directive in
             switch directive {
             case .gossipProcessed(let gossipDirective):
@@ -218,7 +224,7 @@ public final class SWIMNIOShell {
 
         let sequenceNumber = response.sequenceNumber
 
-        self.log.warning("Receive ping response: \(response)", metadata: self.swim.metadata([
+        self.log.debug("Receive ping response: \(response)", metadata: self.swim.metadata([
             "swim/pingRequestOriginPeer": "\(pingRequestOriginPeer, orElse: "nil")",
             "swim/response/sequenceNumber": "\(sequenceNumber)",
         ]))
@@ -390,51 +396,53 @@ public final class SWIMNIOShell {
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Handling local messages
 
-    /// Scheduling a new protocol period and performing the actions for the current protocol period
-    func receivePeriodicProtocolPeriodTick() {
-        self.handlePeriodicTick()
-
-        self.nextPeriodicTickCancellable = self.schedule(key: SWIMNIOShell.periodicPingKey, delay: self.swim.dynamicLHMProtocolInterval) {
-            self.receivePeriodicProtocolPeriodTick()
-        }
-    }
-
     /// Periodic (scheduled) function to ping ("probe") a random member.
     ///
     /// This is the heart of the periodic gossip performed by SWIM.
-    func handlePeriodicTick() {
-        // needs to be done first, so we can gossip out the most up to date state
-        self.checkSuspicionTimeouts() // FIXME: Push into SWIM
+    func handlePeriodicProtocolPeriodTick() {
+        self.eventLoop.assertInEventLoop()
+        func handlePeriodicProtocolPeriodTick0() {
+            // needs to be done first, so we can gossip out the most up to date state
+            self.checkSuspicionTimeouts() // FIXME: Push into SWIM's onPeriodicPingTick
 
-        let directive = self.swim.onPeriodicPingTick()
-        switch directive {
-        case .ignore:
-            self.log.trace("Skipping periodic ping", metadata: self.swim.metadata)
+            let directive = self.swim.onPeriodicPingTick()
+            switch directive {
+            case .ignore:
+                self.log.trace("Skipping periodic ping", metadata: self.swim.metadata)
 
-        case .sendPing(let target, let timeout, let sequenceNumber):
-            self.log.trace("Periodic ping random member, among: \(self.swim.otherMemberCount)", metadata: self.swim.metadata)
-            self.sendPing(to: target, pingRequestOriginPeer: nil, timeout: timeout, sequenceNumber: sequenceNumber)
+            case .sendPing(let target, let timeout, let sequenceNumber):
+                self.log.trace("Periodic ping random member, among: \(self.swim.otherMemberCount)", metadata: self.swim.metadata)
+                self.sendPing(to: target, pingRequestOriginPeer: nil, timeout: timeout, sequenceNumber: sequenceNumber)
+            }
+        }
+        handlePeriodicProtocolPeriodTick0()
+
+        self.nextPeriodicTickCancellable = self.schedule(key: SWIMNIOShell.periodicPingKey, delay: self.swim.dynamicLHMProtocolInterval) {
+            self.handlePeriodicProtocolPeriodTick()
         }
     }
 
+    // FIXME: push into Instance, it should attempt to send those initial pings
     /// Extra functionality, allowing external callers to ask this swim shell to start monitoring a specific node.
     private func receiveStartMonitoring(node: Node) {
-        guard self.node != node else { // FIXME: compare while ignoring the UUID
-            return // no need to monitor ourselves, nor a replacement of us (if node is our replacement, we should have been dead already)
-        }
-
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
                 self.receiveStartMonitoring(node: node)
             }
         }
 
-        self.sendFirstPing(on: node)
+        self.log.info("Start monitoring: \(node)")
+        guard self.node.withoutUID != node.withoutUID else {
+            return // no need to monitor ourselves, nor a replacement of us (if node is our replacement, we should have been dead already)
+        }
+
+        let peer = node.peer(on: self.channel)
+        self.sendPing(to: peer, pingRequestOriginPeer: nil, timeout: .seconds(1), sequenceNumber: self.swim.nextSequenceNumber())
     }
 
     // TODO: not presently used in the SWIMNIO + udp implementation, make use of it or remove? other impls do need this functionality.
     private func receiveConfirmDead(deadNode node: Node) {
-        guard case .enabled = self.settings.unreachability else {
+        guard case .enabled = self.settings.extensionUnreachability else {
             self.log.warning("Received confirm .dead for [\(node)], however shell is not configured to use unreachable state, thus this results in no action.")
             return
         }
@@ -502,7 +510,11 @@ public final class SWIMNIOShell {
                 }
 
                 var unreachableSuspect = suspect
-                unreachableSuspect.status = .unreachable(incarnation: incarnation)
+                if swim.settings.extensionUnreachability == .enabled {
+                    unreachableSuspect.status = .unreachable(incarnation: incarnation)
+                } else {
+                    unreachableSuspect.status = .dead
+                }
                 self.markMember(latest: unreachableSuspect)
             }
         }
@@ -529,9 +541,6 @@ public final class SWIMNIOShell {
 
     func handleGossipPayloadProcessedDirective(_ directive: SWIM.Instance.GossipProcessedDirective) {
         switch directive {
-        case .connect:
-            () // we don't need connections, we're udp based
-
         case .ignored(let level, let message): // TODO: allow the instance to log
             if let level = level, let message = message {
                 self.log.log(level: level, message, metadata: self.swim.metadata)
@@ -555,50 +564,34 @@ public final class SWIMNIOShell {
             return
         }
 
-        // Log the transition
-        switch change.status {
-        case .unreachable:
-            self.log.info(
-                "Node \(change.member.node) determined [.unreachable]!",
-                metadata: [
-                    "swim/member": "\(change.member)",
-                ]
-            )
-        default:
-            self.log.info(
-                "Node \(change.member.node) determined [.\(change.status)] (was [\(change.previousStatus, orElse: "nil")].",
-                metadata: [
-                    "swim/member": "\(change.member)",
-                ]
-            )
-        }
+//        // Log the transition
+//        switch change.status {
+//        case .unreachable:
+//            self.log.info(
+//                "Node \(change.member.node) determined [.unreachable]!",
+//                metadata: [
+//                    "swim/member": "\(change.member)",
+//                ]
+//            )
+//        default:
+//            self.log.info(
+//                "Node \(change.member.node) determined [.\(change.status)] (was [\(change.previousStatus, orElse: "nil")]).",
+//                metadata: [
+//                    "swim/member": "\(change.member)",
+//                ]
+//            )
+//        }
 
         // emit the SWIM.MemberStatusChange as user event
         self.announceMembershipChange(change)
     }
 
-    /// This is effectively joining the SWIM membership of the other member.
-    func sendFirstPing(on node: Node) {
-        let peer = node.peer(on: self.channel)
-
-        // We need to include the member immediately, rather than when we have ensured the association.
-        // This is because if we're not able to establish the association, we still want to re-try soon (in the next ping round),
-        // and perhaps then the other node would accept the association (perhaps some transient network issues occurred OR the node was
-        // already dead when we first try to ping it). In those situations, we need to continue the protocol until we're certain it is
-        // suspect and unreachable, as without signalling unreachable the high-level membership would not have a chance to notice and
-        // call the node [Cluster.MemberStatus.down].
-        self.swim.addMember(peer, status: .alive(incarnation: 0))
-
-        // TODO: we are sending the ping here to initiate cluster membership. Once available this should do a state sync instead
-        self.sendPing(to: peer, pingRequestOriginPeer: nil, timeout: self.swim.dynamicLHMPingTimeout, sequenceNumber: self.swim.nextSequenceNumber())
-    }
 }
 
 extension SWIMNIOShell {
     static let periodicPingKey = "swim/periodic-ping"
 }
 
-// FIXME: do we need to expose reachability in SWIM like this?
 /// Reachability indicates a failure detectors assessment of the member node's reachability,
 /// i.e. whether or not the node is responding to health check messages.
 ///
@@ -614,7 +607,7 @@ public enum MemberReachability: String, Equatable {
     case unreachable
 }
 
-struct Cancellable {
+struct SWIMCancellable {
     let cancel: () -> Void
 
     init(_ cancel: @escaping () -> Void) {

@@ -60,7 +60,6 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
             .channelInitializer { channel in channel.pipeline.addHandler(handler) }
 
         let channel = try! bootstrap.bind(host: "127.0.0.1", port: port).wait()
-        handler.shell.log.info("Bound to \(handler.shell.node)")
 
         self._shells.append(handler.shell)
         self._nodes.append(handler.shell.node)

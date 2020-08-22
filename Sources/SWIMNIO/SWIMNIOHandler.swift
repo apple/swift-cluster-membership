@@ -75,22 +75,13 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
         context.fireChannelUnregistered()
     }
 
-    public func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
-        switch event {
-        case let change as SWIM.MemberStatusChangedEvent:
-            self.log.trace("Membership changed: \(change.member), \(String(describing: change.previousStatus)) -> \(change.status)")
-        default:
-            context.fireUserInboundEventTriggered(event)
-        }
-    }
-
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Write Messages
 
     public func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
         let writeCommand = self.unwrapOutboundIn(data)
 
-        self.log.warning("write command: \(writeCommand.message.messageCaseDescription)", metadata: [
+        self.log.trace("Write command: \(writeCommand.message.messageCaseDescription)", metadata: [
             "write/message": "\(writeCommand.message)",
             "write/recipient": "\(writeCommand.recipient)",
             "write/reply-timeout": "\(writeCommand.replyTimeout)",
@@ -130,7 +121,9 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
 
             context.writeAndFlush(self.wrapOutboundOut(envelope), promise: promise)
         } catch {
-            self.log.warning("Write failed: \(error)")
+            self.log.warning("Write failed", metadata: [
+                "error": "\(error)",
+            ])
         }
     }
 
@@ -157,12 +150,12 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                 let callbackKey = PendingResponseCallbackIdentifier(peerAddress: remoteAddress, sequenceNumber: message.sequenceNumber)
                 if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
                     // TODO: UIDs of nodes...
-                    self.log.warning("Received response, key: \(callbackKey); Invoking callback...", metadata: [
+                    self.log.trace("Received response, key: \(callbackKey); Invoking callback...", metadata: [
                         "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
                     callback(.success(message))
                 } else {
-                    self.log.warning("No callback for \(callbackKey)... It may have been removed due to a timeout already.", metadata: [
+                    self.log.trace("No callback for \(callbackKey)... It may have been removed due to a timeout already.", metadata: [
                         "pending callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
                 }

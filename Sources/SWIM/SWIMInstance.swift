@@ -21,6 +21,32 @@ import Glibc
 import enum Dispatch.DispatchTimeInterval
 import Logging
 
+
+/// # SWIM (Scalable Weakly-consistent Infection-style Process Group Membership Protocol).
+///
+/// SWIM serves as a low-level distributed failure detector mechanism.
+/// It also maintains its own membership in order to monitor and select nodes to ping with periodic health checks,
+/// however this membership is not directly the same as the high-level membership exposed by the `Cluster`.
+///
+/// SWIM is first and foremost used to determine if nodes are reachable or not (in SWIM terms if they are `.dead`),
+/// it can also serve as a primitive p2p discovery mechanism, since the peers spread gossip about each other, and via
+/// this mechanism new members are able to notice members which they were previously not aware of.
+///
+/// Cluster members may be discovered though SWIM gossip, yet will be asked to participate in the high-level
+/// cluster membership as driven by the `ClusterShell`.
+///
+/// ### Properties
+///
+/// #### Time Bounded Completeness
+/// The time interval between the occurrence of a failure and its detection at member is no more than two times the
+/// group size (in number of protocol periods).
+///
+/// ### See Also
+/// - SeeAlso: `SWIM.Instance` for a detailed discussion on the implementation.
+/// - SeeAlso: `SWIMNIO.Shell` for an example interpretation and driving the interactions.
+public enum SWIM {
+}
+
 public protocol SWIMProtocol {
     /// Must be invoked periodically, in intervals of `self.swim.dynamicLHMProtocolInterval`.
     ///
@@ -38,7 +64,7 @@ public protocol SWIMProtocol {
     ///
     /// - Parameter payload:
     /// - Returns:
-    mutating func onPing(payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) -> [SWIM.Instance.PingDirective]
+    mutating func onPing(pingOrigin: SWIMAddressablePeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) -> [SWIM.Instance.PingDirective]
 
     /// Must be invoked when a `pingRequest` is received.
     ///
@@ -105,12 +131,10 @@ extension SWIM {
     /// > As you swim lazily through the milieu,
     /// > The secrets of the world will infect you.
     ///
-    /// Implementation of the SWIM protocol in abstract terms, see [SWIMShell] for the acting upon directives issued by this instance.
+    /// Implementation of the SWIM protocol in abstract terms, not dependent on any specific runtime.
     ///
-    /// ### Modifications
+    /// ### Extensions
     /// - Random, stable order members to ping selection: Unlike the completely random selection in the original paper.
-    ///
-    /// See the reference documentation of this swim implementation in the reference documentation.
     ///
     /// ### Related Papers
     /// - SeeAlso: [SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol](https://www.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf)
@@ -144,7 +168,9 @@ extension SWIM {
         private var _sequenceNumber: SWIM.SequenceNumber = 0
         /// Sequence numbers are used to identify messages and pair them up into request/replies.
         /// - SeeAlso: `SWIM.SequenceNumber`
-        public func nextSequenceNumber() -> SWIM.SequenceNumber { // TODO: make internal?
+        // TODO: make internal?
+        // TODO: sequence numbers per-target node?
+        public func nextSequenceNumber() -> SWIM.SequenceNumber {
             self._sequenceNumber += 1
             return self._sequenceNumber
         }
@@ -223,13 +249,22 @@ extension SWIM {
 
         /// In order to speed up the spreading of "fresh" rumors, we order gossips in their "number of times gossiped",
         /// and thus are able to easily pick the least spread rumor and pick it for the next gossip round.
+        ///
+        /// This is tremendously important in order to spread information about e.g. newly added members to others,
+        /// before members which are aware of them could have a chance to all terminate, leaving the rest of the cluster
+        /// unaware about those new members. For disseminating suspicions this is less urgent, however also serves as an
+        /// useful optimization.
+        ///
+        /// - SeeAlso: SWIM 4.1. Infection-Style Dissemination Component
+        /// // FIXME: we removed the max times to gossip, and we MUST replace observations basically for a specific node!!!
+        /// // FIXME: make sure that we dont build this up into infinity...?
         private var _messagesToGossip: Heap<SWIM.Gossip> = Heap(
             comparator: {
                 $0.numberOfTimesGossiped < $1.numberOfTimesGossiped
             }
         )
 
-        // FIXME: should not be public
+        // FIXME: should not be public!!!!
         @discardableResult
         public func addMember(_ peer: SWIMAddressablePeer, status: SWIM.Status) -> AddMemberDirective {
             let maybeExistingMember = self.member(for: peer)
@@ -261,9 +296,13 @@ extension SWIM {
                     // on a rolling restart.
                     self.advanceMembersToPingIndex()
                 }
+
+                // it is a new member, and we need to reset gossip counts in order to ensure it also receive information about all nodes
+                // self.onNewMemberJoined(member: member)
             }
 
-            self.addToGossip(member: member)
+            self.resetGossipPayloads(member: member)
+            // self.addToGossip(member: member)
 
             return .added(member)
         }
@@ -335,7 +374,7 @@ extension SWIM {
             } else if case .suspect = status {
                 suspicionStartedAt = self.nowNanos()
             } else if case .unreachable = status,
-                case .disabled = self.settings.unreachability {
+                case .disabled = self.settings.extensionUnreachability {
                 // This node is not configured to respect unreachability and thus will immediately promote this status to dead
                 // TODO: log warning here
                 status = .dead
@@ -348,13 +387,20 @@ extension SWIM {
 
             let member = SWIM.Member(peer: peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: suspicionStartedAt)
             self.members[peer.node] = member
-            self.addToGossip(member: member)
 
             if status.isDead {
                 self.removeFromMembersToPing(member)
             }
+            
+            self.resetGossipPayloads(member: member)
 
             return .applied(previousStatus: previousStatusOption, currentStatus: status)
+        }
+
+        private func resetGossipPayloads(member: SWIM.Member) {
+            // seems we gained a new member, and we need to reset gossip counts in order to ensure it also receive information about all nodes
+            // TODO: this would be a good place to trigger a full state sync, to speed up convergence; see https://github.com/apple/swift-cluster-membership/issues/37
+            self.allMembers.forEach { self.addToGossip(member: $0) }
         }
 
         public enum MarkedDirective: Equatable {
@@ -445,64 +491,64 @@ extension SWIM {
         }
 
         public func makeGossipPayload(to target: SWIMAddressablePeer?) -> SWIM.GossipPayload {
-            var members: [SWIM.Member] = []
-            // buddy system will always send to a suspect its suspicion.
+            var membersToGossipAbout: [SWIM.Member] = []
+            // Lifeguard IV. Buddy System
+            // Always send to a suspect its suspicion.
             // The reason for that to ensure the suspect will be notified it is being suspected,
-            // even if the suspicion has already been disseminated more than `numberOfTimesGossiped` times.
+            // even if the suspicion has already been disseminated "enough times".
             let targetIsSuspect: Bool
             if let target = target,
                 let member = self.member(for: target),
                 member.isSuspect {
                 // the member is suspect, and we must inform it about this, thus including in gossip payload:
-                members.append(member)
+                membersToGossipAbout.append(member)
                 targetIsSuspect = true
             } else {
                 targetIsSuspect = false
             }
 
-            // In order to avoid duplicates within a single gossip payload, we
-            // first collect all messages we need to gossip out and only then
-            // re-insert them into `messagesToGossip`. Otherwise, we may end up
-            // selecting the same message multiple times, if e.g. the total number
-            // of messages is smaller than the maximum gossip size, or for newer
-            // messages that have a lower `numberOfTimesGossiped` counter than
-            // the other messages.
             guard self._messagesToGossip.count > 0 else {
-                if members.isEmpty {
-                    return .none
+                if membersToGossipAbout.isEmpty {
+                    // if we have no pending gossips to share, at least inform the member about our state.
+                    return .membership([self.myselfMember])
                 } else {
-                    return .membership(members)
+                    return .membership(membersToGossipAbout)
                 }
             }
 
+            // In order to avoid duplicates within a single gossip payload, we first collect all messages we need to
+            // gossip out and only then re-insert them into `messagesToGossip`. Otherwise, we may end up selecting the
+            // same message multiple times, if e.g. the total number of messages is smaller than the maximum gossip
+            // size, or for newer messages that have a lower `numberOfTimesGossiped` counter than the other messages.
             var gossipRoundMessages: [SWIM.Gossip] = []
-            gossipRoundMessages.reserveCapacity(min(self.settings.gossip.maxGossipCountPerMessage, self._messagesToGossip.count))
-            while gossipRoundMessages.count < self.settings.gossip.maxNumberOfMessages,
+            gossipRoundMessages.reserveCapacity(min(self.settings.gossip.maxNumberOfMessagesPerGossip, self._messagesToGossip.count))
+            while gossipRoundMessages.count < self.settings.gossip.maxNumberOfMessagesPerGossip,
                 let gossip = self._messagesToGossip.removeRoot() {
                 gossipRoundMessages.append(gossip)
             }
 
-            members.reserveCapacity(gossipRoundMessages.count)
+            membersToGossipAbout.reserveCapacity(gossipRoundMessages.count)
 
             for var gossip in gossipRoundMessages {
-                // We do NOT add gossip to payload if it's a gossip about self and self is a suspect,
-                // this case was handled earlier and doing it here will lead to duplicate messages
-                if !(target?.node == gossip.member.peer.node && targetIsSuspect) {
-                    members.append(gossip.member)
+                if targetIsSuspect && target?.node == gossip.member.node {
+                    // We do NOT add gossip to payload if it's a gossip about target and target is suspect,
+                    // this case was handled earlier and doing it here will lead to duplicate messages
+                    ()
+                } else {
+                    membersToGossipAbout.append(gossip.member)
                 }
+                
                 gossip.numberOfTimesGossiped += 1
-                if gossip.numberOfTimesGossiped < self.settings.gossip.maxGossipCountPerMessage {
+                if self.settings.gossip.needsToBeGossipedMoreTimes(gossip, members: self.allMembers.count) {
                     self._messagesToGossip.append(gossip)
                 }
             }
 
-            return .membership(members)
+            return .membership(membersToGossipAbout)
         }
 
         /// Adds `Member` to gossip messages.
-        ///
-        /// It will be gossiped at most `settings.gossip.maxGossipCountPerMessage` times. // TODO: confirm this
-        private func addToGossip(member: SWIM.Member) {
+        internal func addToGossip(member: SWIM.Member) {
             // we need to remove old state before we add the new gossip, so we don't gossip out stale state
             self._messagesToGossip.remove(where: { $0.member.peer.node == member.peer.node })
             self._messagesToGossip.append(.init(member: member, numberOfTimesGossiped: 0))
@@ -634,25 +680,20 @@ extension SWIM.Instance {
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Handler
 
-    public func onPing(payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) -> [PingDirective] {
-        var directives: [PingDirective] = []
+    public func onPing(pingOrigin: SWIMAddressablePeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) -> [PingDirective] {
+        var directives: [PingDirective]
 
         // 1) Process gossip
-        switch payload {
-        case .membership(let members):
-            directives = members.map { member in
-                let directive = self.onGossipPayload(about: member)
-                return .gossipProcessed(directive)
-            }
-        case .none:
-            () // ok, no gossip payload
+        directives = self.onGossipPayload(payload).map { g in
+            .gossipProcessed(g)
         }
 
         // 2) Prepare reply
+        let gossipPayload: SWIM.GossipPayload = self.makeGossipPayload(to: pingOrigin)
         let reply = PingDirective.sendAck(
             myself: self.myself,
             incarnation: self._incarnation,
-            payload: self.makeGossipPayload(to: nil),
+            payload: gossipPayload,
             sequenceNumber: sequenceNumber
         )
         directives.append(reply)
@@ -982,7 +1023,7 @@ extension SWIM.Instance {
     }
 
     internal func onGossipPayload(about member: SWIM.Member) -> GossipProcessedDirective {
-        if self.whenMyself(member) != nil {
+        if self.isMyself(member) {
             return self.onMyselfGossipPayload(myself: member)
         } else {
             return self.onOtherMemberGossipPayload(member: member)
@@ -993,7 +1034,14 @@ extension SWIM.Instance {
     /// Performs all special handling of `.unreachable` such that if it is disabled members are automatically promoted to `.dead`.
     /// See `settings.unreachability` for more details.
     private func onMyselfGossipPayload(myself incoming: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
-        assert(self.myself.node == incoming.peer.node, "Attempted to process gossip as-if about myself, but was not the same peer, was: \(incoming). Myself: \(self.myself, orElse: "nil")")
+        assert(
+            self.myself.node == incoming.peer.node,
+            """
+            Attempted to process gossip as-if about myself, but was not the same peer, was: \(incoming.peer.node.detailedDescription). \
+            Myself: \(self.myself)
+            SWIM.Instance: \(self)
+            """
+        )
 
         // Note, we don't yield changes for myself node observations, thus the self node will never be reported as unreachable,
         // after all, we can always reach ourselves. We may reconsider this if we wanted to allow SWIM to inform us about
@@ -1027,7 +1075,7 @@ extension SWIM.Instance {
             }
 
         case .unreachable(let unreachableInIncarnation):
-            switch self.settings.unreachability {
+            switch self.settings.extensionUnreachability {
             case .enabled:
                 // someone suspected us,
                 // so we need to increment our incarnation number to spread our alive status with the incremented incarnation
@@ -1074,47 +1122,62 @@ extension SWIM.Instance {
     private func onOtherMemberGossipPayload(member: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
         assert(self.node != member.node, "Attempted to process gossip as-if not-myself, but WAS same peer, was: \(member). Myself: \(self.myself, orElse: "nil")")
 
-        if self.isMember(member.peer) {
-            switch self.mark(member.peer, as: member.status) {
-            case .applied(let previousStatus, let currentStatus):
-                var member = member
-                member.status = currentStatus
-                if currentStatus.isSuspect, previousStatus?.isAlive ?? false {
-                    return .applied(
-                        change: .init(previousStatus: previousStatus, member: member),
-                        level: .debug,
-                        message: "Member [\(member.peer.node, orElse: "<unknown-node>")] marked as suspect, via incoming gossip"
-                    )
-                } else {
-                    return .applied(change: .init(previousStatus: previousStatus, member: member))
+        guard self.isMember(member.peer) else {
+            // it's a new node it seems
+            if member.node.uid != nil {
+                // only accept new nodes with their UID set.
+                //
+                // the Shell may need to set up a connection if we just made a move from previousStatus: nil,
+                // so we definitely need to emit this change
+                switch self.addMember(member.peer, status: member.status) {
+                case .added(let member):
+                    return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
+                case .newerMemberAlreadyPresent(let member):
+                    return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
                 }
-
-            case .ignoredDueToOlderStatus(let currentStatus):
-                return .ignored(
-                    level: .trace,
-                    message: "Gossip about member \(reflecting: member.node), incoming: [\(member.status)] does not supersede current: [\(currentStatus)]"
-                )
+            } else {
+                return .ignored
             }
-        } else {
-            self.addMember(member.peer, status: member.status) // we assume the best
+        }
 
-            // ask the shell to eagerly prep a connection with it
-            return .connect(node: member.node)
+        switch self.mark(member.peer, as: member.status) {
+        case .applied(let previousStatus, let currentStatus):
+            var member = member
+            member.status = currentStatus
+            if currentStatus.isSuspect, previousStatus?.isAlive ?? false {
+                return .applied(
+                    change: .init(previousStatus: previousStatus, member: member),
+                    level: .debug,
+                    message: "Member [\(member.peer.node, orElse: "<unknown-node>")] marked as suspect, via incoming gossip"
+                )
+            } else {
+                return .applied(change: .init(previousStatus: previousStatus, member: member))
+            }
+
+        case .ignoredDueToOlderStatus(let currentStatus):
+            return .ignored(
+                level: .trace,
+                message: "Gossip about member \(reflecting: member.node), incoming: [\(member.status)] does not supersede current: [\(currentStatus)]"
+            )
         }
     }
 
     public enum GossipProcessedDirective {
+        /// The gossip was applied to the local membership view and an event may want to be emitted for it.
+        ///
+        /// It is up to the shell implementation which events are published, but generally it is recommended to
+        /// only publish changes which are `SWIM.MemberStatusChangedEvent.isReachabilityChange` as those can and should
+        /// usually be acted on by high level implementations.
+        ///
+        /// Changes between alive and suspect are an internal implementation detail of SWIM,
+        /// and usually do not need to be emitted as events to users.
+        ///
+        /// ### Note for connection based implementations
+        /// You may need to establish a new connection if the changes' `previousStatus` is `nil`, as it means we have
+        /// not seen this member before and in order to send messages to it, one may want to eagerly establish a connection to it.
         case applied(change: SWIM.MemberStatusChangedEvent?, level: Logger.Level?, message: Logger.Message?)
         /// Ignoring a gossip update is perfectly fine: it may be "too old" or other reasons
         case ignored(level: Logger.Level?, message: Logger.Message?) // TODO: allow the instance to log
-        /// Warning! Even though we have an `ClusterMembership.Node` here, we need to ensure that we are actually connected to the node,
-        /// hosting this swim peer.
-        ///
-        /// It can happen that a gossip payload informs us about a node that we have not heard about before,
-        /// and do not have a connection to it either (e.g. we joined only seed nodes, and more nodes joined them later
-        /// we could get information through the seed nodes about the new members; but we still have never talked to them,
-        /// thus we need to ensure we have a connection to them, before we consider adding them to the membership).
-        case connect(node: ClusterMembership.Node) // FIXME: should be able to remove this
 
         static func applied(change: SWIM.MemberStatusChangedEvent?) -> SWIM.Instance.GossipProcessedDirective {
             .applied(change: change, level: nil, message: nil)
@@ -1163,7 +1226,7 @@ extension SWIM.Instance: CustomDebugStringConvertible {
     public var debugDescription: String {
         // multi-line on purpose
         """
-        SWIMInstance(
+        SWIM.Instance(
             settings: \(settings),
             
             myself: \(String(reflecting: myself)),
@@ -1197,8 +1260,8 @@ extension SWIM.Instance {
         case refutingSuspectMessageAboutSelf
         case probeWithMissedNack
 
-        /// Returns by how much the LHM should be adjusted in response to this event.
-        /// The adjusted value MUST be clamped between `0 <= value <= maxLocalHealthMultiplier`
+        /// - Returns: by how much the LHM should be adjusted in response to this event.
+        ///   The adjusted value MUST be clamped between `0 <= value <= maxLocalHealthMultiplier`
         var lhmAdjustment: Int {
             switch self {
             case .successfulProbe:
