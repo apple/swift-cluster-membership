@@ -253,7 +253,7 @@ final class SWIMInstanceTests: XCTestCase {
         }
     }
 
-    // ==== ----------------------------------------------------------------------------------------------------------------
+    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Detecting when a change is "effective"
 
     func test_MarkedDirective_isEffectiveChange() {
@@ -325,7 +325,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
         let currentIncarnation = swim.incarnation
 
-        let myselfMember = swim.member(for: self.myself)!
+        let myselfMember = swim.myselfMember
 
         let res = swim.onGossipPayload(about: myselfMember)
 
@@ -343,7 +343,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
         let currentIncarnation = swim.incarnation
 
-        var myselfMember = swim.member(for: self.myself)!
+        var myselfMember = swim.myselfMember
         myselfMember.status = .suspect(incarnation: currentIncarnation, suspectedBy: [self.thirdNode])
 
         let res = swim.onGossipPayload(about: myselfMember)
@@ -362,7 +362,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
         var currentIncarnation = swim.incarnation
 
-        var myselfMember = swim.member(for: self.myself)!
+        var myselfMember = swim.myselfMember
 
         // necessary to increment incarnation
         myselfMember.status = .suspect(incarnation: currentIncarnation, suspectedBy: [self.thirdNode])
@@ -387,7 +387,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
         let currentIncarnation = swim.incarnation
 
-        var myselfMember = swim.member(for: self.myself)!
+        var myselfMember = swim.myselfMember
 
         myselfMember.status = .suspect(incarnation: currentIncarnation + 6, suspectedBy: [self.thirdNode])
         let res = swim.onGossipPayload(about: myselfMember)
@@ -405,11 +405,11 @@ final class SWIMInstanceTests: XCTestCase {
     func test_onGossipPayload_myself_withDead() throws {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        var myselfMember = swim.member(for: self.myself)!
+        var myselfMember = swim.myselfMember
         myselfMember.status = .dead
         let res = swim.onGossipPayload(about: myselfMember)
 
-        let myMember = swim.member(for: self.myself)!
+        let myMember = swim.myselfMember
         XCTAssertEqual(myMember.status, .dead)
 
         switch res {
@@ -435,6 +435,138 @@ final class SWIMInstanceTests: XCTestCase {
             XCTAssertEqual(change.member, otherMember)
         default:
             XCTFail("Expected `.applied(.some(change to dead))`, got \(res)")
+        }
+    }
+
+    func test_onGossipPayload_myself_withUnreachable_unreachabilityEnabled() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        var myselfMember = swim.myselfMember
+        myselfMember.status = .unreachable(incarnation: 1)
+        let directive = swim.onGossipPayload(about: myselfMember)
+
+        let myMember = swim.myselfMember
+        // we never accept other telling us about "our future" this is highly suspect!
+        // only we can be the origin of incarnation numbers after all.
+        XCTAssertEqual(myMember.status, .alive(incarnation: 0))
+
+        switch directive {
+        case .applied(nil, let logLevel, _):
+            // an incoming unreachable event with a future incarnation number
+            // that we have not reached yet is highly suspect thus the warning about it
+            XCTAssertEqual(logLevel, .warning)
+        default:
+            XCTFail("Expected `.applied(_, .warning, ...)`, got: \(directive)")
+        }
+    }
+
+    func test_onGossipPayload_other_withUnreachable_unreachabilityEnabled() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+        let other = self.second!
+
+        swim.addMember(other, status: .alive(incarnation: 0))
+
+        var otherMember = swim.member(for: other)!
+        otherMember.status = .unreachable(incarnation: 1)
+        let directive = swim.onGossipPayload(about: otherMember)
+
+        switch directive {
+        case .applied(.some(let change), _, _) where change.status.isUnreachable:
+            XCTAssertEqual(change.member, otherMember)
+        default:
+            XCTFail("Expected `.applied(.some(change to unreachable))`, got: \(directive)")
+        }
+    }
+
+    func test_onGossipPayload_myself_withOldUnreachable_unreachabilityEnabled() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+        swim.incrementProtocolPeriod()
+
+        var myselfMember = swim.myselfMember
+        myselfMember.status = .unreachable(incarnation: 0)
+        let directive = swim.onGossipPayload(about: myselfMember)
+
+        let myMember = swim.myselfMember
+        XCTAssertEqual(myMember.status, .alive(incarnation: 0))
+
+        switch directive {
+        case .ignored:
+            () // good
+        default:
+            XCTFail("Expected `.ignored`, since the unreachable information is too old to matter anymore, got: \(directive)")
+        }
+    }
+
+    func test_onGossipPayload_other_withOldUnreachable_unreachabilityEnabled() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+        let other = self.second!
+
+        swim.addMember(other, status: .alive(incarnation: 10))
+
+        var otherMember = swim.member(for: other)!
+        otherMember.status = .unreachable(incarnation: 1) // too old, we're already alive in 10
+        let directive = swim.onGossipPayload(about: otherMember)
+
+        switch directive {
+        case .ignored:
+            () // good
+        default:
+            XCTFail("Expected `.ignored`, since the unreachable information is too old to matter anymore, got: \(directive)")
+        }
+    }
+
+    func test_onGossipPayload_myself_withUnreachable_unreachabilityDisabled() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .disabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        var myselfMember = swim.myselfMember
+        myselfMember.status = .unreachable(incarnation: 1)
+
+        let directive = swim.onGossipPayload(about: myselfMember)
+
+        // we never accept other peers causing us to become some other status,
+        // we always view ourselfes as reachable (alive) until dead.
+        let myMember = swim.myselfMember
+        XCTAssertEqual(myMember.status, .alive(incarnation: 0))
+
+        switch directive {
+        case .ignored:
+            () // ok, unreachability was disabled after all, so we completely ignore it
+        default:
+            XCTFail("Expected `.applied(_, .warning, ...)`, got: \(directive)")
+        }
+    }
+
+    func test_onGossipPayload_other_withUnreachable_unreachabilityDisabled() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .disabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+        let other = self.second!
+
+        swim.addMember(other, status: .alive(incarnation: 0))
+
+        var otherMember = swim.member(for: other)!
+        otherMember.status = .unreachable(incarnation: 1)
+        // we receive an unreachability event, but we do not use this state, it should be automatically promoted to dead,
+        // other nodes may use unreachability e.g. when we're rolling out a reconfiguration, but they can't force
+        // us to keep those statuses of members, thus we always promote it to dead.
+        let directive = swim.onGossipPayload(about: otherMember)
+
+        switch directive {
+        case .applied(.some(let change), _, _) where change.status.isDead:
+            otherMember.status = .dead // with unreachability disabled, we automatically promoted it to .dead
+            XCTAssertEqual(change.member, otherMember)
+        default:
+            XCTFail("Expected `.applied(.some(change to dead))`, got: \(directive)")
         }
     }
 
@@ -695,7 +827,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         swim.addMember(self.second, status: .alive(incarnation: 10))
 
-        let member = swim.member(for: self.myself)!
+        let member = swim.myselfMember
         XCTAssertEqual(member.node, self.myself.node)
         XCTAssertTrue(member.isAlive)
         XCTAssertEqual(member.status, .alive(incarnation: 0))
@@ -765,7 +897,26 @@ final class SWIMInstanceTests: XCTestCase {
     }
 
     func test_memberCount_shouldNotCountDeadMembers() {
-        let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
+        let settings = SWIM.Settings()
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        let aliveAtZero = SWIM.Status.alive(incarnation: 0)
+        swim.addMember(self.second, status: aliveAtZero)
+        swim.addMember(self.third, status: aliveAtZero)
+        swim.addMember(self.fourth, status: aliveAtZero)
+        XCTAssertEqual(swim.notDeadMemberCount, 4)
+
+        swim.mark(self.second, as: .dead)
+        XCTAssertEqual(swim.notDeadMemberCount, 3)
+
+        swim.mark(self.fourth, as: .dead)
+        XCTAssertEqual(swim.notDeadMemberCount, 2) // dead is not part of membership
+    }
+
+    func test_memberCount_shouldCountUnreachableMembers() {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         let aliveAtZero = SWIM.Status.alive(incarnation: 0)
         swim.addMember(self.second, status: aliveAtZero)
@@ -831,6 +982,61 @@ final class SWIMInstanceTests: XCTestCase {
         try self.validateGossip(swim: swim, expected: [.init(peer: otherPeer, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0), myselfMember])
         try self.validateGossip(swim: swim, expected: [.init(peer: otherPeer, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0)])
         try self.validateGossip(swim: swim, expected: [])
+    }
+
+    // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: Confirming dead
+
+    func test_confirmDead_anUnknownNode_shouldDoNothing() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        let directive = swim.confirmDead(peer: self.second)
+        switch directive {
+        case .ignored:
+            () // ok
+        default:
+            XCTFail("Expected marking an unknown node to be ignored, got: \(directive)")
+        }
+    }
+
+    func test_confirmDead_aKnownOtherNode_shouldApply() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        swim.addMember(self.second, status: .alive(incarnation: 10))
+
+        let directive = swim.confirmDead(peer: self.second)
+        switch directive {
+        case .applied(let change):
+            let previousStatus = change.previousStatus
+            let member = change.member
+            XCTAssertEqual(previousStatus, SWIM.Status.alive(incarnation: 10))
+            XCTAssertEqual("\(reflecting: member.peer)", "\(reflecting: self.second!)")
+        default:
+            XCTFail("Expected confirmingDead a node to be `.applied`, got: \(directive)")
+        }
+    }
+
+    func test_confirmDead_myself_shouldApply() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        swim.addMember(self.second, status: .alive(incarnation: 10))
+
+        let directive = swim.confirmDead(peer: self.myself)
+        switch directive {
+        case .applied(let change):
+            let previousStatus = change.previousStatus
+            let member = change.member
+            XCTAssertEqual(previousStatus, SWIM.Status.alive(incarnation: 0))
+            XCTAssertEqual("\(reflecting: member.peer)", "\(reflecting: self.myself!)")
+        default:
+            XCTFail("Expected confirmingDead a node to be `.applied`, got: \(directive)")
+        }
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
