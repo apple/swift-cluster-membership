@@ -66,7 +66,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
         )
 
         self.log.trace("Channel active", metadata: [
-            "nio/localAddress": "\(String(describing: context.channel.localAddress))",
+            "nio/localAddress": "\(context.channel.localAddress?.description ?? "unknown")",
         ])
     }
 
