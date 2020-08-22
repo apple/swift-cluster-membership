@@ -20,7 +20,7 @@ import SWIM
 import XCTest
 
 final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
-    // ==== ----------------------------------------------------------------------------------------------------------------
+    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Black box tests, we let the nodes run and inspect their state via logs
 
     func test_real_peers_2_connect() throws {

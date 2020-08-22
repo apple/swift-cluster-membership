@@ -82,6 +82,21 @@ public protocol SWIMProtocol {
     ///   - response:
     ///   - member:
     mutating func onEveryPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: SWIMAddressablePeer)
+
+    /// Optional, only relevant when using `settings.unreachable` status mode (which is disabled by default).
+    ///
+    /// When `.unreachable` members are allowed, this function MUST be invoked to promote a node into `.dead` state.
+    ///
+    /// In other words, once a `MemberStatusChangedEvent` for an unreachable member has been emitted,
+    /// a higher level system may take additional action and then determine when to actually confirm it dead.
+    /// Systems can implement additional split-brain prevention mechanisms on those layers for example.
+    ///
+    /// Once a node is determined dead by such higher level system, it may invoked `swim.confirmDead(peer: theDefinitelyDeadPeer`,
+    /// to mark the node as dead, with all of its consequences.
+    ///
+    /// - Parameter peer: the peer which should be confirmed dead.
+    /// - Returns: a directive explaining what action was taken, and should be taken in response to this action.
+    mutating func confirmDead(peer: SWIMAddressablePeer) -> SWIM.Instance.ConfirmDeadDirective
 }
 
 extension SWIM {
@@ -650,7 +665,7 @@ extension SWIM.Instance {
         case sendAck(myself: SWIMAddressablePeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber)
     }
 
-    // ==== ----------------------------------------------------------------------------------------------------------------
+    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Response Handlers
 
     public func onPingResponse(response: SWIM.PingResponse, pingRequestOrigin: SWIMPingOriginPeer?) -> [PingResponseDirective] {
@@ -823,7 +838,7 @@ extension SWIM.Instance {
         }
     }
 
-    // ==== ----------------------------------------------------------------------------------------------------------------
+    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Request
 
     public func onPingRequest(target: SWIMPeer, replyTo: SWIMPingOriginPeer, payload: SWIM.GossipPayload) -> [PingRequestDirective] {
@@ -868,7 +883,7 @@ extension SWIM.Instance {
         case sendPing(target: SWIMPeer, pingRequestOrigin: SWIMPingOriginPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
     }
 
-    // ==== ----------------------------------------------------------------------------------------------------------------
+    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Request Response
 
     /// This should be called on first successful (non-nack) pingRequestResponse
@@ -1109,6 +1124,30 @@ extension SWIM.Instance {
             .ignored(level: nil, message: nil)
         }
     }
+
+    // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: Confirm Dead
+
+    public func confirmDead(peer: SWIMAddressablePeer) -> ConfirmDeadDirective {
+        guard var member = self.member(for: peer) else {
+            return .ignored
+        }
+
+        switch self.mark(peer, as: .dead) {
+        case .applied(let previousStatus, let currentStatus):
+            member.status = currentStatus
+            return .applied(member, previousStatus: previousStatus)
+
+        case .ignoredDueToOlderStatus:
+            return .ignored // it was already dead for example
+        }
+    }
+
+    public enum ConfirmDeadDirective {
+        case applied(SWIM.Member, previousStatus: SWIM.Status?)
+        case ignored
+    }
+
 }
 
 extension SWIM.Instance: CustomDebugStringConvertible {
