@@ -603,7 +603,6 @@ public final class SWIMNIOShell {
         // emit the SWIM.MemberStatusChange as user event
         self.announceMembershipChange(change)
     }
-
 }
 
 extension SWIMNIOShell {

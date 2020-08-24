@@ -18,18 +18,12 @@ import SWIM
 @testable import SWIMNIO
 import XCTest
 
-final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
-    override var alwaysPrintCaptureLogs: Bool {
-        true
-    }
-
+// TODO: those tests could be done on embedded event loops probably
+final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
     var settings: SWIM.Settings!
     lazy var myselfNode = Node(protocol: "udp", host: "127.0.0.1", port: 7001, uid: 1111)
     lazy var myselfPeer = SWIM.NIOPeer(node: myselfNode, channel: EmbeddedChannel())
     lazy var myselfMemberAliveInitial = SWIM.Member(peer: myselfPeer, status: .alive(incarnation: 0), protocolPeriod: 0)
-
-    let nonExistentNode = Node(protocol: "udp", host: "127.0.0.222", port: 7834, uid: 9324)
-    lazy var nonExistentPeer = SWIM.NIOPeer(node: nonExistentNode, channel: EmbeddedChannel())
 
     var group: MultiThreadedEventLoopGroup!
 
@@ -51,42 +45,70 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
     func test_memberStatusChange_alive_emittedForMyself() throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
 
-        let first = try bindShell(settings, probe: firstProbe)
+        let first = try bindShell(probe: firstProbe) { settings in
+            settings.node = self.myselfNode
+        }
         defer { try! first.close().wait() }
 
         try firstProbe.expectEvent(SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
     }
 
-    func test_memberStatusChange_suspect_emittedForNonExistentNode() throws {
+    func test_memberStatusChange_suspect_emittedForDyingNode() throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
+        let secondProbe = ProbeEventHandler(loop: group.next())
 
-        self.settings.initialContactPoints = [
-            self.nonExistentNode,
-        ]
-        let first = try bindShell(settings, probe: firstProbe)
+        let secondNodePort = 7002
+        let secondNode = Node(protocol: "udp", host: "127.0.0.1", port: secondNodePort, uid: 222_222)
+
+        let second = try bindShell(probe: secondProbe) { settings in
+            settings.node = secondNode
+        }
+
+        let first = try bindShell(probe: firstProbe) { settings in
+            settings.node = self.myselfNode
+            settings.initialContactPoints = [secondNode.withoutUID]
+        }
         defer { try! first.close().wait() }
 
+        // wait for second probe to become alive:
+        try secondProbe.expectEvent(SWIM.MemberStatusChangedEvent(
+            previousStatus: nil,
+            member: SWIM.Member(peer: SWIM.NIOPeer(node: secondNode, channel: EmbeddedChannel()), status: .alive(incarnation: 0), protocolPeriod: 0)
+        )
+        )
+
+        sleep(5) // let them discover each other, since the nodes are slow at retrying and we didn't configure it yet a sleep is here meh
+        try! second.close().wait()
+
         try firstProbe.expectEvent(SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
-        let event = try firstProbe.expectEvent()
-        XCTAssertTrue(event.isReachabilityChange)
-        XCTAssertTrue(event.status.isUnreachable)
-        XCTAssertEqual(event.member.node, self.nonExistentNode)
+
+        let secondAliveEvent = try firstProbe.expectEvent()
+        XCTAssertTrue(secondAliveEvent.isReachabilityChange)
+        XCTAssertTrue(secondAliveEvent.status.isAlive)
+        XCTAssertEqual(secondAliveEvent.member.node.withoutUID, secondNode.withoutUID)
+
+        let secondDeadEvent = try firstProbe.expectEvent()
+        print("event: \(secondDeadEvent)")
+        XCTAssertTrue(secondDeadEvent.isReachabilityChange)
+        XCTAssertTrue(secondDeadEvent.status.isDead)
+        XCTAssertEqual(secondDeadEvent.member.node.withoutUID, secondNode.withoutUID)
     }
 
-    private func bindShell(_ settings: SWIM.Settings, probe probeHandler: ProbeEventHandler) throws -> Channel {
-        self._nodes.append(settings.node!)
+    private func bindShell(probe probeHandler: ProbeEventHandler, configure: (inout SWIM.Settings) -> Void = { _ in () }) throws -> Channel {
+        var settings = self.settings!
+        configure(&settings)
+        self.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
 
-        let channel = try DatagramBootstrap(group: group)
+        self._nodes.append(settings.node!)
+        return try DatagramBootstrap(group: self.group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in
-                var settings = settings
-                self.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
+
                 let swimHandler = SWIMNIOHandler(settings: settings)
                 return channel.pipeline.addHandler(swimHandler).flatMap { _ in
                     channel.pipeline.addHandler(probeHandler)
                 }
             }.bind(host: settings.node!.host, port: settings.node!.port).wait()
-        return channel
     }
 }
 

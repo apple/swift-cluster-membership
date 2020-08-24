@@ -36,28 +36,28 @@ final class SWIMSettingsTests: XCTestCase {
         members = 2
         g.numberOfTimesGossiped = 0
         for _ in 0 ... 3 {
-            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), true)
+            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
             g.numberOfTimesGossiped += 1
         }
 
         members = 10
         g.numberOfTimesGossiped = 0
         for _ in 0 ... 9 {
-            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), true)
+            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
             g.numberOfTimesGossiped += 1
         }
 
         members = 50
         g.numberOfTimesGossiped = 0
         for _ in 0 ... 16 {
-            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), true)
+            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
             g.numberOfTimesGossiped += 1
         }
 
         members = 200
         g.numberOfTimesGossiped = 0
         for _ in 0 ... 21 {
-            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), true)
+            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
             g.numberOfTimesGossiped += 1
         }
     }

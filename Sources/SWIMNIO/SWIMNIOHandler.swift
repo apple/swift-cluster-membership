@@ -34,7 +34,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
 
     // TODO: move callbacks into the shell?
     struct PendingResponseCallbackIdentifier: Hashable {
-        let peerAddress: SocketAddress // FIXME: UID as well...
+        let peerAddress: SocketAddress // FIXME: UID as well...?
         let sequenceNumber: SWIM.SequenceNumber
     }
 

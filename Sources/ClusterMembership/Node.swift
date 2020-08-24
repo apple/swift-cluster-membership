@@ -58,7 +58,7 @@ public struct Node: Hashable, Comparable, CustomStringConvertible {
 
     /// Prints a node's String representation including its `uid`.
     public var detailedDescription: String {
-        "\(self.protocol)://\(self.name.map({"\($0)@"}) ?? "")\(self.host):\(self.port)\(self.uid.map { "#\($0.description)" } ?? "")"
+        "\(self.protocol)://\(self.name.map { "\($0)@" } ?? "")\(self.host):\(self.port)\(self.uid.map { "#\($0.description)" } ?? "")"
     }
 }
 
