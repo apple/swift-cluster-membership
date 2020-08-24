@@ -52,7 +52,7 @@ struct SWIMNIOSampleCluster: ParsableCommand {
             let nodePort = self.port ?? 7001
             settings.logger = Logger(label: "swim-\(nodePort)")
             settings.logger.logLevel = self.parseLogLevel()
-            settings.initialContactPoints = self.parseContactPoints()
+            settings.swim.initialContactPoints = self.parseContactPoints()
 
             let node = SampleSWIMNIONode(port: nodePort, settings: settings, group: group)
             lifecycle.register(
@@ -67,7 +67,7 @@ struct SWIMNIOSampleCluster: ParsableCommand {
                 let nodePort = basePort + i
 
                 settings.logger = Logger(label: "swim-\(nodePort)")
-                settings.initialContactPoints = self.parseContactPoints()
+                settings.swim.initialContactPoints = self.parseContactPoints()
 
                 let node = SampleSWIMNIONode(
                     port: nodePort,

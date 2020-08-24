@@ -43,11 +43,11 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
         self.loop = nil
     }
 
-    func makeClusterNode(name: String? = nil, configure configureSettings: (inout SWIM.Settings) -> Void = { _ in () }) -> (SWIMNIOHandler, Channel) {
+    func makeClusterNode(name: String? = nil, configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }) -> (SWIMNIOHandler, Channel) {
         let port = self.nextPort()
         let name = name ?? "swim-\(port)"
 
-        var settings = SWIM.Settings()
+        var settings = SWIMNIO.Settings()
         configureSettings(&settings)
 
         if self.captureLogs {
@@ -87,25 +87,28 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
         self.loop = nil
     }
 
-    func makeShell(_ name: String? = nil, settings: SWIM.Settings?, startPeriodicPingTimer: Bool) -> SWIMNIOShell {
-        var settings = settings ?? SWIM.Settings()
-        let port: Int = self.nextPort()
-        let name = name ?? "swim-\(port)"
+    func makeShell(_ _name: String? = nil, settings: SWIMNIO.Settings?, startPeriodicPingTimer: Bool) -> SWIMNIOShell {
+        var settings = settings ?? SWIMNIO.Settings()
+        let node: Node
+        if let _node = settings.swim.node {
+            node = _node
+        } else {
+            let port = self.nextPort()
+            let name = _name ?? "swim-\(port)"
+            node = Node(protocol: "test", name: name, host: "127.0.0.1", port: port, uid: .random(in: 1 ..< UInt64.max))
+        }
 
         if self.captureLogs {
-            self.makeLogCapture(name: name, settings: &settings)
+            self.makeLogCapture(name: node.name ?? "swim-\(node.port)", settings: &settings)
         }
 
         let channel: Channel = EmbeddedChannel(loop: self.loop)
-
-        let node = Node(protocol: "test", host: "127.0.0.1", port: port, uid: .random(in: 1 ..< UInt64.max))
         let peer = SWIM.NIOPeer(node: node, channel: channel)
         let shell = SWIMNIOShell(
             node: peer.node,
             settings: settings,
             channel: channel,
-            startPeriodicPingTimer: startPeriodicPingTimer,
-            onMemberStatusChange: { _ in () } // TODO: store events so we can inspect them (!!)
+            onMemberStatusChange: { _ in () } // TODO: store events so we can inspect them?
         )
 
         self._nodes.append(shell.node)
@@ -171,7 +174,7 @@ class BaseClusteredXCTestCase: XCTestCase {
         self._logCaptures = []
     }
 
-    func makeLogCapture(name: String, settings: inout SWIM.Settings) {
+    func makeLogCapture(name: String, settings: inout SWIMNIO.Settings) {
         var captureSettings = LogCapture.Settings()
         self.configureLogCapture(settings: &captureSettings)
         let capture = LogCapture(settings: captureSettings)

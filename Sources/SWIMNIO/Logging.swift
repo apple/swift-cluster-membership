@@ -28,7 +28,7 @@ extension SWIMNIOShell {
         _ type: TraceLogType, message: @autoclosure () -> String,
         file: String = #file, function: String = #function, line: UInt = #line
     ) {
-        if let level = self.settings.traceLogLevel {
+        if let level = self.settings.swim.traceLogLevel {
             self.log.log(
                 level: level,
                 "[\(self.myself.node)] \(type.description) :: \(message())",

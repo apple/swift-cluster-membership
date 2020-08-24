@@ -20,7 +20,7 @@ import XCTest
 
 // TODO: those tests could be done on embedded event loops probably
 final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
-    var settings: SWIM.Settings!
+    var settings: SWIMNIO.Settings = SWIMNIO.Settings(swim: .init())
     lazy var myselfNode = Node(protocol: "udp", host: "127.0.0.1", port: 7001, uid: 1111)
     lazy var myselfPeer = SWIM.NIOPeer(node: myselfNode, channel: EmbeddedChannel())
     lazy var myselfMemberAliveInitial = SWIM.Member(peer: myselfPeer, status: .alive(incarnation: 0), protocolPeriod: 0)
@@ -30,7 +30,6 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
     override func setUp() {
         super.setUp()
 
-        self.settings = SWIM.Settings()
         self.settings.node = self.myselfNode
 
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -66,7 +65,7 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
 
         let first = try bindShell(probe: firstProbe) { settings in
             settings.node = self.myselfNode
-            settings.initialContactPoints = [secondNode.withoutUID]
+            settings.swim.initialContactPoints = [secondNode.withoutUID]
         }
         defer { try! first.close().wait() }
 
@@ -94,8 +93,8 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         XCTAssertEqual(secondDeadEvent.member.node.withoutUID, secondNode.withoutUID)
     }
 
-    private func bindShell(probe probeHandler: ProbeEventHandler, configure: (inout SWIM.Settings) -> Void = { _ in () }) throws -> Channel {
-        var settings = self.settings!
+    private func bindShell(probe probeHandler: ProbeEventHandler, configure: (inout SWIMNIO.Settings) -> Void = { _ in () }) throws -> Channel {
+        var settings = self.settings
         configure(&settings)
         self.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
 
