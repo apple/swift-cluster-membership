@@ -56,7 +56,6 @@ extension SWIM {
                 }
             })
 
-            print("command = \(command)")
             self.channel.writeAndFlush(command, promise: nil)
         }
 
