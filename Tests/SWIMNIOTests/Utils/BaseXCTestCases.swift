@@ -87,8 +87,9 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
         self.loop = nil
     }
 
-    func makeShell(_ _name: String? = nil, settings: SWIMNIO.Settings?, startPeriodicPingTimer: Bool) -> SWIMNIOShell {
-        var settings = settings ?? SWIMNIO.Settings()
+    func makeEmbeddedShell(_ _name: String? = nil, configure: (inout SWIMNIO.Settings) -> Void = { _ in () }) -> SWIMNIOShell {
+        var settings = SWIMNIO.Settings()
+        configure(&settings)
         let node: Node
         if let _node = settings.swim.node {
             node = _node
@@ -102,7 +103,8 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
             self.makeLogCapture(name: node.name ?? "swim-\(node.port)", settings: &settings)
         }
 
-        let channel: Channel = EmbeddedChannel(loop: self.loop)
+        let channel = EmbeddedChannel(loop: self.loop)
+        channel.isWritable = true
         let peer = SWIM.NIOPeer(node: node, channel: channel)
         let shell = SWIMNIOShell(
             node: peer.node,

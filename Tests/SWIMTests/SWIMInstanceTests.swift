@@ -71,7 +71,7 @@ final class SWIMInstanceTests: XCTestCase {
         let otherPeer = self.second!
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        swim.addMember(otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
+        _ = swim.addMember(otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
         swim.incrementProtocolPeriod()
 
         try self.validateMark(swim: swim, peer: otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]), shouldSucceed: false)
@@ -83,7 +83,7 @@ final class SWIMInstanceTests: XCTestCase {
         let otherPeer = self.second!
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        swim.addMember(otherPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(otherPeer, status: .alive(incarnation: 0))
 
         for i: SWIM.Incarnation in 0 ... 5 {
             swim.incrementProtocolPeriod()
@@ -99,7 +99,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         // ==== Suspect member -----------------------------------------------------------------------------------------
         let suspectMember = self.second!
-        swim.addMember(suspectMember, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
+        _ = swim.addMember(suspectMember, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
         swim.incrementProtocolPeriod()
 
         try self.validateMark(swim: swim, peer: suspectMember, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), shouldSucceed: false)
@@ -112,7 +112,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
         let unreachableMember = TestPeer(node: self.secondNode)
-        swim.addMember(unreachableMember, status: .unreachable(incarnation: 1))
+        _ = swim.addMember(unreachableMember, status: .unreachable(incarnation: 1))
         swim.incrementProtocolPeriod()
 
         try self.validateMark(swim: swim, peer: unreachableMember, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), shouldSucceed: false)
@@ -126,7 +126,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        swim.addMember(otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
+        _ = swim.addMember(otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
         swim.incrementProtocolPeriod()
 
         try self.validateMark(swim: swim, peer: otherPeer, status: .dead, shouldSucceed: true)
@@ -139,7 +139,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        swim.addMember(otherPeer, status: .dead)
+        _ = swim.addMember(otherPeer, status: .dead)
         swim.incrementProtocolPeriod()
 
         try self.validateMark(swim: swim, peer: otherPeer, status: .alive(incarnation: 99), shouldSucceed: false)
@@ -159,8 +159,8 @@ final class SWIMInstanceTests: XCTestCase {
         let thirdPeer = self.third!
 
         // thirdPeer is suspect already...
-        swim.addMember(secondPeer, status: .alive(incarnation: 0))
-        swim.addMember(thirdPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(thirdPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
 
         // Imagine: we asked secondPeer to ping thirdPeer
         // thirdPeer pings secondPeer, gets an ack back -- and there secondPeer had to bump its incarnation number // TODO test for that, using Swim.instance?
@@ -180,8 +180,8 @@ final class SWIMInstanceTests: XCTestCase {
         let thirdPeer = self.third!
 
         // thirdPeer is suspect already...
-        swim.addMember(secondPeer, status: .alive(incarnation: 0))
-        swim.addMember(thirdPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(thirdPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
 
         // Imagine: we asked secondPeer to ping thirdPeer
         // thirdPeer pings secondPeer, yet secondPeer somehow didn't bump its incarnation... so we should NOT accept its refutation
@@ -199,7 +199,7 @@ final class SWIMInstanceTests: XCTestCase {
         settings.lifeguard.maxIndependentSuspicions = 10
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
-        swim.addMember(self.second, status: .suspect(incarnation: 1, suspectedBy: [self.secondNode]))
+        _ = swim.addMember(self.second, status: .suspect(incarnation: 1, suspectedBy: [self.secondNode]))
 
         _ = swim.onPingRequestResponse(.timeout(target: self.second, pingRequestOrigin: nil, timeout: .milliseconds(800), sequenceNumber: 1), pingedMember: self.second)
         let resultStatus = swim.member(for: self.second)!.status
@@ -217,7 +217,7 @@ final class SWIMInstanceTests: XCTestCase {
     func test_onPing_shouldOfferAckMessageWithMyselfReference() throws {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
 
         let directive = swim.onPing(pingOrigin: self.second, payload: .none, sequenceNumber: 0).first!
         switch directive {
@@ -232,7 +232,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
         // from our perspective, all nodes are alive...
-        swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
 
         // Imagine: thirdPeer pings us, it suspects us (!)
         // we (p1) receive the ping and want to refute the suspicion, we are Still Alive:
@@ -419,7 +419,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
         let other = self.second!
 
-        swim.addMember(other, status: .alive(incarnation: 0))
+        _ = swim.addMember(other, status: .alive(incarnation: 0))
 
         var otherMember = swim.member(for: other)!
         otherMember.status = .dead
@@ -463,7 +463,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         let other = self.second!
 
-        swim.addMember(other, status: .alive(incarnation: 0))
+        _ = swim.addMember(other, status: .alive(incarnation: 0))
 
         var otherMember = swim.member(for: other)!
         otherMember.status = .unreachable(incarnation: 1)
@@ -504,7 +504,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         let other = self.second!
 
-        swim.addMember(other, status: .alive(incarnation: 10))
+        _ = swim.addMember(other, status: .alive(incarnation: 10))
 
         var otherMember = swim.member(for: other)!
         otherMember.status = .unreachable(incarnation: 1) // too old, we're already alive in 10
@@ -547,7 +547,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         let other = self.second!
 
-        swim.addMember(other, status: .alive(incarnation: 0))
+        _ = swim.addMember(other, status: .alive(incarnation: 0))
 
         var otherMember = swim.member(for: other)!
         otherMember.status = .unreachable(incarnation: 1)
@@ -569,7 +569,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
         let other = self.second!
 
-        swim.addMember(other, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]))
+        _ = swim.addMember(other, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]))
         var otherMember = swim.member(for: other)!
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.secondNode])
         let res = swim.onGossipPayload(about: otherMember)
@@ -591,7 +591,7 @@ final class SWIMInstanceTests: XCTestCase {
             Node(protocol: "test", host: "test", port: 12345, uid: UInt64($0))
         }
 
-        swim.addMember(other, status: .suspect(incarnation: 0, suspectedBy: Set(saturatedSuspectedByList)))
+        _ = swim.addMember(other, status: .suspect(incarnation: 0, suspectedBy: Set(saturatedSuspectedByList)))
 
         var otherMember = swim.member(for: other)!
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode])
@@ -609,7 +609,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         let other = self.second!
 
-        swim.addMember(other, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.secondNode]))
+        _ = swim.addMember(other, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.secondNode]))
 
         var otherMember = swim.member(for: other)!
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.fourthNode])
@@ -640,9 +640,9 @@ final class SWIMInstanceTests: XCTestCase {
         let secondPeer = self.second!
         let thirdPeer = self.third!
 
-        swim.addMember(self.myself, status: .alive(incarnation: 0))
-        swim.addMember(secondPeer, status: .alive(incarnation: 0))
-        swim.addMember(thirdPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.myself, status: .alive(incarnation: 0))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(thirdPeer, status: .alive(incarnation: 0))
 
         XCTAssertTrue(swim.isMember(self.myself))
         XCTAssertTrue(swim.isMember(secondPeer))
@@ -656,8 +656,8 @@ final class SWIMInstanceTests: XCTestCase {
     func test_isMember_shouldAllowCheckingWhenNotKnowingSpecificUID() {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        swim.addMember(self.myself, status: .alive(incarnation: 0))
-        swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.myself, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
 
         XCTAssertTrue(swim.isMember(self.myself))
         XCTAssertTrue(swim.isMember(self.myself, ignoreUID: true))
@@ -677,7 +677,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         let secondPeer = self.second!
 
-        swim.addMember(secondPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
 
         swim.onEveryPingRequestResponse(.timeout(target: secondPeer, pingRequestOrigin: nil, timeout: .milliseconds(300), sequenceNumber: 1), pingedMember: secondPeer)
         XCTAssertEqual(swim.localHealthMultiplier, 1)
@@ -688,7 +688,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         let secondPeer = self.second!
 
-        swim.addMember(secondPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
         swim.localHealthMultiplier = 1
         _ = swim.onPingAckResponse(
             target: secondPeer,
@@ -724,7 +724,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         let secondPeer = self.second!
 
-        swim.addMember(secondPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
         swim.localHealthMultiplier = 1
 
         _ = swim.onPingRequestResponse(.nack(target: secondPeer, sequenceNumber: 1), pingedMember: secondPeer)
@@ -744,7 +744,7 @@ final class SWIMInstanceTests: XCTestCase {
             node.port = 8000 + i
             let peer = TestPeer(node: node)
             members.insert(peer)
-            swim.addMember(peer, status: .alive(incarnation: 0))
+            _ = swim.addMember(peer, status: .alive(incarnation: 0))
         }
 
         var seenNodes: [Node] = []
@@ -830,7 +830,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        swim.addMember(otherPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(otherPeer, status: .alive(incarnation: 0))
         XCTAssertEqual(swim.member(for: otherPeer)!.status, .alive(incarnation: 0))
 
         _ = swim.mark(otherPeer, as: .suspect(incarnation: 99, suspectedBy: [self.thirdNode]))
@@ -840,7 +840,7 @@ final class SWIMInstanceTests: XCTestCase {
     func test_member_shouldWorkForMyself() {
         let swim = SWIM.Instance(settings: .init(), myself: self.myself)
 
-        swim.addMember(self.second, status: .alive(incarnation: 10))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 10))
 
         let member = swim.myselfMember
         XCTAssertEqual(member.node, self.myself.node)
@@ -855,17 +855,27 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
         let aliveAtZero = SWIM.Status.alive(incarnation: 0)
-        swim.addMember(self.second, status: aliveAtZero)
-        swim.addMember(self.third, status: aliveAtZero)
-        swim.addMember(self.fourth, status: aliveAtZero)
+        _ = swim.addMember(self.second, status: aliveAtZero)
+        _ = swim.addMember(self.third, status: aliveAtZero)
+        _ = swim.addMember(self.fourth, status: aliveAtZero)
         XCTAssertEqual(swim.notDeadMemberCount, 4) // three new nodes + myself
 
         self.validateSuspects(swim, expected: [])
 
-        XCTAssertEqual(
-            swim.mark(self.second, as: .suspect(incarnation: 0, suspectedBy: [self.third.node])),
-            .applied(previousStatus: aliveAtZero, currentStatus: .suspect(incarnation: 0, suspectedBy: [self.third.node]))
-        )
+        let directive: SWIM.Instance.MarkedDirective = swim.mark(self.second, as: .suspect(incarnation: 0, suspectedBy: [self.third.node]))
+        switch directive {
+        case .applied(let previousStatus, let member):
+            XCTAssertEqual(
+                previousStatus,
+                aliveAtZero
+            )
+            XCTAssertEqual(
+                member.status,
+                .suspect(incarnation: 0, suspectedBy: [self.third.node])
+            )
+        default:
+            XCTFail("Expected .applied, got: \(directive)")
+        }
         self.validateSuspects(swim, expected: [self.second.node])
 
         _ = swim.mark(self.third, as: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]))
@@ -883,15 +893,31 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         let aliveAtZero = SWIM.Status.alive(incarnation: 0)
-        swim.addMember(self.second, status: aliveAtZero)
+        _ = swim.addMember(self.second, status: aliveAtZero)
         XCTAssertEqual(swim.notDeadMemberCount, 2)
 
         self.validateSuspects(swim, expected: [])
         let oldStatus: SWIM.Status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode])
-        XCTAssertEqual(swim.mark(self.second, as: oldStatus), .applied(previousStatus: aliveAtZero, currentStatus: oldStatus))
+        let d1 = swim.mark(self.second, as: oldStatus)
+        switch d1 {
+        case .applied(let previousStatus, let member):
+            XCTAssertEqual(previousStatus, aliveAtZero)
+            XCTAssertEqual(member.status, oldStatus)
+        default:
+            XCTFail("Expected .applied, but got: \(d1)")
+            return
+        }
         self.validateSuspects(swim, expected: [self.second.node])
         let newStatus: SWIM.Status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.secondNode])
-        XCTAssertEqual(swim.mark(self.second, as: newStatus), .applied(previousStatus: oldStatus, currentStatus: newStatus))
+        let d2 = swim.mark(self.second, as: newStatus)
+        switch d2 {
+        case .applied(let previousStatus, let member):
+            XCTAssertEqual(previousStatus, oldStatus)
+            XCTAssertEqual(member.status, newStatus)
+        default:
+            XCTFail("Expected .applied, but got: \(d1)")
+            return
+        }
         self.validateSuspects(swim, expected: [self.second.node])
     }
 
@@ -899,15 +925,33 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
         let aliveAtZero = SWIM.Status.alive(incarnation: 0)
-        swim.addMember(self.second, status: aliveAtZero)
+        _ = swim.addMember(self.second, status: aliveAtZero)
         XCTAssertEqual(swim.notDeadMemberCount, 2)
 
         self.validateSuspects(swim, expected: [])
         let oldStatus: SWIM.Status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.secondNode])
-        XCTAssertEqual(swim.mark(self.second, as: oldStatus), .applied(previousStatus: aliveAtZero, currentStatus: oldStatus))
+
+        let d1 = swim.mark(self.second, as: oldStatus)
+        switch d1 {
+        case .applied(let previousStatus, let member):
+            XCTAssertEqual(previousStatus, aliveAtZero)
+            XCTAssertEqual(member.status, oldStatus)
+        default:
+            XCTFail("Expected .applied, but got: \(d1)")
+            return
+        }
         self.validateSuspects(swim, expected: [self.second.node])
         let newStatus: SWIM.Status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode])
+
         XCTAssertEqual(swim.mark(self.second, as: newStatus), .ignoredDueToOlderStatus(currentStatus: oldStatus))
+        let d2 = swim.mark(self.second, as: newStatus)
+        switch d2 {
+        case .ignoredDueToOlderStatus(currentStatus: oldStatus):
+            () // ok
+        default:
+            XCTFail("Expected .ignoredDueToOlderStatus, but got: \(d2)")
+            return
+        }
         self.validateSuspects(swim, expected: [self.second.node])
     }
 
@@ -916,15 +960,15 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         let aliveAtZero = SWIM.Status.alive(incarnation: 0)
-        swim.addMember(self.second, status: aliveAtZero)
-        swim.addMember(self.third, status: aliveAtZero)
-        swim.addMember(self.fourth, status: aliveAtZero)
+        _ = swim.addMember(self.second, status: aliveAtZero)
+        _ = swim.addMember(self.third, status: aliveAtZero)
+        _ = swim.addMember(self.fourth, status: aliveAtZero)
         XCTAssertEqual(swim.notDeadMemberCount, 4)
 
-        swim.mark(self.second, as: .dead)
+        _ = swim.mark(self.second, as: .dead)
         XCTAssertEqual(swim.notDeadMemberCount, 3)
 
-        swim.mark(self.fourth, as: .dead)
+        _ = swim.mark(self.fourth, as: .dead)
         XCTAssertEqual(swim.notDeadMemberCount, 2) // dead is not part of membership
     }
 
@@ -934,18 +978,18 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         let aliveAtZero = SWIM.Status.alive(incarnation: 0)
-        swim.addMember(self.second, status: aliveAtZero)
-        swim.addMember(self.third, status: aliveAtZero)
-        swim.addMember(self.fourth, status: aliveAtZero)
+        _ = swim.addMember(self.second, status: aliveAtZero)
+        _ = swim.addMember(self.third, status: aliveAtZero)
+        _ = swim.addMember(self.fourth, status: aliveAtZero)
         XCTAssertEqual(swim.notDeadMemberCount, 4)
 
-        swim.mark(self.second, as: .dead)
+        _ = swim.mark(self.second, as: .dead)
         XCTAssertEqual(swim.notDeadMemberCount, 3)
 
-        swim.mark(self.third, as: .unreachable(incarnation: 19))
+        _ = swim.mark(self.third, as: .unreachable(incarnation: 19))
         XCTAssertEqual(swim.notDeadMemberCount, 3) // unreachable is still "part of the membership" as far as we are concerned
 
-        swim.mark(self.fourth, as: .dead)
+        _ = swim.mark(self.fourth, as: .dead)
         XCTAssertEqual(swim.notDeadMemberCount, 2) // dead is not part of membership
     }
 
@@ -960,8 +1004,8 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_makeGossipPayload_shouldEventuallyStopGossips() throws {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
-        swim.addMember(self.second, status: .alive(incarnation: 0))
-        swim.addMember(self.third, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 0))
 
         var count = 0
         var gossip = swim.makeGossipPayload(to: nil)
@@ -977,8 +1021,8 @@ final class SWIMInstanceTests: XCTestCase {
         let settings: SWIM.Settings = .init()
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
-        swim.addMember(self.second, status: .alive(incarnation: 0))
-        swim.addMember(self.third, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 0))
         let myselfMember = SWIM.Member(peer: self.myself, status: .alive(incarnation: 0), protocolPeriod: 0)
         let thirdMember = SWIM.Member(peer: self.third, status: .alive(incarnation: 0), protocolPeriod: 0)
 
@@ -997,7 +1041,7 @@ final class SWIMInstanceTests: XCTestCase {
         ])
 
         // turns out it is alive after all, and it bumped its incarnation (it had to, to refute the suspicion)
-        swim.mark(self.second, as: .alive(incarnation: 1))
+        _ = swim.mark(self.second, as: .alive(incarnation: 1))
 
         try self.validateGossip(swim: swim, expected: [
             .init(peer: self.second, status: .alive(incarnation: 1), protocolPeriod: 0),
@@ -1010,7 +1054,7 @@ final class SWIMInstanceTests: XCTestCase {
         let settings: SWIM.Settings = .init()
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
-        swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
         let myselfMember = SWIM.Member(peer: self.myself, status: .alive(incarnation: 0), protocolPeriod: 0)
 
         try self.validateGossip(swim: swim, expected: [.init(peer: self.second, status: .alive(incarnation: 0), protocolPeriod: 0), myselfMember])
@@ -1022,7 +1066,7 @@ final class SWIMInstanceTests: XCTestCase {
         try self.validateGossip(swim: swim, expected: [.init(peer: self.second, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0), myselfMember])
 
         // a new member joins, and we must ensure it'd get some of the gossip
-        swim.addMember(self.third, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 0))
 
         try self.validateGossip(swim: swim, expected: [
             .init(peer: self.second, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]), protocolPeriod: 0),
@@ -1053,7 +1097,7 @@ final class SWIMInstanceTests: XCTestCase {
         settings.extensionUnreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
-        swim.addMember(self.second, status: .alive(incarnation: 10))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 10))
 
         let directive = swim.confirmDead(peer: self.second)
         switch directive {
@@ -1072,7 +1116,7 @@ final class SWIMInstanceTests: XCTestCase {
         settings.extensionUnreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
-        swim.addMember(self.second, status: .alive(incarnation: 10))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 10))
 
         let directive = swim.confirmDead(peer: self.myself)
         switch directive {
