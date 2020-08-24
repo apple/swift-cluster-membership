@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@testable import SWIM
 import XCTest
 
 public func getRandomNumbers(count: Int) -> [UInt8] {
