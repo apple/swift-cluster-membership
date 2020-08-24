@@ -91,7 +91,13 @@ public final class SWIMNIOShell {
         }
 
         self.nextPeriodicTickCancellable?.cancel()
-        self.log.info("\(Self.self) shutdown")
+        switch self.swim.confirmDead(peer: self.peer) {
+        case .applied(let change):
+            self.tryAnnounceMemberReachability(change: change)
+            self.log.info("\(Self.self) shutdown")
+        case .ignored:
+            () // ok
+        }
     }
 
     /// Start a *single* timer, to run the passed task after given delay.
@@ -400,21 +406,18 @@ public final class SWIMNIOShell {
     /// This is the heart of the periodic gossip performed by SWIM.
     func handlePeriodicProtocolPeriodTick() {
         self.eventLoop.assertInEventLoop()
-        func handlePeriodicProtocolPeriodTick0() {
-            // needs to be done first, so we can gossip out the most up to date state
-            self.checkSuspicionTimeouts() // FIXME: Push into SWIM's onPeriodicPingTick
 
-            let directive = self.swim.onPeriodicPingTick()
+        let directives = self.swim.onPeriodicPingTick()
+        for directive in directives {
             switch directive {
-            case .ignore:
-                self.log.trace("Skipping periodic ping", metadata: self.swim.metadata)
+            case .membershipChanged(let change):
+                self.tryAnnounceMemberReachability(change: change)
 
             case .sendPing(let target, let timeout, let sequenceNumber):
                 self.log.trace("Periodic ping random member, among: \(self.swim.otherMemberCount)", metadata: self.swim.metadata)
                 self.sendPing(to: target, pingRequestOriginPeer: nil, timeout: timeout, sequenceNumber: sequenceNumber)
             }
         }
-        handlePeriodicProtocolPeriodTick0()
 
         self.nextPeriodicTickCancellable = self.schedule(key: SWIMNIOShell.periodicPingKey, delay: self.swim.dynamicLHMProtocolInterval) {
             self.handlePeriodicProtocolPeriodTick()
@@ -491,71 +494,6 @@ public final class SWIMNIOShell {
         }
     }
 
-    // FIXME: move into SWIM on the "on periodic tick"
-    func checkSuspicionTimeouts() {
-        self.log.trace(
-            "Checking suspicion timeouts...",
-            metadata: [
-                "swim/suspects": "\(self.swim.suspects)",
-                "swim/all": Logger.MetadataValue.array(self.swim.allMembers.map { "\($0)" }),
-                "swim/protocolPeriod": "\(self.swim.protocolPeriod)",
-            ]
-        )
-
-        for suspect in self.swim.suspects {
-            if case .suspect(_, let suspectedBy) = suspect.status {
-                let suspicionTimeout = self.swim.suspicionTimeout(suspectedByCount: suspectedBy.count)
-                self.log.trace(
-                    "Checking suspicion timeout for: \(suspect)...",
-                    metadata: [
-                        "swim/suspect": "\(suspect)",
-                        "swim/suspectedBy": "\(suspectedBy.count)",
-                        "swim/suspicionTimeout": "\(suspicionTimeout)",
-                    ]
-                )
-
-                // proceed with suspicion escalation to .unreachable if the timeout period has been exceeded
-                // We don't use Deadline because tests can override TimeSource
-                guard let startTime = suspect.suspicionStartedAt,
-                    self.swim.isExpired(deadline: startTime + suspicionTimeout.nanoseconds) else {
-                    continue // skip, this suspect is not timed-out yet
-                }
-
-                guard let incarnation = suspect.status.incarnation else {
-                    // suspect had no incarnation number? that means it is .dead already and should be recycled soon
-                    return
-                }
-
-                var unreachableSuspect = suspect
-                if swim.settings.extensionUnreachability == .enabled {
-                    unreachableSuspect.status = .unreachable(incarnation: incarnation)
-                } else {
-                    unreachableSuspect.status = .dead
-                }
-                self.markMember(latest: unreachableSuspect)
-            }
-        }
-
-        // metrics.recordSWIM.Members(self.swim.allMembers) // FIXME metrics
-    }
-
-    // FIXME: push into swim
-    private func markMember(latest: SWIM.Member) {
-        switch self.swim.mark(latest.peer, as: latest.status) {
-        case .applied(let previousStatus, _):
-            self.log.trace(
-                "Marked \(latest.node) as \(latest.status), announcing reachability change",
-                metadata: [
-                    "swim/member": "\(latest)",
-                    "swim/previousStatus": "\(previousStatus, orElse: "nil")",
-                ]
-            )
-            self.tryAnnounceMemberReachability(change: SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: latest))
-        case .ignoredDueToOlderStatus:
-            () // self.log.trace("No change \(latest), currentStatus remains [\(currentStatus)]. No reachability change to announce")
-        }
-    }
-
     func handleGossipPayloadProcessedDirective(_ directive: SWIM.Instance.GossipProcessedDirective) {
         switch directive {
         case .ignored(let level, let message): // TODO: allow the instance to log
@@ -580,24 +518,6 @@ public final class SWIMNIOShell {
             // and thus we must not act on it, as the shell was already notified before about the change into the current status.
             return
         }
-
-//        // Log the transition
-//        switch change.status {
-//        case .unreachable:
-//            self.log.info(
-//                "Node \(change.member.node) determined [.unreachable]!",
-//                metadata: [
-//                    "swim/member": "\(change.member)",
-//                ]
-//            )
-//        default:
-//            self.log.info(
-//                "Node \(change.member.node) determined [.\(change.status)] (was [\(change.previousStatus, orElse: "nil")]).",
-//                metadata: [
-//                    "swim/member": "\(change.member)",
-//                ]
-//            )
-//        }
 
         // emit the SWIM.MemberStatusChange as user event
         self.announceMembershipChange(change)

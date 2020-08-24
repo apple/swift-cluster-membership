@@ -148,10 +148,10 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
 
             if message.isResponse {
                 // if it's a reply, invoke the pending callback ------
-                // TODO: move into the shell !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                // TODO: move into the shell: https://github.com/apple/swift-cluster-membership/issues/41
                 let callbackKey = PendingResponseCallbackIdentifier(peerAddress: remoteAddress, sequenceNumber: message.sequenceNumber)
                 if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
-                    // TODO: UIDs of nodes...
+                    // TODO: UIDs of nodes matter
                     self.log.trace("Received response, key: \(callbackKey); Invoking callback...", metadata: [
                         "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
@@ -161,9 +161,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                         "pending callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
                 }
-            }
-            // TODO: move into the shell ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-            else {
+            } else {
                 // deliver to the shell ------------------------------
                 self.shell.receiveMessage(message: message)
             }

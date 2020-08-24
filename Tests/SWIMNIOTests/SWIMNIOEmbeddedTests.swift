@@ -19,19 +19,37 @@ import SWIM
 import XCTest
 
 final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
-    override var alwaysPrintCaptureLogs: Bool {
-        true
+    let firstNode = Node(protocol: "test", host: "127.0.0.1", port: 7001, uid: 1111)
+    let secondNode = Node(protocol: "test", host: "127.0.0.1", port: 7002, uid: 1111)
+
+    func test_embedded_schedulingPeriodicTicksWorks() throws {
+        let first = self.makeEmbeddedShell("first") { settings in
+            settings.swim.initialContactPoints = [secondNode]
+            settings.swim.node = firstNode
+        }
+        let second = self.makeEmbeddedShell("second") { settings in
+            settings.swim.initialContactPoints = []
+            settings.swim.node = secondNode
+        }
+
+        for _ in 0 ... 5 {
+            self.loop.advanceTime(by: .seconds(1))
+            self.exchangeMessages(first, second)
+        }
+
+        XCTAssertEqual(first.swim.allMemberCount, 2)
+        XCTAssertEqual(second.swim.allMemberCount, 2)
     }
 
-    func test_embedded_peers_2_connect() throws {
-        let first = self.makeShell("first", settings: nil, startPeriodicPingTimer: true)
-        let second = self.makeShell("second", settings: nil, startPeriodicPingTimer: true)
+    private func exchangeMessages(_ first: SWIMNIOShell, _ second: SWIMNIOShell) {
+        let firstEmbeddedChannel = first.channel as! EmbeddedChannel
+        let secondEmbeddedChannel = second.channel as! EmbeddedChannel
 
-        let secondPeer = second.peer as! SWIM.NIOPeer
-
-        first.receiveMessage(message: .ping(replyTo: secondPeer, payload: .none, sequenceNumber: 1))
-        self.loop.advanceTime(by: .seconds(1))
-
-        try self.capturedLogs(of: first.node).shouldContain(grep: "Checking suspicion timeouts")
+        if let writeCommand = try! firstEmbeddedChannel.readOutbound(as: WriteCommand.self) {
+            second.receiveMessage(message: writeCommand.message)
+        }
+        if let writeCommand = try! secondEmbeddedChannel.readOutbound(as: WriteCommand.self) {
+            first.receiveMessage(message: writeCommand.message)
+        }
     }
 }
