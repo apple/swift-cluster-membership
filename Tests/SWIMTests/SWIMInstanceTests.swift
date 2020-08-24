@@ -647,6 +647,26 @@ final class SWIMInstanceTests: XCTestCase {
         XCTAssertTrue(swim.isMember(self.myself))
         XCTAssertTrue(swim.isMember(secondPeer))
         XCTAssertTrue(swim.isMember(thirdPeer))
+
+        XCTAssertEqual(swim.allMemberCount, 3)
+        XCTAssertEqual(swim.notDeadMemberCount, 3)
+        XCTAssertEqual(swim.otherMemberCount, 2)
+    }
+
+    func test_isMember_shouldAllowCheckingWhenNotKnowingSpecificUID() {
+        let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
+
+        swim.addMember(self.myself, status: .alive(incarnation: 0))
+        swim.addMember(self.second, status: .alive(incarnation: 0))
+
+        XCTAssertTrue(swim.isMember(self.myself))
+        XCTAssertTrue(swim.isMember(self.myself, ignoreUID: true))
+
+        XCTAssertTrue(swim.isMember(TestPeer(node: self.secondNode.withoutUID), ignoreUID: true))
+        XCTAssertFalse(swim.isMember(TestPeer(node: self.secondNode.withoutUID)))
+
+        XCTAssertFalse(swim.isMember(TestPeer(node: self.thirdNode.withoutUID), ignoreUID: true))
+        XCTAssertFalse(swim.isMember(TestPeer(node: self.thirdNode.withoutUID)))
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------

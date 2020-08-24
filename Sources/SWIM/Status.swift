@@ -18,11 +18,11 @@ extension SWIM {
     /// The SWIM membership status reflects how a node is perceived by the distributed failure detector.
     ///
     /// ### Modification: Unreachable status (opt-in)
-    /// The `.unreachable` state is set when a classic SWIM implementation would have declared a node `.down`,
-    /// yet since we allow for the higher level membership to decide when and how to eject members from a cluster,
-    /// only the `.unreachable` state is set and an `Cluster.ReachabilityChange` cluster event is emitted. In response to this
-    /// most clusters will immediately adhere to SWIM's advice and mark the unreachable node as `.down`, resulting in
-    /// confirming the node as `.dead` in SWIM terms.
+    /// If the unreachable status extension is enabled, it is set / when a classic SWIM implementation would have
+    /// declared a node `.dead`, / yet since we allow for the higher level membership to decide when and how to eject
+    /// members from a cluster, / only the `.unreachable` state is set and an `Cluster.ReachabilityChange` cluster event
+    /// is emitted. / In response to this a high-level membership protocol MAY confirm the node as dead by issuing
+    /// `Instance.confirmDead`, / which will promote the node to `.dead` in SWIM terms.
     ///
     /// > The additional `.unreachable` status is only used it enabled explicitly by setting `settings.unreachable`
     /// > to enabled. Otherwise, the implementation performs its failure checking as usual and directly marks detected
@@ -32,7 +32,7 @@ extension SWIM {
     /// - `alive -> suspect`
     /// - `alive -> suspect`, with next `SWIM.Incarnation`, e.g. during flaky network situations, we suspect and un-suspect a node depending on probing
     /// - `suspect -> unreachable | alive`, if in SWIM terms, a node is "most likely dead" we declare it `.unreachable` instead, and await for high-level confirmation to mark it `.dead`.
-    /// - `unreachable -> alive | suspect`, with next `SWIM.Incarnation`
+    /// - `unreachable -> alive | suspect`, with next `SWIM.Incarnation` optional)
     /// - `alive | suspect | unreachable -> dead`
     ///
     /// - SeeAlso: `SWIM.Incarnation`

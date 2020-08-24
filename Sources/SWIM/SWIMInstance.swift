@@ -600,42 +600,68 @@ extension SWIM.Instance {
         }
     }
 
-    public func isMember(_ peer: SWIMAddressablePeer) -> Bool {
+
+    /// Checks if the passed in peer is already a known member of the swim cluster.
+    ///
+    /// Note: `.dead` members are eventually removed from the swim instance and as such peers are not remembered forever!
+    ///
+    /// - Parameters:
+    ///   - peer: Peer to check if it currently is a member
+    ///   - ignoreUID: Whether or not to ignore the peers UID, e.g. this is useful when issuing a "join 127.0.0.1:7337"
+    ///                command, while being unaware of the nodes specific UID. When it joins, it joins with the specific UID after all.
+    /// - Returns: true if the peer is currently a member of the swim cluster (regardless of status it is in)
+    public func isMember(_ peer: SWIMAddressablePeer, ignoreUID: Bool = false) -> Bool {
         // the peer could be either:
-        // - "us" (i.e. the peer which hosts this SWIM instance, or
-        // - a "known member"
-        peer.node == self.node || self.members[peer.node] != nil
+        self.isMyself(peer) || // 1) "us" (i.e. the peer which hosts this SWIM instance, or
+            self.members[peer.node] != nil || // 2) a "known member"
+            (ignoreUID && peer.node.uid == nil && self.members.contains {
+                // 3) a known member, however the querying peer did not know the real UID of the peer yet
+                $0.key.withoutUID == peer.node
+            })
     }
 
+    /// Returns specific `SWIM.Member` instance for the passed in peer.
+    ///
+    /// - Parameter peer: peer whose member should be looked up (by its node identity, including the UID)
+    /// - Returns: the peer's member instance, if it currently is a member of this cluster
     public func member(for peer: SWIMAddressablePeer) -> SWIM.Member? {
         self.member(for: peer.node)
     }
 
+    /// Returns specific `SWIM.Member` instance for the passed in node.
+    ///
+    /// - Parameter node: node whose member should be looked up (matching also by node UID)
+    /// - Returns: the peer's member instance, if it currently is a member of this cluster
     public func member(for node: ClusterMembership.Node) -> SWIM.Member? {
         self.members[node]
     }
 
-    /// Counts non-dead members.
+    /// Count of only non-dead members.
+    ///
+    /// - SeeAlso: `SWIM.Status`
     public var notDeadMemberCount: Int {
         self.members.lazy.filter {
             !$0.value.isDead
         }.count
     }
 
+    /// Count of all "other" members known to this instance (meaning members other than `myself`).
     public var otherMemberCount: Int {
-        max(0, self.members.count - 1)
+        self.allMemberCount - 1
     }
 
-    // for testing; used to implement the data for the testing message in the shell: .getMembershipState
-    var _allMembersDict: [Node: SWIM.Status] {
-        self.members.mapValues {
-            $0.status
-        }
+    /// Count of all "other" (meaning
+    public var allMemberCount: Int {
+        max(0, self.members.count)
     }
 
-    /// Lists all suspect members.
+    /// Lists all `SWIM.Status.suspect` members.
     ///
-    /// - SeeAlso: `SWIM.MemberStatus.suspect`
+    /// The `myself` member will never be suspect, as we always assume ourselves to be alive,
+    /// even if all other cluster members think otherwise - this is what allows us to refute
+    /// suspicions about our unreachability after all.
+    ///
+    /// - SeeAlso: `SWIM.Status.suspect`
     public var suspects: SWIM.Members {
         self.members
             .lazy
