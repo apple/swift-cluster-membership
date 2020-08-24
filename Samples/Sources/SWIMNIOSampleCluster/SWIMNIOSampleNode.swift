@@ -20,11 +20,11 @@ import Logging
 
 struct SampleSWIMNIONode {
     let port: Int
-    var settings: SWIM.Settings
+    var settings: SWIMNIO.Settings
 
     let group: EventLoopGroup
 
-    init(port: Int, settings: SWIM.Settings, group: EventLoopGroup) {
+    init(port: Int, settings: SWIMNIO.Settings, group: EventLoopGroup) {
         self.port = port
         self.settings = settings
         self.group = group

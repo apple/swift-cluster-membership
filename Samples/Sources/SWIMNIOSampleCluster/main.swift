@@ -47,11 +47,13 @@ struct SWIMNIOSampleCluster: ParsableCommand {
             .sync(group.syncShutdownGracefully)
         )
 
-        var settings = SWIM.Settings()
+        var settings = SWIMNIO.Settings()
         if count == nil || count == 1 {
             let nodePort = self.port ?? 7001
             settings.logger = Logger(label: "swim-\(nodePort)")
             settings.logger.logLevel = self.parseLogLevel()
+            settings.swim.logger.logLevel = self.parseLogLevel()
+
             settings.swim.initialContactPoints = self.parseContactPoints()
 
             let node = SampleSWIMNIONode(port: nodePort, settings: settings, group: group)
