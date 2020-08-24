@@ -23,7 +23,6 @@ import func Darwin.log2
 import Glibc
 #endif
 
-
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Settings
 
@@ -189,6 +188,7 @@ public struct SWIMGossipSettings {
         let maxTimesDouble = self.gossipedEnoughTimesBaseMultiplier * log2(Double(n + 1))
         return gossip.numberOfTimesGossiped > Int(maxTimesDouble)
     }
+
     internal func needsToBeGossipedMoreTimes(_ gossip: SWIM.Gossip, members n: Int) -> Bool {
         !self.gossipedEnoughTimes(gossip, members: n)
     }
@@ -294,4 +294,3 @@ public struct SWIMLifeguardSettings {
         }
     }
 }
-

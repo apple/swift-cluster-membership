@@ -574,7 +574,7 @@ final class SWIMInstanceTests: XCTestCase {
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.secondNode])
         let res = swim.onGossipPayload(about: otherMember)
         if case .applied(.some(let change), _, _) = res,
-           case .suspect(_, let confirmations) = change.status {
+            case .suspect(_, let confirmations) = change.status {
             XCTAssertEqual(confirmations.count, 2)
             XCTAssertTrue(confirmations.contains(secondNode), "expected \(confirmations) to contain \(secondNode)")
             XCTAssertTrue(confirmations.contains(thirdNode), "expected \(confirmations) to contain \(thirdNode)")
@@ -615,7 +615,7 @@ final class SWIMInstanceTests: XCTestCase {
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.fourthNode])
         let res = swim.onGossipPayload(about: otherMember)
         if case .applied(.some(let change), _, _) = res,
-           case .suspect(_, let confirmation) = change.status {
+            case .suspect(_, let confirmation) = change.status {
             XCTAssertEqual(confirmation.count, swim.settings.lifeguard.maxIndependentSuspicions)
         } else {
             XCTFail("Expected `.applied(.some(suspectedBy)) where suspectedBy.count = maxIndependentSuspicions`, got \(res)")
@@ -969,7 +969,7 @@ final class SWIMInstanceTests: XCTestCase {
             gossip = swim.makeGossipPayload(to: nil)
             count += 1
         }
-        
+
         XCTAssertEqual(count, 7) // based on the default values of the
     }
 

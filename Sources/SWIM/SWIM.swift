@@ -67,14 +67,12 @@ extension SWIM {
             }
         }
     }
-
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Gossip
 
 extension SWIM {
-
     /// A piece of "gossip" about a specific member of the cluster.
     ///
     /// A gossip will only be spread a limited number of times, as configured by `settings.gossip.gossipedEnoughTimes(_:members:)`.

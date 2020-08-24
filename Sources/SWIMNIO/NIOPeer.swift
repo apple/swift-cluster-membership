@@ -20,10 +20,11 @@ import NIOConcurrencyHelpers
 import SWIM
 
 extension SWIM {
+    /// SWIMPeer designed to deliver messages over UDP in collaboration with the SWIMNIOHandler.
     public struct NIOPeer: SWIMPeer, SWIMPingOriginPeer, CustomStringConvertible {
         public var node: Node
 
-        var channel: Channel
+        internal var channel: Channel
 
         public init(node: Node, channel: Channel) {
             self.node = node

@@ -21,7 +21,6 @@ import Glibc
 import enum Dispatch.DispatchTimeInterval
 import Logging
 
-
 /// # SWIM (Scalable Weakly-consistent Infection-style Process Group Membership Protocol).
 ///
 /// SWIM serves as a low-level distributed failure detector mechanism.
@@ -44,8 +43,7 @@ import Logging
 /// ### See Also
 /// - SeeAlso: `SWIM.Instance` for a detailed discussion on the implementation.
 /// - SeeAlso: `SWIMNIO.Shell` for an example interpretation and driving the interactions.
-public enum SWIM {
-}
+public enum SWIM {}
 
 public protocol SWIMProtocol {
     /// Must be invoked periodically, in intervals of `self.swim.dynamicLHMProtocolInterval`.
@@ -169,7 +167,7 @@ extension SWIM {
         /// Sequence numbers are used to identify messages and pair them up into request/replies.
         /// - SeeAlso: `SWIM.SequenceNumber`
         // TODO: make internal?
-        // TODO: sequence numbers per-target node?
+        // TODO: sequence numbers per-target node? https://github.com/apple/swift-cluster-membership/issues/39
         public func nextSequenceNumber() -> SWIM.SequenceNumber {
             self._sequenceNumber += 1
             return self._sequenceNumber
@@ -256,15 +254,13 @@ extension SWIM {
         /// useful optimization.
         ///
         /// - SeeAlso: SWIM 4.1. Infection-Style Dissemination Component
-        /// // FIXME: we removed the max times to gossip, and we MUST replace observations basically for a specific node!!!
-        /// // FIXME: make sure that we dont build this up into infinity...?
         private var _messagesToGossip: Heap<SWIM.Gossip> = Heap(
             comparator: {
                 $0.numberOfTimesGossiped < $1.numberOfTimesGossiped
             }
         )
 
-        // FIXME: should not be public!!!!
+        // FIXME: disallow adding peers with no UID?
         @discardableResult
         public func addMember(_ peer: SWIMAddressablePeer, status: SWIM.Status) -> AddMemberDirective {
             let maybeExistingMember = self.member(for: peer)
@@ -281,6 +277,8 @@ extension SWIM {
             self.members[member.node] = member
 
             if maybeExistingMember == nil, self.notMyself(member) {
+                // We know this is a new member.
+                //
                 // Newly added members are inserted at a random spot in the list of members
                 // to ping, to have a better distribution of messages to this node from all
                 // other nodes. If for example all nodes would add it to the end of the list,
@@ -296,13 +294,12 @@ extension SWIM {
                     // on a rolling restart.
                     self.advanceMembersToPingIndex()
                 }
-
-                // it is a new member, and we need to reset gossip counts in order to ensure it also receive information about all nodes
-                // self.onNewMemberJoined(member: member)
             }
 
+            // upon each membership change we reset the gossip counters
+            // such that nodes have a chance to be notified about others,
+            // even if a node joined an otherwise quiescent cluster.
             self.resetGossipPayloads(member: member)
-            // self.addToGossip(member: member)
 
             return .added(member)
         }
@@ -391,7 +388,7 @@ extension SWIM {
             if status.isDead {
                 self.removeFromMembersToPing(member)
             }
-            
+
             self.resetGossipPayloads(member: member)
 
             return .applied(previousStatus: previousStatusOption, currentStatus: status)
@@ -530,14 +527,14 @@ extension SWIM {
             membersToGossipAbout.reserveCapacity(gossipRoundMessages.count)
 
             for var gossip in gossipRoundMessages {
-                if targetIsSuspect && target?.node == gossip.member.node {
+                if targetIsSuspect, target?.node == gossip.member.node {
                     // We do NOT add gossip to payload if it's a gossip about target and target is suspect,
                     // this case was handled earlier and doing it here will lead to duplicate messages
                     ()
                 } else {
                     membersToGossipAbout.append(gossip.member)
                 }
-                
+
                 gossip.numberOfTimesGossiped += 1
                 if self.settings.gossip.needsToBeGossipedMoreTimes(gossip, members: self.allMembers.count) {
                     self._messagesToGossip.append(gossip)
@@ -599,7 +596,6 @@ extension SWIM.Instance {
             return .alive(incarnation: self.incarnation)
         }
     }
-
 
     /// Checks if the passed in peer is already a known member of the swim cluster.
     ///
