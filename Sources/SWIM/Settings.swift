@@ -149,7 +149,6 @@ extension SWIM {
 
         /// When enabled traces _all_ incoming SWIM protocol communication (remote messages).
         /// These logs will contain SWIM.Instance metadata, as offered by `SWIM.Instance.metadata`.
-        // TODO: how to make this nicely dynamically changeable during runtime
         #if TRACELOG_SWIM
         public var traceLogLevel: Logger.Level? = .warning
         #else

@@ -25,11 +25,11 @@ import SWIM
 /// - SeeAlso: `SWIM.Instance` for detailed documentation about the SWIM protocol implementation.
 public final class SWIMNIOShell {
     var swim: SWIM.Instance!
-    var settings: SWIM.Settings {
-        self.swim.settings
-    }
 
-    public var log: Logger
+    let settings: SWIMNIO.Settings
+    var log: Logger {
+        self.settings.logger
+    }
 
     let eventLoop: EventLoop
     let channel: Channel
@@ -50,22 +50,21 @@ public final class SWIMNIOShell {
 
     internal init(
         node: Node,
-        settings: SWIM.Settings,
+        settings: SWIMNIO.Settings,
         channel: Channel,
-        startPeriodicPingTimer: Bool = true,
         onMemberStatusChange: @escaping (SWIM.MemberStatusChangedEvent) -> Void
     ) {
-        self.log = settings.logger
+        self.settings = settings
 
         self.channel = channel
         self.eventLoop = channel.eventLoop
 
         let myself = SWIM.NIOPeer(node: node, channel: channel)
         self.myself = myself
-        self.swim = SWIM.Instance(settings: settings, myself: myself)
+        self.swim = SWIM.Instance(settings: settings.swim, myself: myself)
 
         self.onMemberStatusChange = onMemberStatusChange
-        self.onStart(startPeriodicPingTimer: startPeriodicPingTimer)
+        self.onStart(startPeriodicPingTimer: settings._startPeriodicPingTimer)
     }
 
     /// Initialize timers and other after-initialized tasks
@@ -74,7 +73,7 @@ public final class SWIMNIOShell {
         self.announceMembershipChange(.init(previousStatus: nil, member: self.swim.myselfMember))
 
         // Immediately attempt to connect to initial contact points
-        self.settings.initialContactPoints.forEach { node in
+        self.settings.swim.initialContactPoints.forEach { node in
             self.receiveStartMonitoring(node: node)
         }
 
@@ -460,7 +459,7 @@ public final class SWIMNIOShell {
 
     // TODO: not presently used in the SWIMNIO + udp implementation, make use of it or remove? other impls do need this functionality.
     private func receiveConfirmDead(deadNode node: Node) {
-        guard case .enabled = self.settings.extensionUnreachability else {
+        guard case .enabled = self.settings.swim.extensionUnreachability else {
             self.log.warning("Received confirm .dead for [\(node)], however shell is not configured to use unreachable state, thus this results in no action.")
             return
         }

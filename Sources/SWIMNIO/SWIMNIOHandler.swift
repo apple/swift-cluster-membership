@@ -24,7 +24,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
     public typealias OutboundIn = WriteCommand
     public typealias OutboundOut = AddressedEnvelope<ByteBuffer>
 
-    let settings: SWIM.Settings
+    let settings: SWIMNIO.Settings
     var log: Logger {
         self.settings.logger
     }
@@ -40,7 +40,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
 
     var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void]
 
-    public init(settings: SWIM.Settings) {
+    public init(settings: SWIMNIO.Settings) {
         self.settings = settings
         self.pendingReplyCallbacks = [:]
     }
@@ -53,10 +53,12 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
             fatalError("SWIM requires a known host IP, but was nil! Channel: \(context.channel)")
         }
 
-        let node = self.settings.node ?? Node(protocol: "udp", host: hostIP, port: hostPort, uid: .random(in: 0 ..< UInt64.max))
+        var settings = self.settings
+        let node = self.settings.swim.node ?? Node(protocol: "udp", host: hostIP, port: hostPort, uid: .random(in: 0 ..< UInt64.max))
+        settings.swim.node = node
         self.shell = SWIMNIOShell(
             node: node,
-            settings: self.settings,
+            settings: settings,
             channel: context.channel,
             onMemberStatusChange: { change in
                 context.eventLoop.execute {
