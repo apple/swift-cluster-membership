@@ -422,8 +422,8 @@ public final class SWIMNIOShell {
         }
     }
 
-    // FIXME: push into Instance, it should attempt to send those initial pings
     /// Extra functionality, allowing external callers to ask this swim shell to start monitoring a specific node.
+    // TODO: Add some attempts:Int + maxAttempts: Int and handle them appropriately; https://github.com/apple/swift-cluster-membership/issues/32
     private func receiveStartMonitoring(node: Node) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
@@ -431,13 +431,31 @@ public final class SWIMNIOShell {
             }
         }
 
-        self.log.info("Start monitoring: \(node)")
         guard self.node.withoutUID != node.withoutUID else {
             return // no need to monitor ourselves, nor a replacement of us (if node is our replacement, we should have been dead already)
         }
 
-        let peer = node.peer(on: self.channel)
-        self.sendPing(to: peer, pingRequestOriginPeer: nil, timeout: .seconds(1), sequenceNumber: self.swim.nextSequenceNumber())
+        let targetPeer = node.peer(on: self.channel)
+
+        guard !self.swim.isMember(targetPeer, ignoreUID: true) else {
+            return // we're done, the peer has become a member!
+        }
+
+        let sequenceNumber = self.swim.nextSequenceNumber()
+        self.tracelog(.send(to: targetPeer), message: "ping(replyTo: \(self.peer), payload: .none, sequenceNr: \(sequenceNumber))")
+        targetPeer.ping(payload: .none, from: self.peer, timeout: .seconds(1), sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
+            switch result {
+            case .success(let response):
+                self.receivePingResponse(response: response, pingRequestOriginPeer: nil)
+            case .failure(let error):
+                self.log.debug("Failed to initial ping, will try again", metadata: ["ping/target": "\(node)", "error": "\(error)"])
+                // TODO: implement via re-trying a few times and then giving up https://github.com/apple/swift-cluster-membership/issues/32
+                self.eventLoop.scheduleTask(in: .seconds(5)) {
+                    self.log.info("(Re)-Attempt ping to initial contact point: \(node)")
+                    self.receiveStartMonitoring(node: node)
+                }
+            }
+        }
     }
 
     // TODO: not presently used in the SWIMNIO + udp implementation, make use of it or remove? other impls do need this functionality.

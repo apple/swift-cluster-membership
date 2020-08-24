@@ -66,17 +66,6 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             .awaitLog(grep: #""swim/suspects/count": 1"#, within: .seconds(20))
     }
 
-    func test_real_peers_2_connectToNonExistingPeer_immediatelyMarksItSuspect() throws {
-        let (firstHandler, _) = self.makeClusterNode() { settings in
-            settings.initialContactPoints = [
-                Node(protocol: "test", host: "127.0.0.1", port: 8888, uid: nil),
-            ]
-        }
-
-        try self.capturedLogs(of: firstHandler.shell.node)
-            .awaitLog(grep: #""swim/suspects/count": 1"#)
-    }
-
     func test_real_peers_2_connect_peerCountNeverExceeds2() throws {
         let (firstHandler, _) = self.makeClusterNode() { settings in
             settings.pingTimeout = .milliseconds(100)
