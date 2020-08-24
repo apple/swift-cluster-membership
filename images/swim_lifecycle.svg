@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns:xl="http://www.w3.org/1999/xlink" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" viewBox="-105 53 829 344" width="829" height="344">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xl="http://www.w3.org/1999/xlink" version="1.1" viewBox="-105 53 829 288" width="829" height="288">
   <defs>
     <font-face font-family="Helvetica Neue" font-size="16" panose-1="2 0 5 3 0 0 0 2 0 4" units-per-em="1000" underline-position="-100" underline-thickness="50" slope="0" x-height="517" cap-height="714" ascent="951.9958" descent="-212.99744" font-weight="400">
       <font-face-src>
@@ -27,7 +27,7 @@
         <path d="M 8 0 L 0 -3 L 0 3 Z" fill="none" stroke="currentColor" stroke-width="1"/>
       </g>
     </marker>
-    <filter id="Shadow" filterUnits="userSpaceOnUse" x="-187.9" y="18.6">
+    <filter id="Shadow" filterUnits="userSpaceOnUse" x="-187.9" y="24.2">
       <feGaussianBlur in="SourceAlpha" result="blur" stdDeviation="1.624648"/>
       <feFlood flood-color="#2f4d6f" flood-opacity=".75" result="flood"/>
       <feComposite in="flood" in2="blur" operator="in" result="color"/>
@@ -52,8 +52,8 @@
       </g>
     </marker>
   </defs>
-  <metadata> Produced by OmniGraffle 7.17.2\n2020-07-30 10:01:57 +0000</metadata>
-  <g id="Canvas_1" fill-opacity="1" stroke-opacity="1" fill="none" stroke-dasharray="none" stroke="none">
+  <metadata> Produced by OmniGraffle 7.17.2\n2020-08-24 10:15:22 +0000</metadata>
+  <g id="Canvas_1" stroke="none" fill="none" stroke-opacity="1" stroke-dasharray="none" fill-opacity="1">
     <title>Canvas 1</title>
     <g id="Canvas_1_Layer_1">
       <title>Layer 1</title>
@@ -78,8 +78,8 @@
         </text>
       </g>
       <g id="Graphic_7">
-        <path d="M 134.36364 176.74167 L 267 176.74167 C 269.20914 176.74167 271 178.53253 271 180.74167 L 271 214.74167 C 271 216.9508 269.20914 218.74167 267 218.74167 L 134.36364 218.74167 C 132.1545 218.74167 130.36364 216.9508 130.36364 214.74167 L 130.36364 180.74167 C 130.36364 178.53253 132.1545 176.74167 134.36364 176.74167 Z" fill="#ffc7a0"/>
-        <path d="M 134.36364 176.74167 L 267 176.74167 C 269.20914 176.74167 271 178.53253 271 180.74167 L 271 214.74167 C 271 216.9508 269.20914 218.74167 267 218.74167 L 134.36364 218.74167 C 132.1545 218.74167 130.36364 216.9508 130.36364 214.74167 L 130.36364 180.74167 C 130.36364 178.53253 132.1545 176.74167 134.36364 176.74167 Z" stroke="#636363" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+        <path d="M 134.36364 176.74167 L 267 176.74167 C 269.20914 176.74167 271 178.53253 271 180.74167 L 271 214.74167 C 271 216.9508 269.20914 218.74167 267 218.74167 L 134.36364 218.74167 C 132.1545 218.74167 130.36364 216.9508 130.36364 214.74167 L 130.36364 180.74167 C 130.36364 178.53253 132.1545 176.74167 134.36364 176.74167 Z" fill="#ffcfaa"/>
+        <path d="M 134.36364 176.74167 L 267 176.74167 C 269.20914 176.74167 271 178.53253 271 180.74167 L 271 214.74167 C 271 216.9508 269.20914 218.74167 267 218.74167 L 134.36364 218.74167 C 132.1545 218.74167 130.36364 216.9508 130.36364 214.74167 L 130.36364 180.74167 C 130.36364 178.53253 132.1545 176.74167 134.36364 176.74167 Z" stroke="#636363" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8.0,8.0" stroke-width="2"/>
         <text transform="translate(135.36364 188.51767)" fill="black">
           <tspan font-family="Helvetica Neue" font-size="16" font-style="italic" font-weight="400" fill="black" x="19.518184" y="15">.unreachable</tspan>
         </text>
@@ -139,15 +139,15 @@
           <line x1="242.6586" y1="291.93983" x2="716.8561" y2="291.93983" stroke="#306174" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/>
         </g>
         <g id="Graphic_30">
-          <text transform="translate(245 269.6797)" fill="#636363">
-            <tspan font-family="Helvetica" font-size="14" font-weight="700" fill="#636363" x="0" y="14">Optional: .unreachable -&gt; .down may be consulted with the application</tspan>
+          <text transform="translate(245 278.1797)" fill="#636363">
+            <tspan font-family="Helvetica" font-size="14" font-weight="700" fill="#636363" x="0" y="14">Optional: .unreachable -&gt; .dead may be consulted with the application</tspan>
           </text>
         </g>
         <g id="Graphic_29">
           <text transform="translate(253.6006 296.70923)" fill="#636363">
             <tspan font-family="Helvetica" font-size="11" font-weight="400" fill="#636363" x="73.2543" y="10">It is possible to keep an unreachable node in this state trying to </tspan>
             <tspan font-family="Helvetica" font-size="11" font-weight="400" fill="#636363" x="96.48697" y="23">reconnect to a peer if an application decides to do so.</tspan>
-            <tspan font-family="Helvetica" font-size="11" font-weight="400" fill="#636363" x="38.12198" y="36">Classical SWIM implementations automatically promote unreachable to dead.</tspan>
+            <tspan font-family="Helvetica" font-size="11" font-weight="400" fill="#636363" x="57.970856" y="36">By default, the .unreachable state is automatically promoted to .dead.</tspan>
           </text>
         </g>
       </g>
