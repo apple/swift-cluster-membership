@@ -43,7 +43,7 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
         self.loop = nil
     }
 
-    func makeClusterNode(name: String? = nil, configure configureSettings: (inout SWIM.Settings) -> Void = { _ in () }) -> (SWIMProtocolHandler, Channel) {
+    func makeClusterNode(name: String? = nil, configure configureSettings: (inout SWIM.Settings) -> Void = { _ in () }) -> (SWIMNIOHandler, Channel) {
         let port = self.nextPort()
         let name = name ?? "swim-\(port)"
 
@@ -54,7 +54,7 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
             self.makeLogCapture(name: name, settings: &settings)
         }
 
-        let handler = SWIMProtocolHandler(settings: settings)
+        let handler = SWIMNIOHandler(settings: settings)
         let bootstrap = DatagramBootstrap(group: self.group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in channel.pipeline.addHandler(handler) }

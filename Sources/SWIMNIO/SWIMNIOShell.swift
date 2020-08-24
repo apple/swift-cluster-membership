@@ -432,60 +432,37 @@ public final class SWIMNIOShell {
         self.sendFirstPing(on: node)
     }
 
-    // TODO: test in isolation
+    // TODO: not presently used in the SWIMNIO + udp implementation, make use of it or remove? other impls do need this functionality.
     private func receiveConfirmDead(deadNode node: Node) {
-        guard self.settings.useUnreachableState else {
+        guard case .enabled = self.settings.unreachability else {
             self.log.warning("Received confirm .dead for [\(node)], however shell is not configured to use unreachable state, thus this results in no action.")
             return
         }
 
-        guard let member = self.swim.member(for: node) else {
-            // TODO: would want to see if this happens when we fail these tests
+        // We are diverging from the SWIM paper here in that we store the `.dead` state, instead
+        // of removing the node from the member list. We do that in order to prevent dead nodes
+        // from being re-added to the cluster.
+        // TODO: add time of death to the status?
+        // TODO: GC tombstones after a day?
+
+        guard let member = swim.member(for: node) else {
             self.log.warning("Attempted to confirm .dead [\(node)], yet no such member known", metadata: self.swim.metadata)
             return
         }
 
-        // It is important to not infinitely loop cluster.down + confirmDead messages;
-        // See: `.confirmDead` for more rationale
-        if member.isDead {
-            return // member is already dead, nothing else to do here.
-        }
+        // even if it's already dead, swim knows how to handle all the cases:
+        let directive = self.swim.confirmDead(peer: member.peer)
+        switch directive {
+        case .ignored:
+            self.log.warning("Attempted to confirmDead node \(node) was ignored, was already dead?", metadata: [
+                "swim/member": "\(optional: swim.member(for: node))",
+            ])
 
-        self.log.trace("Confirming .dead member \(member.node)")
-
-        // We are diverging from the SWIM paper here in that we store the `.dead` state, instead
-        // of removing the node from the member list. We do that in order to prevent dead nodes
-        // from being re-added to the cluster.
-        // TODO: add time of death to the status
-        // TODO: GC tombstones after a day
-
-        switch self.swim.mark(member.peer, as: .dead) {
-        case .applied(let .some(previousState), _):
-            if previousState.isSuspect || previousState.isUnreachable {
-                self.log.warning(
-                    "Marked [\(member)] as [.dead]. Was marked \(previousState) in protocol period [\(member.protocolPeriod)]",
-                    metadata: [
-                        "swim/protocolPeriod": "\(self.swim.protocolPeriod)",
-                        "swim/member": "\(member)", // TODO: make sure it is the latest status of it in here
-                    ]
-                )
-            } else {
-                self.log.warning(
-                    "Marked [\(member)] as [.dead]. Node was previously [.alive], and now forced [.dead].",
-                    metadata: [
-                        "swim/protocolPeriod": "\(self.swim.protocolPeriod)",
-                        "swim/member": "\(member)", // TODO: make sure it is the latest status of it in here
-                    ]
-                )
-            }
-        case .applied(nil, _):
-            // TODO: marking is more about "marking a node as dead" should we rather log addresses and not peer paths?
-            self.log.warning("Marked [\(member)] as [.dead]. Node was not previously known to SWIM.")
-            // TODO: should we not issue a escalateUnreachable here? depends how we learnt about that node...
-
-        case .ignoredDueToOlderStatus:
-            // TODO: make sure a fatal error in SWIM.Shell causes a system shutdown?
-            fatalError("Marking [\(member)] as [.dead] failed! This should never happen, dead is the terminal status. SWIM instance: \(optional: self.swim)")
+        case .applied(let change):
+            self.log.trace("Confirmed node as .dead", metadata: self.swim.metadata([
+                "swim/member": "\(optional: swim.member(for: node))",
+            ]))
+            self.tryAnnounceMemberReachability(change: change)
         }
     }
 

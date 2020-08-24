@@ -81,7 +81,7 @@ final class SWIMNIOEventTests: EmbeddedClusteredXCTestCase {
             .channelInitializer { channel in
                 var settings = settings
                 self.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
-                let swimHandler = SWIMProtocolHandler(settings: settings)
+                let swimHandler = SWIMNIOHandler(settings: settings)
                 return channel.pipeline.addHandler(swimHandler).flatMap { _ in
                     channel.pipeline.addHandler(probeHandler)
                 }

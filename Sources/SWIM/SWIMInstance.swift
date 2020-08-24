@@ -82,6 +82,21 @@ public protocol SWIMProtocol {
     ///   - response:
     ///   - member:
     mutating func onEveryPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: SWIMAddressablePeer)
+
+    /// Optional, only relevant when using `settings.unreachable` status mode (which is disabled by default).
+    ///
+    /// When `.unreachable` members are allowed, this function MUST be invoked to promote a node into `.dead` state.
+    ///
+    /// In other words, once a `MemberStatusChangedEvent` for an unreachable member has been emitted,
+    /// a higher level system may take additional action and then determine when to actually confirm it dead.
+    /// Systems can implement additional split-brain prevention mechanisms on those layers for example.
+    ///
+    /// Once a node is determined dead by such higher level system, it may invoked `swim.confirmDead(peer: theDefinitelyDeadPeer`,
+    /// to mark the node as dead, with all of its consequences.
+    ///
+    /// - Parameter peer: the peer which should be confirmed dead.
+    /// - Returns: a directive explaining what action was taken, and should be taken in response to this action.
+    mutating func confirmDead(peer: SWIMAddressablePeer) -> SWIM.Instance.ConfirmDeadDirective
 }
 
 extension SWIM {
@@ -105,6 +120,7 @@ extension SWIM {
 
         // We store the owning SWIMShell peer in order avoid adding it to the `membersToPing` list
         private let myself: SWIMPeer
+
         private var node: ClusterMembership.Node {
             self.myself.node
         }
@@ -318,6 +334,11 @@ extension SWIM {
                 suspicionStartedAt = member.suspicionStartedAt
             } else if case .suspect = status {
                 suspicionStartedAt = self.nowNanos()
+            } else if case .unreachable = status,
+                case .disabled = self.settings.unreachability {
+                // This node is not configured to respect unreachability and thus will immediately promote this status to dead
+                // TODO: log warning here
+                status = .dead
             }
 
             if let previousStatus = previousStatusOption, previousStatus.supersedes(status) {
@@ -501,6 +522,10 @@ extension SWIM.Instance {
         !self.isMyself(peer)
     }
 
+    func isMyself(_ member: SWIM.Member) -> Bool {
+        self.whenMyself(member) != nil
+    }
+
     func whenMyself(_ member: SWIM.Member) -> SWIM.Member? {
         if self.isMyself(member.peer) {
             return member
@@ -640,7 +665,7 @@ extension SWIM.Instance {
         case sendAck(myself: SWIMAddressablePeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber)
     }
 
-    // ==== ----------------------------------------------------------------------------------------------------------------
+    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Response Handlers
 
     public func onPingResponse(response: SWIM.PingResponse, pingRequestOrigin: SWIMPingOriginPeer?) -> [PingResponseDirective] {
@@ -813,7 +838,7 @@ extension SWIM.Instance {
         }
     }
 
-    // ==== ----------------------------------------------------------------------------------------------------------------
+    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Request
 
     public func onPingRequest(target: SWIMPeer, replyTo: SWIMPingOriginPeer, payload: SWIM.GossipPayload) -> [PingRequestDirective] {
@@ -858,7 +883,7 @@ extension SWIM.Instance {
         case sendPing(target: SWIMPeer, pingRequestOrigin: SWIMPingOriginPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
     }
 
-    // ==== ----------------------------------------------------------------------------------------------------------------
+    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Request Response
 
     /// This should be called on first successful (non-nack) pingRequestResponse
@@ -957,13 +982,16 @@ extension SWIM.Instance {
     }
 
     internal func onGossipPayload(about member: SWIM.Member) -> GossipProcessedDirective {
-        if let myself = self.whenMyself(member) {
-            return onMyselfGossipPayload(myself: myself)
+        if self.whenMyself(member) != nil {
+            return self.onMyselfGossipPayload(myself: member)
         } else {
-            return onOtherMemberGossipPayload(member: member)
+            return self.onOtherMemberGossipPayload(member: member)
         }
     }
 
+    /// ### Unreachability status handling
+    /// Performs all special handling of `.unreachable` such that if it is disabled members are automatically promoted to `.dead`.
+    /// See `settings.unreachability` for more details.
     private func onMyselfGossipPayload(myself incoming: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
         assert(self.myself.node == incoming.peer.node, "Attempted to process gossip as-if about myself, but was not the same peer, was: \(incoming). Myself: \(self.myself, orElse: "nil")")
 
@@ -999,23 +1027,31 @@ extension SWIM.Instance {
             }
 
         case .unreachable(let unreachableInIncarnation):
-            // someone suspected us, so we need to increment our incarnation number to spread our alive status with
-            // the incremented incarnation
-            // TODO: this could be the right spot to reply with a .nack, to prove that we're still alive
-            if unreachableInIncarnation == self.incarnation {
-                self._incarnation += 1
-            } else if unreachableInIncarnation > self.incarnation {
-                return .applied(
-                    change: nil,
-                    level: .warning,
-                    message: """
-                    Received gossip about self with incarnation number [\(unreachableInIncarnation)] > current incarnation [\(self._incarnation)], \
-                    which should never happen and while harmless is highly suspicious, please raise an issue with logs. This MAY be an issue in the library.
-                    """
-                )
-            }
+            switch self.settings.unreachability {
+            case .enabled:
+                // someone suspected us,
+                // so we need to increment our incarnation number to spread our alive status with the incremented incarnation
+                if unreachableInIncarnation == self.incarnation {
+                    self._incarnation += 1
+                    return .ignored
+                } else if unreachableInIncarnation > self.incarnation {
+                    return .applied(
+                        change: nil,
+                        level: .warning,
+                        message: """
+                        Received gossip about self with incarnation number [\(unreachableInIncarnation)] > current incarnation [\(self._incarnation)], \
+                        which should never happen and while harmless is highly suspicious, please raise an issue with logs. This MAY be an issue in the library.
+                        """
+                    )
+                } else {
+                    return .ignored(level: .debug, message: "Incoming .unreachable about myself, however current incarnation [\(self.incarnation)] is greater than incoming \(incoming.status)")
+                }
 
-            return .applied(change: nil)
+            case .disabled:
+                // we don't use unreachable states, and in any case, would not apply it to myself
+                // as we always consider "us" to be reachable after all
+                return .ignored
+            }
 
         case .dead:
             guard var myselfMember = self.member(for: self.myself) else {
@@ -1032,6 +1068,9 @@ extension SWIM.Instance {
         }
     }
 
+    /// ### Unreachability status handling
+    /// Performs all special handling of `.unreachable` such that if it is disabled members are automatically promoted to `.dead`.
+    /// See `settings.unreachability` for more details.
     private func onOtherMemberGossipPayload(member: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
         assert(self.node != member.node, "Attempted to process gossip as-if not-myself, but WAS same peer, was: \(member). Myself: \(self.myself, orElse: "nil")")
 
@@ -1085,6 +1124,39 @@ extension SWIM.Instance {
             .ignored(level: nil, message: nil)
         }
     }
+
+    // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: Confirm Dead
+
+    public func confirmDead(peer: SWIMAddressablePeer) -> ConfirmDeadDirective {
+        guard var member = self.member(for: peer) else {
+            return .ignored
+        }
+
+        guard !member.isDead else {
+            // the member seems to be already dead, no need to mark it dead again
+            return .ignored
+        }
+
+        switch self.mark(peer, as: .dead) {
+        case .applied(let previousStatus, let currentStatus):
+            member.status = currentStatus
+            return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: member))
+
+        case .ignoredDueToOlderStatus:
+            return .ignored // it was already dead for example
+        }
+    }
+
+    public enum ConfirmDeadDirective {
+        /// The change was applied and caused a membership change.
+        ///
+        /// The change should be emitted as an event by an interpreting shell.
+        case applied(change: SWIM.MemberStatusChangedEvent)
+
+        /// The confirmation had not effect, either the peer was not known, or is already dead.
+        case ignored
+    }
 }
 
 extension SWIM.Instance: CustomDebugStringConvertible {
@@ -1137,5 +1209,29 @@ extension SWIM.Instance {
                 return 1 // increase the LHM
             }
         }
+    }
+}
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: SWIM Logging Metadata
+
+extension SWIM.Instance {
+    public func metadata(_ additional: Logger.Metadata) -> Logger.Metadata {
+        var metadata = self.metadata
+        metadata.merge(additional, uniquingKeysWith: { _, r in r })
+        return metadata
+    }
+
+    /// While the SWIM.Instance is not meant to be logging by itself, it does offer metadata for loggers to use.
+    public var metadata: Logger.Metadata {
+        [
+            "swim/protocolPeriod": "\(self.protocolPeriod)",
+            "swim/timeoutSuspectsBeforePeriodMax": "\(self.timeoutSuspectsBeforePeriodMax)",
+            "swim/timeoutSuspectsBeforePeriodMin": "\(self.timeoutSuspectsBeforePeriodMin)",
+            "swim/incarnation": "\(self.incarnation)",
+            "swim/members/all": Logger.Metadata.Value.array(self.allMembers.map { "\($0)" }),
+            "swim/members/count": "\(self.notDeadMemberCount)",
+            "swim/suspects/count": "\(self.suspects.count)",
+        ]
     }
 }
