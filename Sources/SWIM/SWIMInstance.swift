@@ -18,10 +18,26 @@ import Darwin
 #else
 import Glibc
 #endif
+import struct Dispatch.DispatchTime
 import enum Dispatch.DispatchTimeInterval
 import Logging
 
-/// # SWIM (Scalable Weakly-consistent Infection-style Process Group Membership Protocol).
+/// ## Scalable Weakly-consistent Infection-style Process Group Membership Protocol
+///
+/// > As you swim lazily through the milieu,
+/// > The secrets of the world will infect you.
+///
+/// Implementation of the SWIM protocol in abstract terms, not dependent on any specific runtime.
+/// The actual implementation resides in `SWIM.Instance`.
+///
+/// ### Terminology
+/// This implementation follows the original terminology mostly directly, with the notable exception of the original
+/// wording of "confirm" being rather represented as `SWIM.Status.dead`, as we found the "confirm" wording to be
+/// confusing in practice.
+///
+/// ### Extensions & Modifications
+/// - Random, stable order members to ping selection: Unlike the completely random selection in the original paper.
+///
 ///
 /// SWIM serves as a low-level distributed failure detector mechanism.
 /// It also maintains its own membership in order to monitor and select nodes to ping with periodic health checks,
@@ -34,78 +50,86 @@ import Logging
 /// Cluster members may be discovered though SWIM gossip, yet will be asked to participate in the high-level
 /// cluster membership as driven by the `ClusterShell`.
 ///
-/// ### Properties
-///
-/// #### Time Bounded Completeness
-/// The time interval between the occurrence of a failure and its detection at member is no more than two times the
-/// group size (in number of protocol periods).
-///
-/// ### See Also
 /// - SeeAlso: `SWIM.Instance` for a detailed discussion on the implementation.
-/// - SeeAlso: `SWIMNIO.Shell` for an example interpretation and driving the interactions.
+///
+/// ### Related Papers
+///
+/// - SeeAlso: [SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol](https://www.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf)
+/// - SeeAlso: [Lifeguard: Local Health Awareness for More Accurate Failure Detection](https://arxiv.org/abs/1707.00788)
 public enum SWIM {}
 
+/// This protocol defines all callbacks that a SWIM Shell (in other words, "runtime") must implement to properly drive
+/// the underlying SWIM.Instance (which contains the complete logic of SWIM).
 public protocol SWIMProtocol {
-    /// Must be invoked periodically, in intervals of `self.swim.dynamicLHMProtocolInterval`.
+    /// MUST be invoked periodically, in intervals of `self.swim.dynamicLHMProtocolInterval`.
     ///
-    /// Periodically
+    /// MUST NOT be scheduled using a "repeated" task/timer", as the interval is dynamic and may change as the algorithm proceeds.
+    /// Implementations should schedule each next tick by handling the returned directive's `scheduleNextTick` case,
+    /// which includes the appropriate delay to use for the next protocol tick.
     ///
-    /// - Returns:
+    /// This is the heart of the protocol, as each tick corresponds to a "protocol period" in which:
+    /// - suspect members are checked if they're overdue and should become `.unreachable` or `.dead`,
+    /// - decisions are made to `.ping` a random peer for fault detection,
+    /// - and some internal house keeping is performed.
+    ///
+    /// Note: This means that effectively all decisions are made in interval sof protocol periods.
+    /// It would be possible to have a secondary periodic or more ad-hoc interval to speed up
+    /// some operations, however this is currently not implemented and the protocol follows the fairly
+    /// standard mode of simply carrying payloads in periodic ping messages.
+    ///
+    /// - Returns: directives to be acted on by an implementation, refer to the directive's docs for details.
     mutating func onPeriodicPingTick() -> [SWIM.Instance.PeriodicPingTickDirective]
 
-    /// Must be invoked whenever a `Ping` message is received.
+    /// MUST be invoked whenever a `ping` message is received.
     ///
     /// A specific shell implementation must the returned directives by acting on them.
     /// The order of interpreting the events should be as returned by the onPing invocation.
     ///
-    // TODO: more docs
-    ///
-    /// - Parameter payload:
-    /// - Returns:
+    /// - parameters:
+    ///   - pingOrigin: the origin peer that issued this `ping`, it should be replied to (as instructed in the returned ping directive)
+    ///   - payload: gossip information to be processed by this peer, resulting in potentially discovering new information about other members of the cluster
+    ///   - sequenceNumber: sequence number of this ping, will be used to reply to the ping's origin using the same sequence number
+    /// - Returns: `SWIM.Instance.PingDirective` which instructs an implementation on how to react to this message.
     mutating func onPing(pingOrigin: SWIMAddressablePeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) -> [SWIM.Instance.PingDirective]
 
-    /// Must be invoked when a `pingRequest` is received.
+    /// MUST be invoked when a `pingRequest` is received.
     ///
-    // TODO: more docs
+    /// The returned directives will instruct an implementation to perform probes of available peers on behalf of
     ///
-    /// - Parameters:
-    ///   - target:
-    ///   - replyTo:
-    ///   - payload:
-    /// - Returns:
-    mutating func onPingRequest(target: SWIMPeer, replyTo: SWIMPingOriginPeer, payload: SWIM.GossipPayload) -> [SWIM.Instance.PingRequestDirective]
+    /// - parameters:
+    ///   - target: target peer which this instance was asked to indirectly ping.
+    ///   - replyTo: the origin of this ping request; it should be notified with an .ack once we get a reply from the probed peer
+    ///   - payload: gossip information to be processed by this peer, resulting in potentially discovering new information about other members of the cluster
+    /// - Returns: directives to be acted on by an implementation, refer to the directive's docs for details.
+    mutating func onPingRequest(target: SWIMPeer, pingRequestOrigin replyTo: SWIMPingRequestOriginPeer, payload: SWIM.GossipPayload) -> [SWIM.Instance.PingRequestDirective]
 
-    /// Must be invoked when a ping response, timeout, or error for a specific ping is received.
+    /// MUST be invoked when a ping response (or timeout) occur for a specific ping.
     ///
-    // TODO: more docs
-    ///
-    /// - Parameters:
-    ///   - response:
-    ///   - pingRequestOrigin:
-    /// - Returns:
+    /// - parameters:
+    ///   - response: the response (or timeout) related to this ping
+    ///   - pingRequestOrigin: if this ping was issued on behalf of a `pingRequestOrigin`, that peer, otherwise `nil`
+    /// - Returns: directives to be acted on by an implementation, refer to the directive's docs for details.
     mutating func onPingResponse(response: SWIM.PingResponse, pingRequestOrigin: SWIMPingOriginPeer?) -> [SWIM.Instance.PingResponseDirective]
 
-    /// Must be invoked whenever a successful response to a `pingRequest` happens or all of `pingRequest`'s fail.
+    /// Must be invoked be invoked on the *first successful response* from any number of `ping` messages that this peer
+    /// has performed on behalf of a `pingRequestOrigin`.
     ///
-    // TODO: more docs
-    ///
-    /// - Parameters:
-    ///   - response:
-    ///   - member:
-    /// - Returns:
-    mutating func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: SWIMAddressablePeer) -> [SWIM.Instance.PingRequestResponseDirective]
+    /// - parameters:
+    ///   - response: the response representing this ping's result (i.e. `ack` or `timeout`).
+    ///   - peer: the peer
+    /// - Returns: directives to be acted on by an implementation, refer to the directive's docs for details.
+    mutating func onPingRequestResponse(_ response: SWIM.PingResponse, pinged peer: SWIMAddressablePeer) -> [SWIM.Instance.PingRequestResponseDirective]
 
-    /// Must be invoked whenever a response to a `pingRequest` (an ack, nack or lack response i.e. a timeout) happens.
+    /// MUST be invoked whenever a response to a `pingRequest` (an ack, nack or lack response i.e. a timeout) happens.
     ///
-    /// This function is adjusting Local Health and MUST be invoked on _every_ received response to a pingRequest,
+    /// This function is adjusting Local Health and MUST be invoked on **every** received response to a pingRequest,
     /// in order for the local health adjusted timeouts to be calculated correctly.
     ///
-    // TODO: more docs
-    ///
-    /// - Parameters:
-    ///   - response:
-    ///   - member:
-    mutating func onEveryPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: SWIMAddressablePeer)
+    /// - parameters:
+    ///   - response: the response representing
+    ///   - peer: the pinged peer that this response is from
+    /// - Returns: directives to be acted on by an implementation, refer to the directive's docs for details.
+    mutating func onEveryPingRequestResponse(_ response: SWIM.PingResponse, pinged peer: SWIMAddressablePeer)
 
     /// Optional, only relevant when using `settings.unreachable` status mode (which is disabled by default).
     ///
@@ -124,20 +148,14 @@ public protocol SWIMProtocol {
 }
 
 extension SWIM {
-    /// # SWIM (Scalable Weakly-consistent Infection-style Process Group Membership Protocol)
+
+    /// The `SWIM.Instance` encapsulates the complete algorithm implementation of the `SWIM` protocol.
     ///
-    /// > As you swim lazily through the milieu,
-    /// > The secrets of the world will infect you.
+    /// **Please refer to `SWIM` for an in-depth discussion of the algorithm and extensions implemented in this package.**
     ///
-    /// Implementation of the SWIM protocol in abstract terms, not dependent on any specific runtime.
-    ///
-    /// ### Extensions
-    /// - Random, stable order members to ping selection: Unlike the completely random selection in the original paper.
-    ///
-    /// ### Related Papers
-    /// - SeeAlso: [SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol](https://www.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf)
-    /// - SeeAlso: [Lifeguard: Local Health Awareness for More Accurate Failure Detection](https://arxiv.org/abs/1707.00788)
+    /// - SeeAlso: `SWIM` for a complete and in depth discussion of the protocol.
     public final class Instance: SWIMProtocol { // FIXME: make it a struct?
+        /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
         // We store the owning SWIMShell peer in order avoid adding it to the `membersToPing` list
@@ -147,13 +165,13 @@ extension SWIM {
             self.myself.node
         }
 
-        /// Cluster `Member` representing this instance.
+        /// The `SWIM.Member` representing this instance.
         public var myselfMember: SWIM.Member {
             self.member(for: self.node)!
         }
 
         /// Main members storage, map to values to obtain current members.
-        internal var members: [ClusterMembership.Node: SWIM.Member]
+        internal var _members: [ClusterMembership.Node: SWIM.Member]
 
         /// List of members maintained in random yet stable order, see `addMember` for details.
         internal var membersToPing: [SWIM.Member]
@@ -178,21 +196,35 @@ extension SWIM {
         /// > LHM is a saturating counter, with a max value S and min value zero, meaning it will not
         /// > increase above S or decrease below zero.
         ///
-        /// Local health multiplier is designed to relax the probeInterval and pingTimeout.
-        /// The multiplier will be increased in a following cases:
-        /// - When local node needs to refute a suspicion about itself
-        /// - When ping-req is missing nack
-        /// - When probe is failed
-        ///  Each of the above may indicate that local instance is not processing incoming messages in timely order.
-        /// The multiplier will be decreased when:
-        /// - Ping succeeded with an ack.
-        /// Events which cause the specified changes to the LHM counter are defined as `SWIM.LHModifierEvent`
-        public var localHealthMultiplier = 0
+        /// The local health multiplier (LHM for short) is designed to relax the `probeInterval` and `pingTimeout`.
+        ///
+        /// The value MUST be >= 0.
+        ///
+        /// - SeeAlso: `SWIM.Instance.LHModifierEvent` for details how and when the LHM is adjusted.
+        public var localHealthMultiplier = 0 {
+            didSet {
+                assert(self.localHealthMultiplier >= 0, "localHealthMultiplier MUST NOT be < 0, but was: \(self.localHealthMultiplier)")
+            }
+        }
 
+        /// Dynamically adjusted probing interval.
+        ///
+        /// Usually this interval will be yielded with a directive at appropriate spots, so it should not be
+        /// necessary to invoke it manually.
+        ///
+        /// - SeeAlso: `localHealthMultiplier` for more detailed documentation.
+        /// - SeeAlso: Lifeguard IV.A. Local Health Multiplier (LHM)
         public var dynamicLHMProtocolInterval: DispatchTimeInterval {
             .nanoseconds(Int(self.settings.probeInterval.nanoseconds * Int64(1 + self.localHealthMultiplier)))
         }
 
+        /// Dynamically adjusted (based on Local Health) timeout to be used when sending `ping` messages.
+        ///
+        /// Usually this interval will be yielded with a directive at appropriate spots, so it should not be
+        /// necessary to invoke it manually.
+        ///
+        /// - SeeAlso: `localHealthMultiplier` for more detailed documentation.
+        /// - SeeAlso: Lifeguard IV.A. Local Health Multiplier (LHM)
         public var dynamicLHMPingTimeout: DispatchTimeInterval {
             .nanoseconds(Int(self.settings.pingTimeout.nanoseconds * Int64(1 + self.localHealthMultiplier)))
         }
@@ -212,7 +244,7 @@ extension SWIM {
         public init(settings: SWIM.Settings, myself: SWIMPeer) {
             self.settings = settings
             self.myself = myself
-            self.members = [:]
+            self._members = [:]
             self.membersToPing = []
             _ = self.addMember(myself, status: .alive(incarnation: 0))
         }
@@ -271,10 +303,10 @@ extension SWIM {
             }
 
             // just in case we had a peer added manually, and thus we did not know its uuid, let us remove it
-            _ = self.members.removeValue(forKey: self.node.withoutUID)
+            _ = self._members.removeValue(forKey: self.node.withoutUID)
 
             let member = SWIM.Member(peer: peer, status: status, protocolPeriod: self.protocolPeriod)
-            self.members[member.node] = member
+            self._members[member.node] = member
 
             if maybeExistingMember == nil, self.notMyself(member) {
                 // We know this is a new member.
@@ -343,7 +375,7 @@ extension SWIM {
                 status.isAlive || status.isSuspect
             }
 
-            let candidates = self.members
+            let candidates = self._members
                 .values
                 .filter {
                     notTarget($0.peer) && notMyself($0.peer) && isReachable($0.status)
@@ -359,7 +391,7 @@ extension SWIM {
 
             var status = status
             var protocolPeriod = self.protocolPeriod
-            var suspicionStartedAt: Int64?
+            var suspicionStartedAt: DispatchTime?
 
             if case .suspect(let incomingIncarnation, let incomingSuspectedBy) = status,
                 case .suspect(let previousIncarnation, let previousSuspectedBy)? = previousStatusOption,
@@ -369,11 +401,11 @@ extension SWIM {
                 status = .suspect(incarnation: incomingIncarnation, suspectedBy: suspicions)
                 // we should keep old protocol period when member is already a suspect
                 protocolPeriod = member.protocolPeriod
-                suspicionStartedAt = member.suspicionStartedAt
+                suspicionStartedAt = member.localSuspicionStartedAt
             } else if case .suspect = status {
-                suspicionStartedAt = self.nowNanos()
+                suspicionStartedAt = self.now()
             } else if case .unreachable = status,
-                case .disabled = self.settings.extensionUnreachability {
+                case .disabled = self.settings.unreachability {
                 // This node is not configured to respect unreachability and thus will immediately promote this status to dead
                 // TODO: log warning here
                 status = .dead
@@ -385,7 +417,7 @@ extension SWIM {
             }
 
             let member = SWIM.Member(peer: peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: suspicionStartedAt)
-            self.members[peer.node] = member
+            self._members[peer.node] = member
 
             if status.isDead {
                 self.removeFromMembersToPing(member)
@@ -406,7 +438,7 @@ extension SWIM {
         private func resetGossipPayloads(member: SWIM.Member) {
             // seems we gained a new member, and we need to reset gossip counts in order to ensure it also receive information about all nodes
             // TODO: this would be a good place to trigger a full state sync, to speed up convergence; see https://github.com/apple/swift-cluster-membership/issues/37
-            self.allMembers.forEach { self.addToGossip(member: $0) }
+            self.members.forEach { self.addToGossip(member: $0) }
         }
 
         internal func incrementProtocolPeriod() {
@@ -483,12 +515,18 @@ extension SWIM {
         }
 
         /// Checks if a deadline is expired (relating to current time).
-        public func isExpired(deadline: Int64) -> Bool {
-            deadline < self.nowNanos()
+        ///
+        /// - Parameter deadline: deadline we want to check if it's expired
+        /// - Returns: true if the `now()` time is "past" the deadline
+        public func isExpired(deadline: DispatchTime) -> Bool {
+            deadline < self.now()
         }
 
-        private func nowNanos() -> Int64 {
-            self.settings.timeSourceNanos()
+        /// Returns the current point in time on this machine.
+        /// - Note: `DispatchTime` is simply a number of nanoseconds since boot on this machine, and thus is not comparable across machines.
+        ///   We use it on purpose, as we do not intend to share our local time observations with any other peers.
+        private func now() -> DispatchTime {
+            self.settings.timeSourceNow()
         }
 
         /// Create a gossip payload (i.e. a set of `SWIM.Gossip` messages) that should be gossiped with failure detector
@@ -548,7 +586,7 @@ extension SWIM {
                 }
 
                 gossip.numberOfTimesGossiped += 1
-                if self.settings.gossip.needsToBeGossipedMoreTimes(gossip, members: self.allMembers.count) {
+                if self.settings.gossip.needsToBeGossipedMoreTimes(gossip, members: self.members.count) {
                     self._messagesToGossip.append(gossip)
                 }
             }
@@ -602,7 +640,7 @@ extension SWIM.Instance {
     // TODO: ensure we actually store "us" in members; do we need this special handling if then at all?
     public func status(of peer: SWIMAddressablePeer) -> SWIM.Status? {
         if self.notMyself(peer) {
-            return self.members[peer.node]?.status
+            return self._members[peer.node]?.status
         } else {
             // we consider ourselves always as alive (enables refuting others suspecting us)
             return .alive(incarnation: self.incarnation)
@@ -613,7 +651,7 @@ extension SWIM.Instance {
     ///
     /// Note: `.dead` members are eventually removed from the swim instance and as such peers are not remembered forever!
     ///
-    /// - Parameters:
+    /// - parameters:
     ///   - peer: Peer to check if it currently is a member
     ///   - ignoreUID: Whether or not to ignore the peers UID, e.g. this is useful when issuing a "join 127.0.0.1:7337"
     ///                command, while being unaware of the nodes specific UID. When it joins, it joins with the specific UID after all.
@@ -621,8 +659,8 @@ extension SWIM.Instance {
     public func isMember(_ peer: SWIMAddressablePeer, ignoreUID: Bool = false) -> Bool {
         // the peer could be either:
         self.isMyself(peer) || // 1) "us" (i.e. the peer which hosts this SWIM instance, or
-            self.members[peer.node] != nil || // 2) a "known member"
-            (ignoreUID && peer.node.uid == nil && self.members.contains {
+            self._members[peer.node] != nil || // 2) a "known member"
+            (ignoreUID && peer.node.uid == nil && self._members.contains {
                 // 3) a known member, however the querying peer did not know the real UID of the peer yet
                 $0.key.withoutUID == peer.node
             })
@@ -641,26 +679,36 @@ extension SWIM.Instance {
     /// - Parameter node: node whose member should be looked up (matching also by node UID)
     /// - Returns: the peer's member instance, if it currently is a member of this cluster
     public func member(for node: ClusterMembership.Node) -> SWIM.Member? {
-        self.members[node]
+        self._members[node]
     }
 
     /// Count of only non-dead members.
     ///
     /// - SeeAlso: `SWIM.Status`
     public var notDeadMemberCount: Int {
-        self.members.lazy.filter {
+        self._members.lazy.filter {
             !$0.value.isDead
         }.count
     }
 
     /// Count of all "other" members known to this instance (meaning members other than `myself`).
+    ///
+    /// This is equal to `n-1` where `n` is the number of nodes in the cluster.
     public var otherMemberCount: Int {
         self.allMemberCount - 1
     }
 
-    /// Count of all "other" (meaning
+    /// Count of all members, including the myself node as well as any unreachable and dead nodes which are still kept in the membership.
     public var allMemberCount: Int {
-        max(0, self.members.count)
+        self._members.count
+    }
+
+    /// Lists all members known to this SWIM instance currently, potentially including even `.dead` nodes.
+    ///
+    /// - Complexity: O(1)
+    /// - Returns: Returns all current members of the cluster, including suspect, unreachable and potentially dead members.
+    public var members: SWIM.Membership {
+        self._members.values
     }
 
     /// Lists all `SWIM.Status.suspect` members.
@@ -670,20 +718,8 @@ extension SWIM.Instance {
     /// suspicions about our unreachability after all.
     ///
     /// - SeeAlso: `SWIM.Status.suspect`
-    public var suspects: SWIM.Members {
-        self.members
-            .lazy
-            .map {
-                $0.value
-            }
-            .filter {
-                $0.isSuspect
-            }
-    }
-
-    /// Lists all members known to this SWIM instance currently, potentially including even `.dead` nodes.
-    public var allMembers: SWIM.MembersValues {
-        self.members.values
+    internal var suspects: [SWIM.Member] {
+        self.members.filter { $0.isSuspect }
     }
 }
 
@@ -699,41 +735,42 @@ extension SWIM.Instance {
             self.incrementProtocolPeriod()
         }
 
-        var directives: [PeriodicPingTickDirective] = []
+        var directives: [PeriodicPingTickDirective] = [
+            // always schedule the next tick
+            .scheduleNextTick(delay: self.dynamicLHMProtocolInterval)
+        ]
 
         guard let toPing = self.nextMemberToPing() else {
-            return []
+            return directives
         }
 
         directives.append(contentsOf: self.checkSuspicionTimeouts())
         directives.append(.sendPing(target: toPing as! SWIMPeer, timeout: self.dynamicLHMPingTimeout, sequenceNumber: self.nextSequenceNumber()))
+        directives.append(.scheduleNextTick(delay: self.dynamicLHMProtocolInterval))
         return directives
     }
 
+    /// Describes how a periodic tick should be handled.
     public enum PeriodicPingTickDirective {
+        /// The membership has changed, e.g. a member was declared unreachable or dead and an event may need to be emitted.
         case membershipChanged(SWIM.MemberStatusChangedEvent)
+        /// Send a ping to the requested `target` peer using the provided timeout and sequenceNumber.
         case sendPing(target: SWIMPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
+        /// Schedule the next timer `onPeriodicPingTick` invocation in `delay` time.
+        case scheduleNextTick(delay: DispatchTimeInterval)
     }
 
+    /// Check all suspects if any of them have been suspect for long enough that we should promote them to unreachable or dead.
     private func checkSuspicionTimeouts() -> [PeriodicPingTickDirective] {
         var directives: [PeriodicPingTickDirective] = []
 
         for suspect in self.suspects {
             if case .suspect(_, let suspectedBy) = suspect.status {
                 let suspicionTimeout = self.suspicionTimeout(suspectedByCount: suspectedBy.count)
-//                self.log.trace(
-//                    "Checking suspicion timeout for: \(suspect)...",
-//                    metadata: [
-//                        "swim/suspect": "\(suspect)",
-//                        "swim/suspectedBy": "\(suspectedBy.count)",
-//                        "swim/suspicionTimeout": "\(suspicionTimeout)",
-//                    ]
-//                )
-
                 // proceed with suspicion escalation to .unreachable if the timeout period has been exceeded
                 // We don't use Deadline because tests can override TimeSource
-                guard let startTime = suspect.suspicionStartedAt,
-                    self.isExpired(deadline: startTime + suspicionTimeout.nanoseconds) else {
+                guard let startTime = suspect.localSuspicionStartedAt,
+                    self.isExpired(deadline: DispatchTime(uptimeNanoseconds: startTime.uptimeNanoseconds + UInt64(suspicionTimeout.nanoseconds))) else {
                     continue // skip, this suspect is not timed-out yet
                 }
 
@@ -743,7 +780,7 @@ extension SWIM.Instance {
                 }
 
                 let newStatus: SWIM.Status
-                if self.settings.extensionUnreachability == .enabled {
+                if self.settings.unreachability == .enabled {
                     newStatus = .unreachable(incarnation: incarnation)
                 } else {
                     newStatus = .dead
@@ -751,13 +788,6 @@ extension SWIM.Instance {
 
                 switch self.mark(suspect.peer, as: newStatus) {
                 case .applied(let previousStatus, let member):
-//                    self.log.trace(
-//                        "Marked \(latest.node) as \(latest.status), announcing reachability change",
-//                        metadata: [
-//                            "swim/member": "\(latest)",
-//                            "swim/previousStatus": "\(previousStatus, orElse: "nil")",
-//                        ]
-//                    )
                     directives.append(.membershipChanged(SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: member)))
                 case .ignoredDueToOlderStatus:
                     continue
@@ -807,7 +837,7 @@ extension SWIM.Instance {
             return self.onPingAckResponse(target: target, incarnation: incarnation, payload: payload, pingRequestOrigin: pingRequestOrigin, sequenceNumber: sequenceNumber)
         case .nack(let target, let sequenceNumber):
             return self.onPingNackResponse(target: target, pingRequestOrigin: pingRequestOrigin, sequenceNumber: sequenceNumber)
-        case .timeout(let target, _, let timeout, let sequenceNumber):
+        case .timeout(let target, let pingRequestOrigin, let timeout, let sequenceNumber):
             return self.onPingResponseTimeout(target: target, timeout: timeout, pingRequestOrigin: pingRequestOrigin, sequenceNumber: sequenceNumber)
         }
     }
@@ -864,7 +894,7 @@ extension SWIM.Instance {
     func onPingResponseTimeout(
         target: SWIMAddressablePeer,
         timeout: DispatchTimeInterval,
-        pingRequestOrigin: SWIMPingOriginPeer?,
+        pingRequestOrigin: SWIMPingRequestOriginPeer?,
         sequenceNumber pingResponseSequenceNumber: SWIM.SequenceNumber
     ) -> [PingResponseDirective] {
         // assert(target != myself, "target pinged node MUST NOT equal myself, why would we ping our own node.") // FIXME: can we add this again?
@@ -944,14 +974,16 @@ extension SWIM.Instance {
         return SendPingRequestDirective(target: target, requestDetails: details)
     }
 
+    /// Directs a shell implementation about how to handle an incoming `.pingRequest`.
     public enum PingResponseDirective {
+        /// Handle the processed gossip, see `GossipProcessedDirective` for details how to handle them.
         case gossipProcessed(GossipProcessedDirective)
 
         /// Send an `ack` message to `peer`
         case sendAck(peer: SWIMPingOriginPeer, acknowledging: SWIM.SequenceNumber, target: SWIMAddressablePeer, incarnation: UInt64, payload: SWIM.GossipPayload)
 
         /// Send a `nack` to `peer`
-        case sendNack(peer: SWIMPingOriginPeer, acknowledging: SWIM.SequenceNumber, target: SWIMAddressablePeer)
+        case sendNack(peer: SWIMPingRequestOriginPeer, acknowledging: SWIM.SequenceNumber, target: SWIMAddressablePeer)
 
         /// Send a `pingRequest` as described by the `SendPingRequestDirective`.
         ///
@@ -961,7 +993,12 @@ extension SWIM.Instance {
         case sendPingRequests(SendPingRequestDirective)
     }
 
+    /// Describes how a pingRequest should be performed.
+    ///
+    /// Only a single `target` peer is used, however it may be pinged "through" a few other members.
+    /// The amount of fan-out in pingRequests is configurable by `swim.indirectProbeCount`.
     public struct SendPingRequestDirective {
+        /// Target that the should be probed by the `requestDetails.memberToPingRequestThrough` peers.
         public let target: SWIMPeer
         public let requestDetails: [PingRequestDetail]
 
@@ -975,7 +1012,7 @@ extension SWIM.Instance {
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Request
 
-    public func onPingRequest(target: SWIMPeer, replyTo: SWIMPingOriginPeer, payload: SWIM.GossipPayload) -> [PingRequestDirective] {
+    public func onPingRequest(target: SWIMPeer, pingRequestOrigin: SWIMPingRequestOriginPeer, payload: SWIM.GossipPayload) -> [PingRequestDirective] {
         var directives: [PingRequestDirective] = []
 
         // 1) Process gossip
@@ -991,8 +1028,7 @@ extension SWIM.Instance {
 
         // 2) Process the ping request itself
         guard self.notMyself(target) else {
-            // print("Received ping request about myself, ignoring; target: \(target), replyTo: \(replyTo)") // TODO: log
-            directives.append(.ignore)
+            // self.log("Received ping request about myself, ignoring; target: \(target), replyTo: \(replyTo)") // TODO: log
             return directives
         }
 
@@ -1006,22 +1042,22 @@ extension SWIM.Instance {
         // Setting it to a fraction of initial ping timeout as suggested in the original paper.
         // SeeAlso: [Lifeguard IV.A. Local Health Multiplier (LHM)](https://arxiv.org/pdf/1707.00788.pdf)
         let timeoutNanos = Int(Double(self.settings.pingTimeout.nanoseconds) * self.settings.lifeguard.indirectPingTimeoutMultiplier)
-        directives.append(.sendPing(target: target, pingRequestOrigin: replyTo, timeout: .nanoseconds(timeoutNanos), sequenceNumber: pingSequenceNumber))
+        directives.append(.sendPing(target: target, pingRequestOrigin: pingRequestOrigin, timeout: .nanoseconds(timeoutNanos), sequenceNumber: pingSequenceNumber))
 
         return directives
     }
 
+    /// Directs a shell implementation about how to handle an incoming `.pingRequest`.
     public enum PingRequestDirective {
         case gossipProcessed(GossipProcessedDirective)
-        case ignore
-        case sendPing(target: SWIMPeer, pingRequestOrigin: SWIMPingOriginPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
+        case sendPing(target: SWIMPeer, pingRequestOrigin: SWIMPingRequestOriginPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Request Response
 
     /// This should be called on first successful (non-nack) pingRequestResponse
-    public func onPingRequestResponse(_ response: SWIM.PingResponse, pingedMember member: SWIMAddressablePeer) -> [PingRequestResponseDirective] {
+    public func onPingRequestResponse(_ response: SWIM.PingResponse, pinged member: SWIMAddressablePeer) -> [PingRequestResponseDirective] {
         guard let previousStatus = self.status(of: member) else {
             // we do not process replies from an unknown member; it likely means we have removed it already for some reason.
             return [.unknownMember]
@@ -1075,7 +1111,7 @@ extension SWIM.Instance {
         }
     }
 
-    public func onEveryPingRequestResponse(_ result: SWIM.PingResponse, pingedMember member: SWIMAddressablePeer) {
+    public func onEveryPingRequestResponse(_ result: SWIM.PingResponse, pinged peer: SWIMAddressablePeer) {
         switch result {
         case .timeout:
             // Failed pingRequestResponse indicates a missed nack, we should adjust LHMultiplier
@@ -1085,6 +1121,7 @@ extension SWIM.Instance {
         }
     }
 
+    /// Directs a shell implementation about how to handle an incoming ping request response.
     public enum PingRequestResponseDirective {
         case gossipProcessed(GossipProcessedDirective)
 
@@ -1168,7 +1205,7 @@ extension SWIM.Instance {
             }
 
         case .unreachable(let unreachableInIncarnation):
-            switch self.settings.extensionUnreachability {
+            switch self.settings.unreachability {
             case .enabled:
                 // someone suspected us,
                 // so we need to increment our incarnation number to spread our alive status with the incremented incarnation
@@ -1326,7 +1363,7 @@ extension SWIM.Instance: CustomDebugStringConvertible {
             _protocolPeriod: \(_protocolPeriod), 
 
             members: [
-                \(members.map { "\($0.key)" }.joined(separator: "\n        "))
+                \(_members.map { "\($0.key)" }.joined(separator: "\n        "))
             ] 
             membersToPing: [ 
                 \(membersToPing.map { "\($0)" }.joined(separator: "\n        "))
@@ -1343,6 +1380,12 @@ extension SWIM.Instance: CustomDebugStringConvertible {
 
 extension SWIM.Instance {
     /// Events which cause the modification of the Local health aware Multiplier to be adjusted.
+    ///
+    /// The LHM is increased (in increments of `1`) whenever an event occurs that indicates that the instance
+    /// is not processing incoming messages in timely order.
+    ///
+    /// It is decreased and decreased (by `1`), whenever it processes a successful ping/ack cycle,
+    /// meaning that is is healthy and properly processing incoming messages on time.
     ///
     /// - SeeAlso: Lifeguard IV.A. Local Health Aware Probe, which describes the rationale behind the events.
     public enum LHModifierEvent: Equatable {
@@ -1383,7 +1426,7 @@ extension SWIM.Instance {
             "swim/timeoutSuspectsBeforePeriodMax": "\(self.timeoutSuspectsBeforePeriodMax)",
             "swim/timeoutSuspectsBeforePeriodMin": "\(self.timeoutSuspectsBeforePeriodMin)",
             "swim/incarnation": "\(self.incarnation)",
-            "swim/members/all": Logger.Metadata.Value.array(self.allMembers.map { "\($0)" }),
+            "swim/members/all": Logger.Metadata.Value.array(self.members.map { "\($0)" }),
             "swim/members/count": "\(self.notDeadMemberCount)",
             "swim/suspects/count": "\(self.suspects.count)",
         ]

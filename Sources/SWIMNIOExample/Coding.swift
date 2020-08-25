@@ -105,7 +105,7 @@ extension SWIM.Message: Codable {
     }
 }
 
-public extension CodingUserInfoKey {
+extension CodingUserInfoKey {
     static let channelUserInfoKey: CodingUserInfoKey = CodingUserInfoKey(rawValue: "nio_peer_channel")!
 }
 
@@ -130,7 +130,6 @@ extension SWIM.Member: Codable {
         case node
         case status
         case protocolPeriod
-        case suspicionStartedAt
     }
 
     public init(from decoder: Decoder) throws {
@@ -138,8 +137,7 @@ extension SWIM.Member: Codable {
         let peer = try container.decode(SWIM.NIOPeer.self, forKey: .node)
         let status = try container.decode(SWIM.Status.self, forKey: .status)
         let protocolPeriod = try container.decode(Int.self, forKey: .protocolPeriod)
-        let suspicionStartedAt = try container.decodeIfPresent(Int64.self, forKey: .suspicionStartedAt)
-        self.init(peer: peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: suspicionStartedAt)
+        self.init(peer: peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: nil)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -147,7 +145,6 @@ extension SWIM.Member: Codable {
         try container.encode(self.node, forKey: .node)
         try container.encode(self.protocolPeriod, forKey: .protocolPeriod)
         try container.encode(self.status, forKey: .status)
-        try container.encodeIfPresent(self.suspicionStartedAt, forKey: .suspicionStartedAt)
     }
 }
 
@@ -235,7 +232,7 @@ extension ClusterMembership.Node: Codable {
 extension SWIM.GossipPayload: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        let members = try container.decode(SWIM.Members.self)
+        let members = try container.decode([SWIM.Member].self)
         if members.isEmpty {
             self = .none
         } else {
@@ -248,7 +245,7 @@ extension SWIM.GossipPayload: Codable {
 
         switch self {
         case .none:
-            let empty: SWIM.Members = []
+            let empty: [SWIM.Member] = []
             try container.encode(empty)
 
         case .membership(let members):

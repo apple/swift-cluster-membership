@@ -37,7 +37,7 @@ struct SWIMNIOSampleCluster: ParsableCommand {
     var logLevel: String = "info"
 
     mutating func run() throws {
-        LoggingSystem.bootstrap(_PrettyMetadataLogHandler.init)
+        LoggingSystem.bootstrap(_SWIMPrettyMetadataLogHandler.init)
 
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
         

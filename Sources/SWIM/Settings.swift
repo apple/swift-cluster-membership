@@ -29,6 +29,7 @@ import Glibc
 extension SWIM {
     /// Settings generally applicable to the SWIM implementation as well as any shell running it.
     public struct Settings {
+        /// Create default settings.
         public init() {}
 
         /// Logger used by the instance and shell (unless the specific shell implementation states otherwise).
@@ -94,7 +95,9 @@ extension SWIM {
         /// and only after exceeding `suspicionTimeoutPeriodsMax` shall the node be declared as `.unreachable`,
         /// which results in an `Cluster.MemberReachabilityChange` `Cluster.Event` which downing strategies may act upon.
         ///
-        /// - SeeAlso: `lifeguard.maxLocalHealthMultiplier`
+        /// - Note: Ping timeouts generally should be set as a multiple of the RTT (round-trip-time) expected in the deployment environment.
+        ///
+        /// - SeeAlso: `SWIMLifeguardSettings.maxLocalHealthMultiplier` which affects the "effective" ping timeouts used in runtime.
         public var pingTimeout: DispatchTimeInterval = .milliseconds(300)
 
         /// Optional SWIM Protocol Extension: `SWIM.MemberStatus.unreachable`
@@ -114,7 +117,9 @@ extension SWIM {
         ///
         /// By default this option is disabled, and the SWIM implementation behaves same as documented in the papers,
         /// meaning that when a node remains unresponsive for an exceeded amount of time it is marked as `.dead` immediately.
-        public var extensionUnreachability: UnreachabilitySettings = .disabled
+        public var unreachability: UnreachabilitySettings = .disabled
+
+        /// Configure how unreachability should be handled by this instance.
         public enum UnreachabilitySettings {
             /// Do not use the .unreachable state and just like classic SWIM automatically announce a node as `.dead`,
             /// if failure detection triggers.
@@ -142,9 +147,9 @@ extension SWIM {
         /// When designing tests one may want to simulate scenarios when events are coming in particular order.
         /// Doing this will require some control over SWIM's notion of time.
         ///
-        /// This property allows to override the `.now()` function.
-        var timeSourceNanos: () -> Int64 = { () -> Int64 in
-            Int64(min(UInt64(Int64.max), DispatchTime.now().uptimeNanoseconds))
+        /// This property allows to override the `.now()` function for mocking purposes.
+        var timeSourceNow: () -> DispatchTime = { () -> DispatchTime in
+            DispatchTime.now()
         }
 
         /// When enabled traces _all_ incoming SWIM protocol communication (remote messages).
@@ -161,6 +166,7 @@ extension SWIM {
 // MARK: SWIM Gossip Settings
 
 public struct SWIMGossipSettings {
+    /// Create default settings.
     public init() {}
 
     /// Limits the number of `GossipPayload`s to be piggy-backed in a single message.
@@ -173,7 +179,7 @@ public struct SWIMGossipSettings {
     /// Each gossip (i.e. an observation by this specific node of a specific node's specific status),
     /// is gossiped only a limited number of times, after which the algorithms
     ///
-    /// - Parameters:
+    /// - parameters:
     ///   - n: total number of cluster members (including myself), MUST be >= 1 (or will crash)
     ///
     /// - SeeAlso: SWIM 4.1. Infection-Style Dissemination Component

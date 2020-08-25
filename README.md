@@ -1,6 +1,8 @@
 # Swift Cluster Membership
 
-This library aims to help Swift make ground in a new space: clustered multi-node distributed systems. With this library we provide reusable runtime agnostic membership protocol implementations which can be adopted in various clustering use-cases.
+This library aims to help Swift make ground in a new space: clustered multi-node distributed systems. 
+
+With this library we provide reusable runtime agnostic membership protocol implementations which can be adopted in various clustering use-cases.
 
 ## Background
 
@@ -87,14 +89,9 @@ public protocol SWIMProtocol {
         pingReqOrigin: SWIMPeerReplyProtocol?,
         sequenceNr: SWIM.SequenceNr
     ) -> [OnPingResponseDirective]
-
-    /// Must be invoked when a response to a `pingRequest` is received (e.g. an `.ack` or `.nack`)
-    /// <...>
-    func onPingRequestResponse(
-        _ response: SWIM.PingResponse,
-        pingedMember member: AddressableSWIMPeer
-    ) -> SWIM.Instance.OnPingRequestResponseDirective
     
+    // ... 
+
 }
 ```
 

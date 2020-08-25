@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import struct Dispatch.DispatchTime
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Member
@@ -38,41 +39,50 @@ extension SWIM {
         // Period in which protocol period was this state set
         public var protocolPeriod: Int
 
-        /// Indicates a time when suspicion was started.
+        /// Indicates a _local_ point in time when suspicion was started.
         ///
-        /// // FIXME: reword this paragraph
-        /// // FIXME: reconsider...
-        /// Only suspicion needs to have it, but having the actual field in SWIM.Member feels more natural.
-        /// We prefer to store it here rather than `SWIM.Status` makes time management a huge mess: status can either be created internally in
-        /// SWIM.Member or deserialized from protobuf. Having this in SWIM.Member ensures we never pass it on the wire and we can't make a mistake when merging suspicions.
-        public let suspicionStartedAt: Int64?
+        /// - Note: Only suspect members may have this value set, but having the actual field in SWIM.Member feels more natural.
+        /// - Note: This value is never carried across processes, as it serves only
+        public let localSuspicionStartedAt: DispatchTime? // could be "status updated at"?
 
-        public init(peer: SWIMAddressablePeer, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: Int64? = nil) {
+        public init(peer: SWIMAddressablePeer, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: DispatchTime? = nil) {
             self.peer = peer
             self.status = status
             self.protocolPeriod = protocolPeriod
-            self.suspicionStartedAt = suspicionStartedAt
+            self.localSuspicionStartedAt = suspicionStartedAt
         }
 
+        /// Convenience function for checking if a member is `SWIM.Status.alive`.
+        ///
+        /// - Returns: `true` if the member is alive
         public var isAlive: Bool {
             self.status.isAlive
         }
 
+        /// Convenience function for checking if a member is `SWIM.Status.suspect`.
+        ///
+        /// - Returns: `true` if the member is suspect
         public var isSuspect: Bool {
             self.status.isSuspect
         }
 
+        /// Convenience function for checking if a member is `SWIM.Status.unreachable`
+        ///
+        /// - Returns: `true` if the member is unreachable
         public var isUnreachable: Bool {
             self.status.isUnreachable
         }
 
+        /// Convenience function for checking if a member is `SWIM.Status.dead`
+        ///
+        /// - Returns: `true` if the member is dead
         public var isDead: Bool {
             self.status.isDead
         }
     }
 }
 
-/// Manual Hashable conformance since we omit suspicionStartedAt from identity
+/// Manual Hashable conformance since we omit `suspicionStartedAt` from identity
 extension SWIM.Member: Hashable, Equatable {
     public static func == (lhs: SWIM.Member, rhs: SWIM.Member) -> Bool {
         lhs.peer.node == rhs.peer.node &&
@@ -90,7 +100,7 @@ extension SWIM.Member: Hashable, Equatable {
 extension SWIM.Member: CustomStringConvertible {
     public var description: String {
         var res = "SWIM.Member(\(self.peer), \(self.status), protocolPeriod: \(self.protocolPeriod)"
-        if let suspicionStartedAt = self.suspicionStartedAt {
+        if let suspicionStartedAt = self.localSuspicionStartedAt {
             res.append(", suspicionStartedAt: \(suspicionStartedAt)")
         }
         res.append(")")
