@@ -78,29 +78,32 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
         let unreachableNode = Node(protocol: "test", host: "127.0.0.1", port: 7004, uid: 1111)
 
         let first = self.makeEmbeddedShell("first") { settings in
+            settings.swim.node = firstNode
             settings.swim.initialContactPoints = [secondNode, thirdNode, unreachableNode]
             settings._startPeriodicPingTimer = false
             settings.swim.lifeguard.maxLocalHealthMultiplier = 8
-            settings.swim.node = firstNode
             settings.swim.extensionUnreachability = .enabled
         }
 
         let second = self.makeEmbeddedShell("second") { settings in
+            settings.swim.node = secondNode
             settings.swim.initialContactPoints = []
             settings._startPeriodicPingTimer = false
-            settings.swim.node = secondNode
+            settings.swim.extensionUnreachability = .enabled
         }
 
         let third = self.makeEmbeddedShell("third") { settings in
+            settings.swim.node = thirdNode
             settings.swim.initialContactPoints = []
             settings._startPeriodicPingTimer = false
-            settings.swim.node = thirdNode
+            settings.swim.extensionUnreachability = .enabled
         }
 
         let unreachable = self.makeEmbeddedShell("unreachable") { settings in
+            settings.swim.node = unreachableNode
             settings.swim.initialContactPoints = []
             settings._startPeriodicPingTimer = false
-            settings.swim.node = unreachableNode
+            settings.swim.extensionUnreachability = .enabled
         }
 
         // Allow initial message passing to let first node recognize peers as SWIMMembers
