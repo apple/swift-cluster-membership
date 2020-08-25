@@ -16,11 +16,14 @@ import ClusterMembership
 import struct Dispatch.DispatchTime
 import enum Dispatch.DispatchTimeInterval
 
+/// Any peer in the cluster, can be used used to identify a peer using its unique node that it represents.
 public protocol SWIMAddressablePeer {
     /// Node that this peer is representing.
     var node: ClusterMembership.Node { get }
 }
 
+/// SWIM peer which is the origin of a `.ping`.
+/// It represents a peer that should only be "replied" to.
 public protocol SWIMPingOriginPeer: SWIMAddressablePeer {
     /// Acknowledge a ping.
     func ack(
@@ -37,6 +40,7 @@ public protocol SWIMPingOriginPeer: SWIMAddressablePeer {
     )
 }
 
+/// SWIM peer which can be initiated contact with, by sending ping or ping request messages.
 public protocol SWIMPeer: SWIMAddressablePeer {
     /// "Ping" another SWIM peer.
     ///

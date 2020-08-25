@@ -14,7 +14,7 @@
 
 import ClusterMembership
 import SWIM
-import SWIMNIO
+import SWIMNIOExample
 import NIO
 import Logging
 import Lifecycle

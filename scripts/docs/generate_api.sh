@@ -32,7 +32,7 @@ echo "Project version: ${version}"
 # all our public modules which we want to document
 modules=(
   SWIM
-  SWIMNIO
+  SWIMNIOExample
 )
 
 declare -r build_path_linux='.build/x86_64-unknown-linux-gnu'

@@ -13,16 +13,8 @@
 ##
 ##===----------------------------------------------------------------------===##
 
-set -eu
-here="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+set -u
 
-printf "=> Checking docs\n"
-
-printf "   * api docs... "
-api_out=$("$here/docs/generate_api.sh" 2>&1)
-if [[ "$api_out" != *"jam out"* ]]; then
-  printf "\033[0;31merror!\033[0m\n"
-  echo "$api_out"
-  exit 1
-fi
+printf "=> Checking Samples/\n"
+swift build --package-path Samples
 printf "\033[0;32mokay.\033[0m\n"

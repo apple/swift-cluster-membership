@@ -9,7 +9,7 @@
       "name": "Documentation",
       "children": [
         "SWIM",
-        "SWIMNIO",
+        "SWIMNIOExample"
       ]
     }
   ]

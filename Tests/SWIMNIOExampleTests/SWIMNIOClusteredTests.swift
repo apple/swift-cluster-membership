@@ -16,7 +16,7 @@ import ClusterMembership
 import Logging
 import NIO
 import SWIM
-@testable import SWIMNIO
+@testable import SWIMNIOExample
 import XCTest
 
 final class SWIMNIOClusteredTests: RealClusteredXCTestCase {

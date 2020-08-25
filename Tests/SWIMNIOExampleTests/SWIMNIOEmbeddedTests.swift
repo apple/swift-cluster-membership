@@ -15,7 +15,7 @@
 import ClusterMembership
 import NIO
 import SWIM
-@testable import SWIMNIO
+@testable import SWIMNIOExample
 import XCTest
 
 final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
