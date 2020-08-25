@@ -8,7 +8,7 @@ var targets: [PackageDescription.Target] = [
         name: "SWIMNIOSampleCluster",
         dependencies: [
             "SWIM",
-            "SWIMNIO",
+            "SWIMNIOExample",
             "Lifecycle",
             "ArgumentParser",
         ],

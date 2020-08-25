@@ -1,6 +1,6 @@
 # SWIM Cluster Membership API Documentation
 
-Welcome to the API documentation of Swift Cluster Membership's SWIM implementation!
+Welcome to the API documentation of the SWIMNIO Example implementation!
 
 ## Modules
 

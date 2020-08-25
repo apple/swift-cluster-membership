@@ -16,7 +16,7 @@ import ClusterMembership
 import Foundation
 import NIO
 import SWIM
-@testable import SWIMNIO
+@testable import SWIMNIOExample
 import XCTest
 
 final class CodingTests: XCTestCase {

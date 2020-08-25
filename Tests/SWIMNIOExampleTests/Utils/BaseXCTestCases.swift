@@ -18,7 +18,7 @@ import class Foundation.NSLock
 import Logging
 import NIO
 import SWIM
-@testable import SWIMNIO
+@testable import SWIMNIOExample
 import XCTest
 
 // ==== ----------------------------------------------------------------------------------------------------------------

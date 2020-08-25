@@ -15,7 +15,7 @@
 import ClusterMembership
 import NIO
 import SWIM
-@testable import SWIMNIO
+@testable import SWIMNIOExample
 import XCTest
 
 // TODO: those tests could be done on embedded event loops probably
@@ -87,7 +87,6 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         XCTAssertEqual(secondAliveEvent.member.node.withoutUID, secondNode.withoutUID)
 
         let secondDeadEvent = try firstProbe.expectEvent()
-        print("event: \(secondDeadEvent)")
         XCTAssertTrue(secondDeadEvent.isReachabilityChange)
         XCTAssertTrue(secondDeadEvent.status.isDead)
         XCTAssertEqual(secondDeadEvent.member.node.withoutUID, secondNode.withoutUID)
