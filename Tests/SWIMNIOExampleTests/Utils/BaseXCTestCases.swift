@@ -46,7 +46,6 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
     func makeClusterNode(name: String? = nil, configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }) -> (SWIMNIOHandler, Channel) {
         let port = self.nextPort()
         let name = name ?? "swim-\(port)"
-
         var settings = SWIMNIO.Settings()
         configureSettings(&settings)
 
@@ -142,7 +141,7 @@ class BaseClusteredXCTestCase: XCTestCase {
         false
     }
 
-    var _nextPort = 7001
+    var _nextPort = 9001
     open func nextPort() -> Int {
         defer { self._nextPort += 1 }
         return self._nextPort

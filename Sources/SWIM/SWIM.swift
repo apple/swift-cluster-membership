@@ -17,45 +17,78 @@ import struct Dispatch.DispatchTime
 import enum Dispatch.DispatchTimeInterval
 
 extension SWIM {
+    /// Incarnation numbers serve as sequence number and used to determine which observation
+    /// is "more recent" when comparing gossiped information.
     public typealias Incarnation = UInt64
-    public typealias Members = [SWIM.Member]
 
     /// A sequence number which can be used to associate with messages in order to establish an request/response
     /// relationship between ping/pingRequest and their corresponding ack/nack messages.
     public typealias SequenceNumber = UInt32
 
-    // TODO: or index by just the Node?
-    public typealias MembersValues = Dictionary<Node, SWIM.Member>.Values
+    /// Typealias for the underlying membership representation.
+    public typealias Membership = Dictionary<Node, SWIM.Member>.Values
 }
 
 extension SWIM {
-    /// Message sent in reply to a `SWIM.RemoteMessage.ping`.
+    /// Message sent in reply to a `.ping`.
     ///
     /// The ack may be delivered directly in a request-response fashion between the probing and pinged members,
-    /// or indirectly, as a result of a `pingReq` message.
+    /// or indirectly, as a result of a `pingRequest` message.
     public enum PingResponse {
-        /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
-        /// - parameter incarnation: TODO: docs
-        /// - parameter payload: TODO: docs
+
+        /// - parameters:
+        ///   - target: the target of the ping;
+        ///     On the remote "pinged" node which is about to send an ack back to the ping origin this should be filled with the `myself` peer.
+        ///   - incarnation: the incarnation of the peer sent in the `target` field
+        ///   - payload: TODO: docs
+        ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
+        ///     It is used on the ping origin to co-relate the reply with its handling code.
         case ack(target: SWIMAddressablePeer, incarnation: Incarnation, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
 
-        /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
-        /// - parameter incarnation: TODO: docs
-        /// - parameter payload: TODO: docs
+        /// A `.nack` MAY ONLY be sent by an *intermediary* member which was received a `pingRequest` to perform a `ping` of some `target` member.
+        /// It SHOULD NOT be sent by a peer that received a `.ping` directly.
+        ///
+        /// The nack allows the origin of the ping request to know if the `k` peers it asked to perform the indirect probes,
+        /// are still responsive to it, or if perhaps that communication by itself is also breaking down. This information is
+        /// used to adjust the `localHealthMultiplier`, which impacts probe and timeout intervals.
+        ///
+        /// Note that nack information DOES NOT directly cause unreachability or suspicions, it only adjusts the timeouts
+        /// and intervals used by the swim instance in order to take into account the potential that our local node is
+        /// potentially not healthy.
+        ///
+        /// - parameters:
+        ///   - target: the target of the ping;
+        ///     On the remote "pinged" node which is about to send an ack back to the ping origin this should be filled with the `myself` peer.
+        ///   - target: the target of the ping;
+        ///     On the remote "pinged" node which is about to send an ack back to the ping origin this should be filled with the `myself` peer.
+        ///   - payload: The gossip payload to be carried in this message.
+        ///
+        /// - SeeAlso: Lifeguard IV.A. Local Health Aware Probe
         case nack(target: SWIMAddressablePeer, sequenceNumber: SWIM.SequenceNumber)
 
-        /// Used to signal a response did not arrive within the expected `timeout`.
+        /// This is a "pseudo-message", in the sense that it is not transported over the wire, but should be triggered
+        /// and fired into an implementation Shell when a ping has timed out.
         ///
         /// If a response for some reason produces a different error immediately rather than through a timeout,
         /// the shell should also emit a `.timeout` response and feed it into the `SWIM.Instance` as it is important for
         /// timeout adjustments that the instance makes. The instance does not need to know specifics about the reason of
         /// a response not arriving, thus they are all handled via the same timeout response rather than extra "error" responses.
         ///
-        /// - parameter target: the target of the ping; i.e. when the pinged node receives a ping, the target is "myself", and that myself should be sent back in the target field.
-        case timeout(target: SWIMAddressablePeer, pingRequestOrigin: SWIMAddressablePeer?, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
+        /// - parameters:
+        ///   - target: the target of the ping;
+        ///     On the remote "pinged" node which is about to send an ack back to the ping origin this should be filled with the `myself` peer.
+        ///   - pingRequestOrigin: if this response/timeout is in response to a ping that was caused by a pingRequest,
+        ///     `pingRequestOrigin` must contain the original peer which originated the ping request.
+        ///   - timeout: the timeout interval value that caused this message to be triggered;
+        ///     In case of "cancelled" operations or similar semantics it is allowed to use a placeholder value here.
+        ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
+        ///     It is used on the ping origin to co-relate the reply with its handling code.
+        case timeout(target: SWIMAddressablePeer, pingRequestOrigin: SWIMPingRequestOriginPeer?, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
 
         /// Sequence number of the initial request this is a response to.
         /// Used to pair up responses to the requests which initially caused them.
+        ///
+        /// All ping responses are guaranteed to have a sequence number attached to them.
         public var sequenceNumber: SWIM.SequenceNumber {
             switch self {
             case .ack(_, _, _, let sequenceNumber):
@@ -84,7 +117,7 @@ extension SWIM {
     /// A `GossipPayload` is used to spread gossips about members.
     public enum GossipPayload {
         case none
-        case membership(SWIM.Members)
+        case membership([SWIM.Member])
     }
 }
 

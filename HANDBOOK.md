@@ -15,3 +15,11 @@ In an attempt to form a shared vocabulary in the project, words used in the APIs
     - Peers SHOULD be Unique; meaning that if node dies and spawns again using the same host/port pair, we should consider it to be a _new peer_ rather than the same peer. This is usually solved by issuing some random UUID on node startup, and including this ID in any messaging the peer performs. 
 - **Cluster Member** - a member of a cluster, meaning it is _known to be (or have been) part of the cluster_ and likely has some associated cluster state (e.g. alive or dead etc.)
     - It most likely is wrapping a Peer with additional information
+
+## Tips
+
+- When working with directives, never `return []`, always preallocate a directives array and `return directives`.
+  - there are many situations where it is good to bail out early, but many operations have some form of "needs to always be done"
+    in their directives. Using this pattern ensures you won't accidentally miss those directives. 
+- When "should never happen", use `precondition`s with a lot of contextual information (including the entire instance state), 
+  so users can provide you witha good crash report.

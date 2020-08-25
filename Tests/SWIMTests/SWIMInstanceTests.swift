@@ -166,7 +166,7 @@ final class SWIMInstanceTests: XCTestCase {
         // thirdPeer pings secondPeer, gets an ack back -- and there secondPeer had to bump its incarnation number // TODO test for that, using Swim.instance?
 
         // and now we get an `ack` back, secondPeer claims that thirdPeer is indeed alive!
-        _ = swim.onPingRequestResponse(.ack(target: thirdPeer, incarnation: 2, payload: .none, sequenceNumber: 1), pingedMember: thirdPeer)
+        _ = swim.onPingRequestResponse(.ack(target: thirdPeer, incarnation: 2, payload: .none, sequenceNumber: 1), pinged: thirdPeer)
         // may print the result for debugging purposes if one wanted to
 
         // thirdPeer should be alive; after all, secondPeer told us so!
@@ -187,7 +187,7 @@ final class SWIMInstanceTests: XCTestCase {
         // thirdPeer pings secondPeer, yet secondPeer somehow didn't bump its incarnation... so we should NOT accept its refutation
 
         // and now we get an `ack` back, secondPeer claims that thirdPeer is indeed alive!
-        _ = swim.onPingRequestResponse(.ack(target: thirdPeer, incarnation: 1, payload: .none, sequenceNumber: 1), pingedMember: thirdPeer)
+        _ = swim.onPingRequestResponse(.ack(target: thirdPeer, incarnation: 1, payload: .none, sequenceNumber: 1), pinged: thirdPeer)
         // may print the result for debugging purposes if one wanted to
 
         // thirdPeer should be alive; after all, secondPeer told us so!
@@ -201,7 +201,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         _ = swim.addMember(self.second, status: .suspect(incarnation: 1, suspectedBy: [self.secondNode]))
 
-        _ = swim.onPingRequestResponse(.timeout(target: self.second, pingRequestOrigin: nil, timeout: .milliseconds(800), sequenceNumber: 1), pingedMember: self.second)
+        _ = swim.onPingRequestResponse(.timeout(target: self.second, pingRequestOrigin: nil, timeout: .milliseconds(800), sequenceNumber: 1), pinged: self.second)
         let resultStatus = swim.member(for: self.second)!.status
         if case .suspect(_, let confirmations) = resultStatus {
             XCTAssertEqual(confirmations, [secondNode, myselfNode])
@@ -680,7 +680,7 @@ final class SWIMInstanceTests: XCTestCase {
         _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
 
         XCTAssertEqual(swim.localHealthMultiplier, 0)
-        swim.onEveryPingRequestResponse(.timeout(target: secondPeer, pingRequestOrigin: nil, timeout: .milliseconds(300), sequenceNumber: 1), pingedMember: secondPeer)
+        swim.onEveryPingRequestResponse(.timeout(target: secondPeer, pingRequestOrigin: nil, timeout: .milliseconds(300), sequenceNumber: 1), pinged: secondPeer)
         XCTAssertEqual(swim.localHealthMultiplier, 1)
     }
 
@@ -728,7 +728,7 @@ final class SWIMInstanceTests: XCTestCase {
         _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
         swim.localHealthMultiplier = 1
 
-        swim.onEveryPingRequestResponse(.nack(target: secondPeer, sequenceNumber: 1), pingedMember: secondPeer)
+        swim.onEveryPingRequestResponse(.nack(target: secondPeer, sequenceNumber: 1), pinged: secondPeer)
         XCTAssertEqual(swim.localHealthMultiplier, 1)
     }
 

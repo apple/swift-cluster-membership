@@ -18,7 +18,22 @@ import class Foundation.DateFormatter
 import struct Foundation.Locale
 import Logging
 
-public struct _PrettyMetadataLogHandler: LogHandler {
+/// Pretty log formatter which prints log lines in the following multi line format,
+/// listing every metadata element in it's own, `//`-prefixed, line as well as pretty printing connections if set as `Logger.MetadataValue`.
+///
+/// Example output:
+///
+/// ```
+/// SWIMNIOSample: [2020-08-25 0:7:59.8420] [info] [Example.swift:66] Membership status changed: [udp://127.0.0.1:7001#7015602685756068157] is now [alive(incarnation: 0)]
+//// metadata:
+//// "swim/member": udp://127.0.0.1:7001#7015602685756068157
+//// "swim/member/previousStatus": unknown
+//// "swim/member/status": alive(incarnation: 0)
+/// ```
+///
+/// Pro tip: you may want to use a coloring terminal application, which colors lines prefixed with `//` with a slightly different color,
+/// which makes visually parsing metadata vs. log message lines even more visually pleasing.
+public struct _SWIMPrettyMetadataLogHandler: LogHandler {
     let CONSOLE_RESET = "\u{001B}[0;0m"
     let CONSOLE_BOLD = "\u{001B}[1m"
 

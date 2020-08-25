@@ -18,7 +18,11 @@ import enum Dispatch.DispatchTimeInterval
 
 extension SWIM {
     /// Emitted whenever a membership change happens.
-    public struct MemberStatusChangedEvent: CustomStringConvertible, Equatable {
+    ///
+    /// Use `isReachabilityChange` to detect whether the is a change from an alive to unreachable/dead state or not,
+    /// and is worth emitting to user-code or not.
+    public struct MemberStatusChangedEvent: Equatable {
+        /// The member that this change event is about.
         public let member: SWIM.Member
 
         /// The resulting ("current") status of the `member`.
@@ -40,50 +44,59 @@ extension SWIM {
 
             self.previousStatus = previousStatus
             self.member = member
-        }
 
-        /// Reachability changes are important events, in which a reachable node became unreachable, or vice-versa,
-        /// as opposed to events which only move a member between `.alive` and `.suspect` status,
-        /// during which the member should still be considered and no actions assuming it's death shall be performed (yet).
-        ///
-        /// If true, a system may want to issue a reachability change event and handle this situation by confirming the node `.dead`,
-        /// and proceeding with its removal from the cluster.
-        public var isReachabilityChange: Bool {
-            guard let fromStatus = self.previousStatus else {
-                // i.e. nil -> anything, is always an effective reachability affecting change
-                return true
-            }
-
-            // explicitly list all changes which are affecting reachability, all others do not (i.e. flipping between
-            // alive and suspect does NOT affect high-level reachability).
-            switch (fromStatus, self.status) {
-            case (.alive, .unreachable),
-                 (.alive, .dead):
-                return true
-            case (.suspect, .unreachable),
-                 (.suspect, .dead):
-                return true
-            case (.unreachable, .alive),
-                 (.unreachable, .suspect):
-                return true
+            switch (self.previousStatus, member.status) {
             case (.dead, .alive),
                  (.dead, .suspect),
                  (.dead, .unreachable):
                 fatalError("SWIM.Membership MUST NOT move status 'backwards' from .dead state to anything else, but did so, was: \(self)")
             default:
-                return false
+                () // ok, all other transitions are valid.
             }
+        }
+    }
+}
+
+extension SWIM.MemberStatusChangedEvent {
+    /// Reachability changes are important events, in which a reachable node became unreachable, or vice-versa,
+    /// as opposed to events which only move a member between `.alive` and `.suspect` status,
+    /// during which the member should still be considered and no actions assuming it's death shall be performed (yet).
+    ///
+    /// If true, a system may want to issue a reachability change event and handle this situation by confirming the node `.dead`,
+    /// and proceeding with its removal from the cluster.
+    public var isReachabilityChange: Bool {
+        guard let fromStatus = self.previousStatus else {
+            // i.e. nil -> anything, is always an effective reachability affecting change
+            return true
         }
 
-        public var description: String {
-            var res = "SWIM.MemberStatusChangedEvent(\(self.member), previousStatus: "
-            if let previousStatus = self.previousStatus {
-                res += "\(previousStatus)"
-            } else {
-                res += "<unknown>"
-            }
-            res += ")"
-            return res
+        // explicitly list all changes which are affecting reachability, all others do not (i.e. flipping between
+        // alive and suspect does NOT affect high-level reachability).
+        switch (fromStatus, self.status) {
+        case (.alive, .unreachable),
+             (.alive, .dead):
+            return true
+        case (.suspect, .unreachable),
+             (.suspect, .dead):
+            return true
+        case (.unreachable, .alive),
+             (.unreachable, .suspect):
+            return true
+        default:
+            return false
         }
+    }
+}
+
+extension SWIM.MemberStatusChangedEvent: CustomStringConvertible {
+    public var description: String {
+        var res = "MemberStatusChangedEvent(\(self.member), previousStatus: "
+        if let previousStatus = self.previousStatus {
+            res += "\(previousStatus)"
+        } else {
+            res += "<unknown>"
+        }
+        res += ")"
+        return res
     }
 }
