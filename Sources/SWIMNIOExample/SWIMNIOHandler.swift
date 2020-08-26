@@ -159,15 +159,17 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                 #else
                 let callbackKey = PendingResponseCallbackIdentifier(peerAddress: remoteAddress, sequenceNumber: message.sequenceNumber)
                 #endif
-                if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
+
+                if let index = self.pendingReplyCallbacks.index(forKey: callbackKey) {
+                    let (storedKey, callback) = self.pendingReplyCallbacks.remove(at: index)
                     // TODO: UIDs of nodes matter
                     self.log.trace("Received response, key: \(callbackKey); Invoking callback...", metadata: [
                         "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
-                    self.shell.swim.metrics.roundTripTime.recordNanoseconds(callback.nanosecondsSinceCallbackStored())
+                    self.shell.swim.metrics.roundTripTime.recordNanoseconds(storedKey.nanosecondsSinceCallbackStored().nanoseconds)
                     callback(.success(message))
                 } else {
-                    self.log.trace("No callback for \(callbackKey)... It may have been removed due to a timeout already.", metadata: [
+                    self.log.trace("No callback for \(callbackKey); It may have been removed due to a timeout already.", metadata: [
                         "pending callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
                 }
@@ -203,6 +205,9 @@ extension SWIMNIOHandler {
             throw MissingDataError("No data to read")
         }
 
+        self.shell?.swim.metrics.messageCountInbound.increment()
+        self.shell?.swim.metrics.messageBytesInbound.record(bytes.readableBytes)
+
         let decoder = SWIMNIODefaultDecoder()
         decoder.userInfo[.channelUserInfoKey] = channel
         return try decoder.decode(SWIM.Message.self, from: data)
@@ -211,6 +216,9 @@ extension SWIMNIOHandler {
     private func serialize(message: SWIM.Message, using allocator: ByteBufferAllocator) throws -> ByteBuffer {
         let encoder = SWIMNIODefaultEncoder()
         let data = try encoder.encode(message)
+
+        self.shell?.swim.metrics.messageCountOutbound.increment()
+        self.shell?.swim.metrics.messageBytesOutbound.record(data.count)
 
         let buffer = data.withUnsafeBytes { bytes -> ByteBuffer in
             var buffer = allocator.buffer(capacity: data.count)

@@ -17,36 +17,41 @@ import Metrics
 extension SWIM {
     public struct Metrics {
         /// Number of members (total)
-        let members: Gauge
+        public let members: Gauge
         /// Number of members (alive)
-        let membersAlive: Gauge
+        public let membersAlive: Gauge
         /// Number of members (suspect)
-        let membersSuspect: Gauge
+        public let membersSuspect: Gauge
         /// Number of members (unreachable)
-        let membersUnreachable: Gauge
+        public let membersUnreachable: Gauge
         /// Number of members (dead)
-        let membersDead: Gauge
+        public let membersDead: Gauge
 
         /// Records time it takes for ping round-trips
-        let roundTripTime: Timer // TODO: could do dimensions
+        public let roundTripTime: Timer // TODO: could do dimensions
 
         /// Records time it takes for (every) pingRequest round-trip
-        let pingRequestResponseTimeAll: Timer
-        let pingRequestResponseTimeFirst: Timer
+        public let pingRequestResponseTimeAll: Timer
+        public let pingRequestResponseTimeFirst: Timer
 
         /// Records the incarnation of the SWIM instance.
         ///
         /// Incarnation numbers are bumped whenever the node needs to refute some gossip about itself,
         /// as such the incarnation number *growth* is an interesting indicator of cluster observation churn.
-        let incarnation: Gauge
+        public let incarnation: Gauge
 
-        let successfulProbeCount: Gauge
+        public let successfulProbeCount: Gauge
 
-        let failedProbeCount: Gauge
+        public let failedProbeCount: Gauge
 
         // TODO: message sizes (count and bytes)
+        public let messageCountInbound: Counter
+        public let messageBytesInbound: Recorder
 
-        init(settings: SWIM.Settings) {
+        public let messageCountOutbound: Counter
+        public let messageBytesOutbound: Recorder
+
+        public init(settings: SWIM.Settings) {
             self.members = Gauge(
                 label: settings.metrics.makeLabel("members"),
                 dimensions: [("status", "all")]
@@ -87,6 +92,63 @@ extension SWIM {
                 label: settings.metrics.makeLabel("incarnation"),
                 dimensions: [("type", "failed")]
             )
+
+            // TODO: how to best design the labels?
+            self.messageCountInbound = Counter(
+                label: settings.metrics.makeLabel("message"),
+                dimensions: [
+                    ("type", "count"),
+                    ("direction", "in"),
+                ]
+            )
+            self.messageBytesInbound = Recorder(
+                label: settings.metrics.makeLabel("message"),
+                dimensions: [
+                    ("type", "bytes"),
+                    ("direction", "in"),
+                ]
+            )
+
+            self.messageCountOutbound = Counter(
+                label: settings.metrics.makeLabel("message"),
+                dimensions: [
+                    ("type", "count"),
+                    ("direction", "out"),
+                ]
+            )
+            self.messageBytesOutbound = Recorder(
+                label: settings.metrics.makeLabel("message"),
+                dimensions: [
+                    ("type", "bytes"),
+                    ("direction", "out"),
+                ]
+            )
         }
+    }
+}
+
+extension SWIM.Metrics {
+    /// Update member metrics metrics based on SWIM's membership.
+    public func updateMembership(_ members: SWIM.Membership) {
+        var alives = 0
+        var suspects = 0
+        var unreachables = 0
+        var deads = 0
+        for member in members {
+            switch member.status {
+            case .alive:
+                alives += 1
+            case .suspect:
+                suspects += 1
+            case .unreachable:
+                unreachables += 1
+            case .dead:
+                deads += 1
+            }
+        }
+        self.membersAlive.record(alives)
+        self.membersSuspect.record(suspects)
+        self.membersUnreachable.record(unreachables)
+        self.membersDead.record(deads)
     }
 }
