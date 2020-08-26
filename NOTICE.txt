@@ -6,7 +6,7 @@ Please visit the Swift Cluster Membership web site for more information:
 
   * https://github.com/apple/swift-cluster-membership
 
-Copyright 2018, 2019 The Swift Cluster Membership Project
+Copyright 2020 The Swift Cluster Membership Project
 
 The Swift Cluster Membership Project licenses this file to you under the Apache License,
 version 2.0 (the "License"); you may not use this file except in compliance
