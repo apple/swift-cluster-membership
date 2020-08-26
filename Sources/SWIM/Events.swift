@@ -37,6 +37,7 @@ extension SWIM {
         /// member did not move it in such way that we need to inform the cluster about unreachability.
         public let previousStatus: SWIM.Status?
 
+        /// Create new event, representing a change of the member's status from a previous state to its current state.
         public init(previousStatus: SWIM.Status?, member: SWIM.Member) {
             if let from = previousStatus, from == .dead {
                 precondition(member.status == .dead, "Change MUST NOT move status 'backwards' from [.dead] state to anything else, but did so, was: \(member)")

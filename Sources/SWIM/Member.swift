@@ -45,6 +45,7 @@ extension SWIM {
         /// - Note: This value is never carried across processes, as it serves only locally triggering suspicion timeouts.
         public let localSuspicionStartedAt: DispatchTime? // could be "status updated at"?
 
+        /// Create a new member.
         public init(peer: SWIMPeer, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: DispatchTime? = nil) {
             self.peer = peer
             self.status = status

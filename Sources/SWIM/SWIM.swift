@@ -119,7 +119,11 @@ extension SWIM {
 
     /// A `GossipPayload` is used to spread gossips about members.
     public enum GossipPayload {
+        /// Explicit case to signal "no gossip payload"
+        ///
+        /// Effectively equivalent to an empty `.membership([])` case.
         case none
+        /// Gossip information about a few select members.
         case membership([SWIM.Member])
     }
 }

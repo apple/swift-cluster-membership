@@ -39,6 +39,7 @@ public struct _SWIMPrettyMetadataLogHandler: LogHandler {
 
     let label: String
 
+    /// :nodoc:
     public init(_ label: String) {
         self.label = label
     }

@@ -152,11 +152,11 @@ extension SWIM {
             DispatchTime.now()
         }
 
-        /// When enabled traces _all_ incoming SWIM protocol communication (remote messages).
-        /// These logs will contain SWIM.Instance metadata, as offered by `SWIM.Instance.metadata`.
         #if TRACELOG_SWIM
+        /// When enabled traces _all_ incoming SWIM protocol communication (remote messages).
         public var traceLogLevel: Logger.Level? = .warning
         #else
+        /// When enabled traces _all_ incoming SWIM protocol communication (remote messages).
         public var traceLogLevel: Logger.Level?
         #endif
     }
@@ -165,6 +165,7 @@ extension SWIM {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Gossip Settings
 
+/// Settings specific to the gossip payloads used in the SWIM gossip dissemination subsystem.
 public struct SWIMGossipSettings {
     /// Create default settings.
     public init() {}
@@ -218,6 +219,7 @@ public struct SWIMGossipSettings {
 ///
 /// - SeeAlso: [Lifeguard: Local Health Awareness for More Accurate Failure Detection](https://arxiv.org/pdf/1707.00788.pdf)
 public struct SWIMLifeguardSettings {
+    /// Create default settings.
     public init() {}
 
     /// Local health multiplier is a part of Lifeguard extensions to SWIM.
