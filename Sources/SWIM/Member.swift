@@ -26,7 +26,7 @@ extension SWIM {
         /// Peer reference, used to send messages to this cluster member.
         ///
         /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
-        public var peer: SWIMAddressablePeer
+        public var peer: SWIMPeer
 
         /// `Node` of the member's `peer`.
         public var node: ClusterMembership.Node {
@@ -42,10 +42,10 @@ extension SWIM {
         /// Indicates a _local_ point in time when suspicion was started.
         ///
         /// - Note: Only suspect members may have this value set, but having the actual field in SWIM.Member feels more natural.
-        /// - Note: This value is never carried across processes, as it serves only
+        /// - Note: This value is never carried across processes, as it serves only locally triggering suspicion timeouts.
         public let localSuspicionStartedAt: DispatchTime? // could be "status updated at"?
 
-        public init(peer: SWIMAddressablePeer, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: DispatchTime? = nil) {
+        public init(peer: SWIMPeer, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: DispatchTime? = nil) {
             self.peer = peer
             self.status = status
             self.protocolPeriod = protocolPeriod

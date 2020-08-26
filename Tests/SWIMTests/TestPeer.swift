@@ -39,13 +39,13 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
             onResponse: (Result<SWIM.PingResponse, Error>) -> Void
         )
         case ack(
-            target: SWIMAddressablePeer,
+            target: SWIMPeer,
             incarnation: SWIM.Incarnation,
             payload: SWIM.GossipPayload,
             sequenceNumber: SWIM.SequenceNumber
         )
         case nack(
-            target: SWIMAddressablePeer,
+            target: SWIMPeer,
             sequenceNumber: SWIM.SequenceNumber
         )
     }
@@ -68,7 +68,7 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
     }
 
     func pingRequest(
-        target: SWIMAddressablePeer,
+        target: SWIMPeer,
         payload: SWIM.GossipPayload,
         from origin: SWIMPingRequestOriginPeer,
         timeout: DispatchTimeInterval,
@@ -83,7 +83,7 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
 
     func ack(
         acknowledging sequenceNumber: SWIM.SequenceNumber,
-        target: SWIMAddressablePeer,
+        target: SWIMPeer,
         incarnation: SWIM.Incarnation,
         payload: SWIM.GossipPayload
     ) {
@@ -95,7 +95,7 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
 
     func nack(
         acknowledging sequenceNumber: SWIM.SequenceNumber,
-        target: SWIMAddressablePeer
+        target: SWIMPeer
     ) {
         self.lock.lock()
         defer { self.lock.unlock() }

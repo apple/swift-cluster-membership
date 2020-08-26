@@ -35,7 +35,7 @@ public protocol SWIMPingOriginPeer: SWIMAddressablePeer {
     ///     It is already trimmed to be no larger than configured in `SWIM.Settings`.
     func ack(
         acknowledging sequenceNumber: SWIM.SequenceNumber,
-        target: SWIMAddressablePeer,
+        target: SWIMPeer,
         incarnation: SWIM.Incarnation,
         payload: SWIM.GossipPayload
     )
@@ -55,7 +55,7 @@ public protocol SWIMPingRequestOriginPeer: SWIMPingOriginPeer {
     ///   - target: the target peer which was attempted to be pinged but we didn't get an ack from it yet and are sending a nack back eagerly
     func nack(
         acknowledging: SWIM.SequenceNumber,
-        target: SWIMAddressablePeer
+        target: SWIMPeer
     )
 }
 
@@ -99,7 +99,7 @@ public protocol SWIMPeer: SWIMAddressablePeer {
     ///     No guarantees about concurrency or threading are made with regards to where/how this invocation will take place,
     ///     so implementation shells may want to hop to the right executor or protect their state using some other way when before handling the response.
     func pingRequest(
-        target: SWIMAddressablePeer,
+        target: SWIMPeer,
         payload: SWIM.GossipPayload,
         from origin: SWIMPingRequestOriginPeer,
         timeout: DispatchTimeInterval,

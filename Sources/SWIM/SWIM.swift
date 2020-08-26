@@ -40,10 +40,10 @@ extension SWIM {
         ///   - target: the target of the ping;
         ///     On the remote "pinged" node which is about to send an ack back to the ping origin this should be filled with the `myself` peer.
         ///   - incarnation: the incarnation of the peer sent in the `target` field
-        ///   - payload: TODO: docs
+        ///   - payload: additional gossip data to be carried with the message.
         ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
         ///     It is used on the ping origin to co-relate the reply with its handling code.
-        case ack(target: SWIMAddressablePeer, incarnation: Incarnation, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
+        case ack(target: SWIMPeer, incarnation: Incarnation, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
 
         /// A `.nack` MAY ONLY be sent by an *intermediary* member which was received a `pingRequest` to perform a `ping` of some `target` member.
         /// It SHOULD NOT be sent by a peer that received a `.ping` directly.
@@ -64,7 +64,7 @@ extension SWIM {
         ///   - payload: The gossip payload to be carried in this message.
         ///
         /// - SeeAlso: Lifeguard IV.A. Local Health Aware Probe
-        case nack(target: SWIMAddressablePeer, sequenceNumber: SWIM.SequenceNumber)
+        case nack(target: SWIMPeer, sequenceNumber: SWIM.SequenceNumber)
 
         /// This is a "pseudo-message", in the sense that it is not transported over the wire, but should be triggered
         /// and fired into an implementation Shell when a ping has timed out.
@@ -83,7 +83,7 @@ extension SWIM {
         ///     In case of "cancelled" operations or similar semantics it is allowed to use a placeholder value here.
         ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
         ///     It is used on the ping origin to co-relate the reply with its handling code.
-        case timeout(target: SWIMAddressablePeer, pingRequestOrigin: SWIMPingRequestOriginPeer?, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
+        case timeout(target: SWIMPeer, pingRequestOrigin: SWIMPingRequestOriginPeer?, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
 
         /// Sequence number of the initial request this is a response to.
         /// Used to pair up responses to the requests which initially caused them.
@@ -122,6 +122,7 @@ extension SWIM {
 }
 
 extension SWIM.GossipPayload {
+    /// True if the underlying gossip is empty.
     public var isNone: Bool {
         switch self {
         case .none:
@@ -131,6 +132,7 @@ extension SWIM.GossipPayload {
         }
     }
 
+    /// True if the underlying gossip contains membership information.
     public var isMembership: Bool {
         switch self {
         case .none:
