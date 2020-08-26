@@ -22,4 +22,22 @@ In an attempt to form a shared vocabulary in the project, words used in the APIs
   - there are many situations where it is good to bail out early, but many operations have some form of "needs to always be done"
     in their directives. Using this pattern ensures you won't accidentally miss those directives. 
 - When "should never happen", use `precondition`s with a lot of contextual information (including the entire instance state), 
-  so users can provide you witha good crash report.
+  so users can provide you with a good crash report.
+
+## Testing tips
+
+Tests have `LogCapture` installed are able to capture all logs "per node" and later present them in a readable output if a test fails automatically.
+
+If you need to investigate test logs without the test failing, you can enable them like so:
+
+```swift
+final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
+
+    override var alwaysPrintCaptureLogs: Bool {
+        true
+    }
+    
+    // ... 
+
+}
+```

@@ -20,6 +20,11 @@ import SWIM
 import XCTest
 
 final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
+
+    override var alwaysPrintCaptureLogs: Bool {
+        true
+    }
+
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: White box tests // TODO: implement more of the tests in terms of inspecting events
 
@@ -222,6 +227,34 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             }
         }
     }
+
+    // ==== ----------------------------------------------------------------------------------------------------------------
+    // MARK: nack tests
+
+    func test_real_pingRequestsGetSent_nacksArriveBack() throws {
+        let (firstHandler, _) = self.makeClusterNode()
+        let (secondHandler, _) = self.makeClusterNode() { settings in
+            settings.swim.initialContactPoints = [firstHandler.shell.node]
+        }
+        let (thirdHandler, thirdChannel) = self.makeClusterNode() { settings in
+            settings.swim.initialContactPoints = [firstHandler.shell.node, secondHandler.shell.node]
+        }
+
+        try self.capturedLogs(of: firstHandler.shell.node)
+            .awaitLog(grep: #""swim/members/count": 3"#)
+        try self.capturedLogs(of: secondHandler.shell.node)
+            .awaitLog(grep: #""swim/members/count": 3"#)
+        try self.capturedLogs(of: thirdHandler.shell.node)
+            .awaitLog(grep: #""swim/members/count": 3"#)
+
+        try thirdChannel.close().wait()
+
+        try self.capturedLogs(of: firstHandler.shell.node)
+            .awaitLog(grep: #"Read successful: response/nack"#)
+        try self.capturedLogs(of: secondHandler.shell.node)
+            .awaitLog(grep: #"Read successful: response/nack"#)
+    }
+
 }
 
 private struct TestError: Error {
