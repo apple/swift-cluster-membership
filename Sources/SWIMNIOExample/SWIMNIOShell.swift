@@ -71,7 +71,7 @@ public final class SWIMNIOShell {
     /// Initialize timers and other after-initialized tasks
     private func onStart(startPeriodicPingTimer: Bool) {
         // Immediately announce that "we" are alive
-        self.announceMembershipChange(.init(previousStatus: nil, member: self.swim.myselfMember))
+        self.announceMembershipChange(.init(previousStatus: nil, member: self.swim.member))
 
         // Immediately attempt to connect to initial contact points
         self.settings.swim.initialContactPoints.forEach { node in
@@ -337,15 +337,16 @@ public final class SWIMNIOShell {
         pingRequestOriginPeer: SWIMPingRequestOriginPeer?,
         pingRequestSequenceNumber: SWIM.SequenceNumber?,
         timeout: DispatchTimeInterval,
-        sequenceNumber: SWIM.SequenceNumber
+        sequenceNumber: SWIM.SequenceNumber,
+        file: String = #file, line: UInt = #line
     ) {
         let payload = self.swim.makeGossipPayload(to: target)
 
-        self.log.trace("Sending ping", metadata: self.swim.metadata([
+        self.log.error("Sending ping", metadata: self.swim.metadata([
             "swim/target": "\(target)",
             "swim/gossip/payload": "\(payload)",
             "swim/timeout": "\(timeout)",
-        ]))
+        ]), file: file, line: line)
 
         self.tracelog(.send(to: target), message: "ping(replyTo: \(self.peer), payload: \(payload), sequenceNr: \(sequenceNumber))")
         target.ping(payload: payload, from: self.peer, timeout: timeout, sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
@@ -446,7 +447,7 @@ public final class SWIMNIOShell {
                 self.sendPing(to: target, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil, timeout: timeout, sequenceNumber: sequenceNumber)
 
             case .scheduleNextTick(let delay):
-                self.log.trace("Schedule next tick for: \(delay)")
+                self.log.trace("Schedule next tick in: \(delay.prettyDescription)")
                 self.nextPeriodicTickCancellable = self.schedule(delay: delay) {
                     self.handlePeriodicProtocolPeriodTick()
                 }
@@ -475,7 +476,7 @@ public final class SWIMNIOShell {
 
         let sequenceNumber = self.swim.nextSequenceNumber()
         self.tracelog(.send(to: targetPeer), message: "ping(replyTo: \(self.peer), payload: .none, sequenceNr: \(sequenceNumber))")
-        targetPeer.ping(payload: .none, from: self.peer, timeout: .seconds(1), sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
+        targetPeer.ping(payload: self.swim.makeGossipPayload(to: nil), from: self.peer, timeout: .seconds(1), sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
             switch result {
             case .success(let response):
                 self.receivePingResponse(response: response, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil)
@@ -501,7 +502,6 @@ public final class SWIMNIOShell {
         // of removing the node from the member list. We do that in order to prevent dead nodes
         // from being re-added to the cluster.
         // TODO: add time of death to the status?
-        // TODO: GC tombstones after a day?
 
         guard let member = swim.member(for: node) else {
             self.log.warning("Attempted to confirm .dead [\(node)], yet no such member known", metadata: self.swim.metadata)

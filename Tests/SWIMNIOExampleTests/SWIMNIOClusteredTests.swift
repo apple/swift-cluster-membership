@@ -21,10 +21,6 @@ import XCTest
 
 final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
 
-    override var alwaysPrintCaptureLogs: Bool {
-        true
-    }
-
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: White box tests // TODO: implement more of the tests in terms of inspecting events
 
@@ -135,26 +131,29 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
 
     func test_real_peers_5_connect_butSlowly() throws {
         let (first, _) = self.makeClusterNode() { settings in
-            settings.swim.probeInterval = .milliseconds(200)
+            settings.swim.pingTimeout = .milliseconds(100)
+            settings.swim.probeInterval = .milliseconds(500)
         }
         let (second, _) = self.makeClusterNode() { settings in
-            settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [first.shell.node]
+            settings.swim.pingTimeout = .milliseconds(100)
+            settings.swim.probeInterval = .milliseconds(500)
         }
         // we sleep in order to ensure we exhaust the "gossip at most ... times" logic
-        sleep(2)
+        sleep(4)
         let (third, _) = self.makeClusterNode() { settings in
-            settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [second.shell.node]
+            settings.swim.pingTimeout = .milliseconds(100)
+            settings.swim.probeInterval = .milliseconds(500)
         }
         let (fourth, _) = self.makeClusterNode() { settings in
-            settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [third.shell.node]
+            settings.swim.pingTimeout = .milliseconds(100)
+            settings.swim.probeInterval = .milliseconds(500)
         }
         // after joining two more, we sleep again to make sure they all exhaust their gossip message counts
         sleep(2)
         let (fifth, _) = self.makeClusterNode() { settings in
-            settings.swim.probeInterval = .milliseconds(200)
             // we connect fir the first, they should exchange all information
             settings.swim.initialContactPoints = [
                 first.shell.node,
@@ -250,9 +249,14 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
         try thirdChannel.close().wait()
 
         try self.capturedLogs(of: firstHandler.shell.node)
-            .awaitLog(grep: #"Read successful: response/nack"#)
+            .awaitLog(grep: "Read successful: response/nack")
         try self.capturedLogs(of: secondHandler.shell.node)
-            .awaitLog(grep: #"Read successful: response/nack"#)
+            .awaitLog(grep: "Read successful: response/nack")
+
+        try self.capturedLogs(of: firstHandler.shell.node)
+            .awaitLog(grep: #""swim/suspects/count": 1"#)
+        try self.capturedLogs(of: secondHandler.shell.node)
+            .awaitLog(grep: #""swim/suspects/count": 1"#)
     }
 
 }

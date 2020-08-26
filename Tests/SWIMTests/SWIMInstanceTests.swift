@@ -320,7 +320,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
         let currentIncarnation = swim.incarnation
 
-        let myselfMember = swim.myselfMember
+        let myselfMember = swim.member
 
         let res = swim.onGossipPayload(about: myselfMember)
 
@@ -338,7 +338,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
         let currentIncarnation = swim.incarnation
 
-        var myselfMember = swim.myselfMember
+        var myselfMember = swim.member
         myselfMember.status = .suspect(incarnation: currentIncarnation, suspectedBy: [self.thirdNode])
 
         let res = swim.onGossipPayload(about: myselfMember)
@@ -357,7 +357,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
         var currentIncarnation = swim.incarnation
 
-        var myselfMember = swim.myselfMember
+        var myselfMember = swim.member
 
         // necessary to increment incarnation
         myselfMember.status = .suspect(incarnation: currentIncarnation, suspectedBy: [self.thirdNode])
@@ -382,7 +382,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
         let currentIncarnation = swim.incarnation
 
-        var myselfMember = swim.myselfMember
+        var myselfMember = swim.member
 
         myselfMember.status = .suspect(incarnation: currentIncarnation + 6, suspectedBy: [self.thirdNode])
         let res = swim.onGossipPayload(about: myselfMember)
@@ -400,11 +400,11 @@ final class SWIMInstanceTests: XCTestCase {
     func test_onGossipPayload_myself_withDead() throws {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        var myselfMember = swim.myselfMember
+        var myselfMember = swim.member
         myselfMember.status = .dead
         let res = swim.onGossipPayload(about: myselfMember)
 
-        let myMember = swim.myselfMember
+        let myMember = swim.member
         XCTAssertEqual(myMember.status, .dead)
 
         switch res {
@@ -438,11 +438,11 @@ final class SWIMInstanceTests: XCTestCase {
         settings.unreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
-        var myselfMember = swim.myselfMember
+        var myselfMember = swim.member
         myselfMember.status = .unreachable(incarnation: 1)
         let directive = swim.onGossipPayload(about: myselfMember)
 
-        let myMember = swim.myselfMember
+        let myMember = swim.member
         // we never accept other telling us about "our future" this is highly suspect!
         // only we can be the origin of incarnation numbers after all.
         XCTAssertEqual(myMember.status, .alive(incarnation: 0))
@@ -483,11 +483,11 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         swim.incrementProtocolPeriod()
 
-        var myselfMember = swim.myselfMember
+        var myselfMember = swim.member
         myselfMember.status = .unreachable(incarnation: 0)
         let directive = swim.onGossipPayload(about: myselfMember)
 
-        let myMember = swim.myselfMember
+        let myMember = swim.member
         XCTAssertEqual(myMember.status, .alive(incarnation: 0))
 
         switch directive {
@@ -523,14 +523,14 @@ final class SWIMInstanceTests: XCTestCase {
         settings.unreachability = .disabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
-        var myselfMember = swim.myselfMember
+        var myselfMember = swim.member
         myselfMember.status = .unreachable(incarnation: 1)
 
         let directive = swim.onGossipPayload(about: myselfMember)
 
         // we never accept other peers causing us to become some other status,
         // we always view ourselfes as reachable (alive) until dead.
-        let myMember = swim.myselfMember
+        let myMember = swim.member
         XCTAssertEqual(myMember.status, .alive(incarnation: 0))
 
         switch directive {
@@ -908,7 +908,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         _ = swim.addMember(self.second, status: .alive(incarnation: 10))
 
-        let member = swim.myselfMember
+        let member = swim.member
         XCTAssertEqual(member.node, self.myself.node)
         XCTAssertTrue(member.isAlive)
         XCTAssertEqual(member.status, .alive(incarnation: 0))

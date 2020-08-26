@@ -31,7 +31,7 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
     override func setUp() {
         super.setUp()
 
-        self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        self.group = MultiThreadedEventLoopGroup(numberOfThreads: 8)
         self.loop = group.next()
     }
 
