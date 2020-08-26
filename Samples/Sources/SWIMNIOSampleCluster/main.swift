@@ -14,6 +14,8 @@
 
 import ClusterMembership
 import SWIM
+import Metrics
+import Prometheus
 import SWIMNIOExample
 import NIO
 import Logging
@@ -39,7 +41,17 @@ struct SWIMNIOSampleCluster: ParsableCommand {
     mutating func run() throws {
         LoggingSystem.bootstrap(_SWIMPrettyMetadataLogHandler.init)
 
+        let prom = PrometheusClient()
+        MetricsSystem.bootstrap(prom)
+
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
+
+        group.next().scheduleRepeatedTask(initialDelay: .seconds(1), delay: .seconds(1)) { _ in
+            // let string: String = prom.collect()
+            // print("")
+            // print("")
+            // print(string)
+        }
         
         let lifecycle = ServiceLifecycle()
         lifecycle.registerShutdown(

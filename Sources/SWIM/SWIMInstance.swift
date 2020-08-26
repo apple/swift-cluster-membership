@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2018-2019 Apple Inc. and the Swift Cluster Membership project authors
+// Copyright (c) 2020 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -263,7 +263,11 @@ extension SWIM {
         private let peer: SWIMPeer
 
         /// Main members storage, map to values to obtain current members.
-        internal var _members: [ClusterMembership.Node: SWIM.Member]
+        internal var _members: [ClusterMembership.Node: SWIM.Member] {
+            didSet {
+                self.metrics.updateMembership(self.members)
+            }
+        }
 
         /// List of members maintained in random yet stable order, see `addMember` for details.
         internal var membersToPing: [SWIM.Member]
@@ -334,6 +338,13 @@ extension SWIM {
         }
 
         private var _incarnation: SWIM.Incarnation = 0
+
+        private func nextIncarnation() {
+            defer {
+                self.metrics.incarnation.record(self._incarnation)
+            }
+            self._incarnation += 1
+        }
 
         /// Creates a new SWIM algorithm instance.
         public init(settings: SWIM.Settings, myself: SWIMPeer) {
@@ -984,7 +995,7 @@ extension SWIM.Instance {
             }
         }
 
-        // metrics.recordSWIM.Members(self.swim.allMembers) // FIXME metrics
+        self.metrics.updateMembership(self.members)
         return directives
     }
 
@@ -1461,7 +1472,7 @@ extension SWIM.Instance {
             // the incremented incarnation
             if suspectedInIncarnation == self.incarnation {
                 self.adjustLHMultiplier(.refutingSuspectMessageAboutSelf)
-                self._incarnation += 1
+                self.nextIncarnation()
                 // refute the suspicion, we clearly are still alive
                 self.addToGossip(member: self.member)
                 return .applied(change: nil)
@@ -1483,7 +1494,7 @@ extension SWIM.Instance {
                 // someone suspected us,
                 // so we need to increment our incarnation number to spread our alive status with the incremented incarnation
                 if unreachableInIncarnation == self.incarnation {
-                    self._incarnation += 1
+                    self.nextIncarnation()
                     return .ignored
                 } else if unreachableInIncarnation > self.incarnation {
                     self.log.warning("""
