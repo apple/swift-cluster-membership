@@ -379,7 +379,7 @@ public final class SWIMNIOShell {
         // still alive. Therefore we propagate only the first success, but no failures.
         // The failure case is handled through the timeout of the whole operation.
         let firstSuccessPromise = self.eventLoop.makePromise(of: SWIM.PingResponse.self)
-        let pingTimeout = self.swim.dynamicLHMPingTimeout
+        let pingTimeout = directive.timeout
         let target = directive.target
         for pingRequest in directive.requestDetails {
             let peerToPingRequestThrough = pingRequest.peerToPingRequestThrough
