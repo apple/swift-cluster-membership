@@ -70,10 +70,11 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         defer { try! first.close().wait() }
 
         // wait for second probe to become alive:
-        try secondProbe.expectEvent(SWIM.MemberStatusChangedEvent(
-            previousStatus: nil,
-            member: SWIM.Member(peer: SWIM.NIOPeer(node: secondNode, channel: EmbeddedChannel()), status: .alive(incarnation: 0), protocolPeriod: 0)
-        )
+        try secondProbe.expectEvent(
+            SWIM.MemberStatusChangedEvent(
+                previousStatus: nil,
+                member: SWIM.Member(peer: SWIM.NIOPeer(node: secondNode, channel: EmbeddedChannel()), status: .alive(incarnation: 0), protocolPeriod: 0)
+            )
         )
 
         sleep(5) // let them discover each other, since the nodes are slow at retrying and we didn't configure it yet a sleep is here meh

@@ -113,6 +113,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                 }
 
                 self.log.trace("Store callback: \(callbackKey)", metadata: [
+                    "message": "\(writeCommand.message)",
                     "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                 ])
                 self.pendingReplyCallbacks[callbackKey] = { reply in
