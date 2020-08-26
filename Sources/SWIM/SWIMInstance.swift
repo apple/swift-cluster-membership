@@ -221,17 +221,17 @@ extension SWIM {
         /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
-        // We store the owning SWIMShell peer in order avoid adding it to the `membersToPing` list
-        private let myself: SWIMPeer
-
         private var node: ClusterMembership.Node {
-            self.myself.node
+            self.peer.node
         }
 
-        /// The `SWIM.Member` representing this instance.
-        public var myselfMember: SWIM.Member {
+        /// The `SWIM.Member` representing this instance, also referred to as "myself".
+        public var member: SWIM.Member {
             self.member(for: self.node)!
         }
+
+        // We store the owning SWIMShell peer in order avoid adding it to the `membersToPing` list
+        private let peer: SWIMPeer
 
         /// Main members storage, map to values to obtain current members.
         internal var _members: [ClusterMembership.Node: SWIM.Member]
@@ -306,7 +306,7 @@ extension SWIM {
         /// Creates a new SWIM algorithm instance.
         public init(settings: SWIM.Settings, myself: SWIMPeer) {
             self.settings = settings
-            self.myself = myself
+            self.peer = myself
             self._members = [:]
             self.membersToPing = []
             _ = self.addMember(myself, status: .alive(incarnation: 0))
@@ -417,7 +417,7 @@ extension SWIM {
         ///   but in a round-robin fashion. Instead, a newly joining member is inserted in the membership list at
         ///   a position that is chosen uniformly at random. On completing a traversal of the entire list,
         ///   rearranges the membership list to a random reordering.
-        func nextMemberToPing() -> SWIMAddressablePeer? {
+        func nextMemberToPing() -> SWIMPeer? {
             if self.membersToPing.isEmpty {
                 return nil
             }
@@ -621,7 +621,7 @@ extension SWIM {
             guard self._messagesToGossip.count > 0 else {
                 if membersToGossipAbout.isEmpty {
                     // if we have no pending gossips to share, at least inform the member about our state.
-                    return .membership([self.myselfMember])
+                    return .membership([self.member])
                 } else {
                     return .membership(membersToGossipAbout)
                 }
@@ -799,18 +799,19 @@ extension SWIM.Instance {
             self.incrementProtocolPeriod()
         }
 
-        var directives: [PeriodicPingTickDirective] = [
-            // always schedule the next tick
-            .scheduleNextTick(delay: self.dynamicLHMProtocolInterval)
-        ]
+        var directives: [PeriodicPingTickDirective] = []
 
-        guard let toPing = self.nextMemberToPing() else {
-            return directives
+        // 1) always check suspicion timeouts, even if we no longer have anyone else to ping
+        directives.append(contentsOf: self.checkSuspicionTimeouts())
+
+        // 2) if we have someone to ping, let's do so
+        if let toPing = self.nextMemberToPing() {
+            directives.append(.sendPing(target: toPing, timeout: self.dynamicLHMPingTimeout, sequenceNumber: self.nextSequenceNumber()))
         }
 
-        directives.append(contentsOf: self.checkSuspicionTimeouts())
-        directives.append(.sendPing(target: toPing as! SWIMPeer, timeout: self.dynamicLHMPingTimeout, sequenceNumber: self.nextSequenceNumber()))
+        // 3) ALWAYS schedule the next tick
         directives.append(.scheduleNextTick(delay: self.dynamicLHMProtocolInterval))
+
         return directives
     }
 
@@ -879,7 +880,7 @@ extension SWIM.Instance {
         // 2) Prepare reply
         let gossipPayload: SWIM.GossipPayload = self.makeGossipPayload(to: pingOrigin)
         let reply = PingDirective.sendAck(
-            myself: self.myself,
+            myself: self.peer,
             incarnation: self._incarnation,
             payload: gossipPayload,
             sequenceNumber: sequenceNumber
@@ -1264,10 +1265,10 @@ extension SWIM.Instance {
     /// See `settings.unreachability` for more details.
     private func onMyselfGossipPayload(myself incoming: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
         assert(
-            self.myself.node == incoming.peer.node,
+            self.peer.node == incoming.peer.node,
             """
             Attempted to process gossip as-if about myself, but was not the same peer, was: \(incoming.peer.node.detailedDescription). \
-            Myself: \(self.myself)
+            Myself: \(self.peer)
             SWIM.Instance: \(self)
             """
         )
@@ -1287,7 +1288,7 @@ extension SWIM.Instance {
                 self.adjustLHMultiplier(.refutingSuspectMessageAboutSelf)
                 self._incarnation += 1
                 // refute the suspicion, we clearly are still alive
-                self.addToGossip(member: SWIM.Member(peer: self.myself, status: .alive(incarnation: self._incarnation), protocolPeriod: self.protocolPeriod))
+                self.addToGossip(member: SWIM.Member(peer: self.peer, status: .alive(incarnation: self._incarnation), protocolPeriod: self.protocolPeriod))
                 return .applied(change: nil)
             } else if suspectedInIncarnation > self.incarnation {
                 return .applied(
@@ -1331,12 +1332,12 @@ extension SWIM.Instance {
             }
 
         case .dead:
-            guard var myselfMember = self.member(for: self.myself) else {
+            guard var myselfMember = self.member(for: self.peer) else {
                 return .applied(change: nil)
             }
 
             myselfMember.status = .dead
-            switch self.mark(self.myself, as: .dead) {
+            switch self.mark(self.peer, as: .dead) {
             case .applied(.some(let previousStatus), _):
                 return .applied(change: .init(previousStatus: previousStatus, member: myselfMember))
             default:
@@ -1349,7 +1350,7 @@ extension SWIM.Instance {
     /// Performs all special handling of `.unreachable` such that if it is disabled members are automatically promoted to `.dead`.
     /// See `settings.unreachability` for more details.
     private func onOtherMemberGossipPayload(member: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
-        assert(self.node != member.node, "Attempted to process gossip as-if not-myself, but WAS same peer, was: \(member). Myself: \(self.myself, orElse: "nil")")
+        assert(self.node != member.node, "Attempted to process gossip as-if not-myself, but WAS same peer, was: \(member). Myself: \(self.peer, orElse: "nil")")
 
         guard self.isMember(member.peer) else {
             // it's a new node it seems
@@ -1456,7 +1457,7 @@ extension SWIM.Instance: CustomDebugStringConvertible {
         SWIM.Instance(
             settings: \(settings),
             
-            myself: \(String(reflecting: myself)),
+            myself: \(String(reflecting: peer)),
                                 
             _incarnation: \(_incarnation),
             _protocolPeriod: \(_protocolPeriod), 

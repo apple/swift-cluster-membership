@@ -17,6 +17,8 @@ import Logging
 import NIO
 import NIOFoundationCompat
 import SWIM
+import struct Dispatch.DispatchTime
+import enum Dispatch.DispatchTimeInterval
 
 /// `ChannelDuplexHandler` responsible for encoding/decoding SWIM messages to/from the `SWIMNIOShell`.
 ///
@@ -35,12 +37,6 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
 
     // initialized in channelActive
     var shell: SWIMNIOShell!
-
-    // TODO: move callbacks into the shell?
-    struct PendingResponseCallbackIdentifier: Hashable {
-        let peerAddress: SocketAddress // FIXME: UID as well...?
-        let sequenceNumber: SWIM.SequenceNumber
-    }
 
     var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void]
 
@@ -99,7 +95,11 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
             // register and manage reply callback ------------------------------
             if let replyCallback = writeCommand.replyCallback {
                 let sequenceNumber = writeCommand.message.sequenceNumber
+                #if DEBUG
+                let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: sequenceNumber, inResponseTo: writeCommand.message)
+                #else
                 let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: sequenceNumber)
+                #endif
 
                 let timeoutTask = context.eventLoop.scheduleTask(in: writeCommand.replyTimeout) {
                     if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
@@ -154,7 +154,11 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
             if message.isResponse {
                 // if it's a reply, invoke the pending callback ------
                 // TODO: move into the shell: https://github.com/apple/swift-cluster-membership/issues/41
+                #if DEBUG
+                let callbackKey = PendingResponseCallbackIdentifier(peerAddress: remoteAddress, sequenceNumber: message.sequenceNumber, inResponseTo: nil)
+                #else
                 let callbackKey = PendingResponseCallbackIdentifier(peerAddress: remoteAddress, sequenceNumber: message.sequenceNumber)
+                #endif
                 if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
                     // TODO: UIDs of nodes matter
                     self.log.trace("Received response, key: \(callbackKey); Invoking callback...", metadata: [
@@ -238,6 +242,43 @@ public struct SWIMNIOWriteCommand {
         self.replyCallback = replyCallback
     }
 }
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: Callback storage
+
+// TODO: move callbacks into the shell?
+struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
+    let peerAddress: SocketAddress // FIXME: UID as well...?
+    let sequenceNumber: SWIM.SequenceNumber
+
+    let storedAt: DispatchTime = .now()
+
+    #if DEBUG
+    let inResponseTo: SWIM.Message?
+    #endif
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(peerAddress)
+        hasher.combine(sequenceNumber)
+    }
+
+    static func ==(lhs: PendingResponseCallbackIdentifier, rhs: PendingResponseCallbackIdentifier) -> Bool {
+        lhs.peerAddress == rhs.peerAddress &&
+            lhs.sequenceNumber == rhs.sequenceNumber
+    }
+
+    var description: String {
+        """
+        PendingResponseCallbackIdentifier(\
+        peerAddress: \(peerAddress), \
+        sequenceNumber: \(sequenceNumber), \
+        storedAt: \(self.storedAt) (\(DispatchTimeInterval.nanoseconds(Int(DispatchTime.now().uptimeNanoseconds - storedAt.uptimeNanoseconds)).prettyDescription) ago)\
+        )
+        """
+    }
+}
+
+
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Errors
