@@ -37,9 +37,24 @@ extension SWIM {
     ///
     /// - SeeAlso: `SWIM.Incarnation`
     public enum Status: Hashable {
+        /// Indicates an `alive` member of the cluster, i.e. if is reachable and properly replies to all probes on time.
         case alive(incarnation: Incarnation)
+        /// Indicates a `suspect` member of the cluster, meaning that it did not reply on time to probing and MAY be unreachable.
+        /// Further probing and indirect probing will be performed to test if it really is unreachable/dead,
+        /// or just had a small glitch (or network issues).
         case suspect(incarnation: Incarnation, suspectedBy: Set<Node>)
+        /// Extension from traditional SWIM states: indicates an unreachable node, under traditional SWIM it would have
+        /// already been marked `.dead`, however unreachability allows for a final extra step including a `swim.confirmDead()`
+        /// call, to move the unreachable node to dead state.
+        ///
+        /// This only matters for multi layer membership protocols which use SWIM as their failure detection mechanism.
+        ///
+        /// This state is DISABLED BY DEFAULT, and if a node receives such unreachable status about another member while
+        /// this setting is disabled it will immediately treat such member as `.dead`. Do not run in mixed mode clusters,
+        /// as this can yield unexpected consequences.
         case unreachable(incarnation: Incarnation)
+        /// Indicates
+        /// Note: In the original paper this state was referred to as "confirm", which we found slightly confusing, thus the rename.
         case dead
     }
 }

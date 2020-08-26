@@ -152,7 +152,7 @@ public protocol SWIMProtocol {
     ///   - sequenceNumber: sequence number of this ping, will be used to reply to the ping's origin using the same sequence number
     /// - Returns: `SWIM.Instance.PingDirective` which must be interpreted by a shell implementation
     mutating func onPing(
-        pingOrigin: SWIMAddressablePeer,
+        pingOrigin: SWIMPingOriginPeer,
         payload: SWIM.GossipPayload,
         sequenceNumber: SWIM.SequenceNumber
     ) -> [SWIM.Instance.PingDirective]
@@ -269,9 +269,9 @@ extension SWIM {
         private var _sequenceNumber: SWIM.SequenceNumber = 0
         /// Sequence numbers are used to identify messages and pair them up into request/replies.
         /// - SeeAlso: `SWIM.SequenceNumber`
-        // TODO: make internal?
-        // TODO: sequence numbers per-target node? https://github.com/apple/swift-cluster-membership/issues/39
         public func nextSequenceNumber() -> SWIM.SequenceNumber {
+            // TODO: can we make it internal? it does not really hurt having public
+            // TODO: sequence numbers per-target node? https://github.com/apple/swift-cluster-membership/issues/39
             self._sequenceNumber += 1
             return self._sequenceNumber
         }
@@ -909,7 +909,7 @@ extension SWIM.Instance {
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Handler
 
-    public func onPing(pingOrigin: SWIMAddressablePeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) -> [PingDirective] {
+    public func onPing(pingOrigin: SWIMPingOriginPeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) -> [PingDirective] {
         var directives: [PingDirective]
 
         // 1) Process gossip
@@ -918,21 +918,39 @@ extension SWIM.Instance {
         }
 
         // 2) Prepare reply
-        let gossipPayload: SWIM.GossipPayload = self.makeGossipPayload(to: pingOrigin)
-        let reply = PingDirective.sendAck(
-            myself: self.peer,
-            incarnation: self._incarnation,
-            payload: gossipPayload,
-            sequenceNumber: sequenceNumber
-        )
-        directives.append(reply)
+        directives.append(.sendAck(
+            to: pingOrigin,
+            pingedTarget: self.peer,
+            incarnation: self.incarnation,
+            payload: self.makeGossipPayload(to: pingOrigin),
+            acknowledging: sequenceNumber
+        ))
 
         return directives
     }
 
+    /// Directs a shell implementation about how to handle an incoming `.ping`.
     public enum PingDirective {
+        /// Indicates that incoming gossip was processed and the membership may have changed because of it,
+        /// inspect the `GossipProcessedDirective` to learn more about what change was applied.
         case gossipProcessed(GossipProcessedDirective)
-        case sendAck(myself: SWIMAddressablePeer, incarnation: SWIM.Incarnation, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber)
+
+        /// Send an `ack` message.
+        ///
+        /// - parameters:
+        ///   - to: the peer to which an `ack` should be sent
+        ///   - pingedTarget: the `myself` peer, should be passed as `target` when sending the ack message
+        ///   - incarnation: the incarnation number of this peer; used to determine which status is "the latest"
+        ///     when comparing acknowledgement with suspicions
+        ///   - payload: additional gossip payload to include in the ack message
+        ///   - acknowledging: sequence number of the ack message
+        case sendAck(
+            to: SWIMPingOriginPeer,
+            pingedTarget: SWIMPeer,
+            incarnation: SWIM.Incarnation,
+            payload: SWIM.GossipPayload,
+            acknowledging: SWIM.SequenceNumber
+        )
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -973,7 +991,6 @@ extension SWIM.Instance {
 
         if let pingRequestOrigin = pingRequestOrigin,
             let pingRequestSequenceNumber = pingRequestSequenceNumber {
-            // pingRequestOrigin.ack(acknowledging: sequenceNumber, target: pingedNode, incarnation: incarnation, payload: payload)
             directives.append(
                 .sendAck(
                     peer: pingRequestOrigin,
@@ -1092,18 +1109,28 @@ extension SWIM.Instance {
 
     /// Directs a shell implementation about how to handle an incoming `.pingRequest`.
     public enum PingResponseDirective {
-        /// Handle the processed gossip, see `GossipProcessedDirective` for details how to handle them.
+        /// Indicates that incoming gossip was processed and the membership may have changed because of it,
+        /// inspect the `GossipProcessedDirective` to learn more about what change was applied.
         case gossipProcessed(GossipProcessedDirective)
 
         /// Upon receiving an `ack` from `target`, if we were making this ping because of a `pingRequest` from `peer`,
         /// we need to forward that acknowledgement to that peer now.
         ///
         /// - parameters:
-        ///   - acknowledging: the sequence number here is the ont from the original `pingRequest` that we received,
-        ///     so the recipient peer can properly correlate it on its end.
+        ///   - to: the peer to which an `ack` should be sent
+        ///   - pingedTarget: the `myself` peer, should be passed as `target` when sending the ack message
+        ///   - incarnation: the incarnation number of this peer; used to determine which status is "the latest"
+        ///     when comparing acknowledgement with suspicions
+        ///   - payload: additional gossip payload to include in the ack message
+        ///   - acknowledging: sequence number of the ack message
         case sendAck(peer: SWIMPingRequestOriginPeer, acknowledging: SWIM.SequenceNumber, target: SWIMPeer, incarnation: UInt64, payload: SWIM.GossipPayload)
 
         /// Send a `nack` to the `peer` which originally send this peer request.
+        ///
+        /// - parameters:
+        ///   - peer: the peer to which the `nack` should be sent
+        ///   - acknowledging: sequence number of the ack message
+        ///   - target: the peer which we attempted to ping but it didn't reply on time
         case sendNack(peer: SWIMPingRequestOriginPeer, acknowledging: SWIM.SequenceNumber, target: SWIMPeer)
 
         /// Send a `pingRequest` as described by the `SendPingRequestDirective`.
@@ -1190,6 +1217,8 @@ extension SWIM.Instance {
 
     /// Directs a shell implementation about how to handle an incoming `.pingRequest`.
     public enum PingRequestDirective {
+        /// Indicates that incoming gossip was processed and the membership may have changed because of it,
+        /// inspect the `GossipProcessedDirective` to learn more about what change was applied.
         case gossipProcessed(GossipProcessedDirective)
         case sendPing(
             target: SWIMPeer,
@@ -1274,6 +1303,8 @@ extension SWIM.Instance {
 
     /// Directs a shell implementation about how to handle an incoming ping request response.
     public enum PingRequestResponseDirective {
+        /// Indicates that incoming gossip was processed and the membership may have changed because of it,
+        /// inspect the `GossipProcessedDirective` to learn more about what change was applied.
         case gossipProcessed(GossipProcessedDirective)
 
         case alive(previousStatus: SWIM.Status) // TODO: offer a membership change option rather?
