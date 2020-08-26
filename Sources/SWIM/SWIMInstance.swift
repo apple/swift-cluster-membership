@@ -241,6 +241,10 @@ extension SWIM {
             self.peer.node
         }
 
+        private var log: Logger {
+            self.settings.logger
+        }
+
         /// The `SWIM.Member` representing this instance, also referred to as "myself".
         public var member: SWIM.Member {
             if let storedMyself = self.member(for: self.node),
@@ -985,7 +989,7 @@ extension SWIM.Instance {
             PingResponseDirective.gossipProcessed($0)
         })
 
-        // self.log.debug("Received ack from [\(pingedNode)] with incarnation [\(incarnation)] and payload [\(payload)]", metadata: self.metadata)
+        self.log.debug("Received ack from [\(pingedNode)] with incarnation [\(incarnation)] and payload [\(payload)]", metadata: self.metadata)
         // The shell is already informed tha the member moved -> alive by the gossipProcessed directive
         _ = self.mark(pingedNode, as: .alive(incarnation: incarnation))
 
@@ -1028,8 +1032,6 @@ extension SWIM.Instance {
         pingRequestOrigin: SWIMPingRequestOriginPeer?,
         pingRequestSequenceNumber: SWIM.SequenceNumber?
     ) -> [PingResponseDirective] {
-        // self.log.debug("Did not receive ack from \(pingedNode) within configured timeout. Sending ping requests to other members.")
-
         var directives: [PingResponseDirective] = []
         if let pingRequestOrigin = pingRequestOrigin,
             let pingRequestSequenceNumber = pingRequestSequenceNumber {
@@ -1183,7 +1185,10 @@ extension SWIM.Instance {
 
         // 2) Process the ping request itself
         guard self.notMyself(target) else {
-            // self.log("Received ping request about myself, ignoring; target: \(target), replyTo: \(replyTo)") // TODO: log
+            self.log.debug("Received pingRequest to ping myself myself, ignoring.", metadata: self.metadata([
+                "swim/pingRequestOrigin": "\(pingRequestOrigin)",
+                "swim/pingSequenceNumber": "\(sequenceNumber)",
+            ]))
             return directives
         }
 
@@ -1328,13 +1333,13 @@ extension SWIM.Instance {
         case .none:
             return []
         case .membership(let members):
-            return members.map { member in
+            return members.compactMap { member in
                 self.onGossipPayload(about: member)
             }
         }
     }
 
-    internal func onGossipPayload(about member: SWIM.Member) -> GossipProcessedDirective {
+    internal func onGossipPayload(about member: SWIM.Member) -> GossipProcessedDirective? {
         if self.isMyself(member) {
             return self.onMyselfGossipPayload(myself: member)
         } else {
@@ -1357,7 +1362,7 @@ extension SWIM.Instance {
 
         // Note, we don't yield changes for myself node observations, thus the self node will never be reported as unreachable,
         // after all, we can always reach ourselves. We may reconsider this if we wanted to allow SWIM to inform us about
-        // the fact that many other nodes think we're unreachable, and thus we could perform self-downing based upon this information // TODO: explore self-downing driven from SWIM
+        // the fact that many other nodes think we're unreachable, and thus we could perform self-downing based upon this information
 
         switch incoming.status {
         case .alive:
@@ -1370,20 +1375,18 @@ extension SWIM.Instance {
                 self.adjustLHMultiplier(.refutingSuspectMessageAboutSelf)
                 self._incarnation += 1
                 // refute the suspicion, we clearly are still alive
-                self.addToGossip(member: SWIM.Member(peer: self.peer, status: .alive(incarnation: self._incarnation), protocolPeriod: self.protocolPeriod))
+                self.addToGossip(member: self.member)
                 return .applied(change: nil)
             } else if suspectedInIncarnation > self.incarnation {
-                return .applied(
-                    change: nil,
-                    level: .warning,
-                    message: """
+                self.log.warning(
+                    """
                     Received gossip about self with incarnation number [\(suspectedInIncarnation)] > current incarnation [\(self._incarnation)], \
                     which should never happen and while harmless is highly suspicious, please raise an issue with logs. This MAY be an issue in the library.
-                    """
-                )
+                    """)
+                return .applied(change: nil)
             } else {
                 // incoming incarnation was < than current one, i.e. the incoming information is "old" thus we discard it
-                return .ignored
+                return .applied(change: nil)
             }
 
         case .unreachable(let unreachableInIncarnation):
@@ -1395,16 +1398,14 @@ extension SWIM.Instance {
                     self._incarnation += 1
                     return .ignored
                 } else if unreachableInIncarnation > self.incarnation {
-                    return .applied(
-                        change: nil,
-                        level: .warning,
-                        message: """
-                        Received gossip about self with incarnation number [\(unreachableInIncarnation)] > current incarnation [\(self._incarnation)], \
-                        which should never happen and while harmless is highly suspicious, please raise an issue with logs. This MAY be an issue in the library.
-                        """
-                    )
+                    self.log.warning("""
+                    Received gossip about self with incarnation number [\(unreachableInIncarnation)] > current incarnation [\(self._incarnation)], \
+                    which should never happen and while harmless is highly suspicious, please raise an issue with logs. This MAY be an issue in the library.
+                    """)
+                    return .applied(change: nil)
                 } else {
-                    return .ignored(level: .debug, message: "Incoming .unreachable about myself, however current incarnation [\(self.incarnation)] is greater than incoming \(incoming.status)")
+                    self.log.debug("Incoming .unreachable about myself, however current incarnation [\(self.incarnation)] is greater than incoming \(incoming.status)")
+                    return .ignored
                 }
 
             case .disabled:
@@ -1423,7 +1424,8 @@ extension SWIM.Instance {
             case .applied(.some(let previousStatus), _):
                 return .applied(change: .init(previousStatus: previousStatus, member: myselfMember))
             default:
-                return .ignored(level: .warning, message: "Self already marked .dead")
+                self.log.warning("\(self.peer) already marked .dead", metadata: self.metadata)
+                return .ignored
             }
         }
     }
@@ -1431,48 +1433,44 @@ extension SWIM.Instance {
     /// ### Unreachability status handling
     /// Performs all special handling of `.unreachable` such that if it is disabled members are automatically promoted to `.dead`.
     /// See `settings.unreachability` for more details.
-    private func onOtherMemberGossipPayload(member: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective {
+    private func onOtherMemberGossipPayload(member: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective? {
         assert(self.node != member.node, "Attempted to process gossip as-if not-myself, but WAS same peer, was: \(member). Myself: \(self.peer, orElse: "nil")")
 
         guard self.isMember(member.peer) else {
             // it's a new node it seems
-            if member.node.uid != nil {
-                // only accept new nodes with their UID set.
-                //
-                // the Shell may need to set up a connection if we just made a move from previousStatus: nil,
-                // so we definitely need to emit this change
-                switch self.addMember(member.peer, status: member.status) {
-                case .added(let member):
-                    return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
-                case .newerMemberAlreadyPresent(let member):
-                    return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
-                }
-            } else {
-                return .ignored
+
+            guard member.node.uid != nil else {
+                self.log.debug("Incoming member has no `uid`, ignoring; cannot add members to membership without uid", metadata: self.metadata([
+                    "member": "\(member)",
+                    "member/node": "\(member.node.detailedDescription)",
+                ]))
+                return nil
+            }
+
+            // the Shell may need to set up a connection if we just made a move from previousStatus: nil,
+            // so we definitely need to emit this change
+            switch self.addMember(member.peer, status: member.status) {
+            case .added(let member):
+                return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
+            case .newerMemberAlreadyPresent(let member):
+                return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
             }
         }
 
         switch self.mark(member.peer, as: member.status) {
         case .applied(let previousStatus, let member):
-            // FIXME: if we allow the instance to log this is not longer an if/else
             if member.status.isSuspect, previousStatus?.isAlive ?? false {
-                return .applied(
-                    change: .init(previousStatus: previousStatus, member: member),
-                    level: .debug,
-                    message: "Member [\(member.peer.node, orElse: "<unknown-node>")] marked as suspect, via incoming gossip"
-                )
-            } else {
-                return .applied(change: .init(previousStatus: previousStatus, member: member))
+                self.log.debug("Member [\(member.peer.node, orElse: "<unknown-node>")] marked as suspect, via incoming gossip", metadata: self.metadata)
             }
+            return .applied(change: .init(previousStatus: previousStatus, member: member))
 
         case .ignoredDueToOlderStatus(let currentStatus):
-            return .ignored(
-                level: .trace,
-                message: "Gossip about member \(reflecting: member.node), incoming: [\(member.status)] does not supersede current: [\(currentStatus)]"
-            )
+            self.log.trace("Gossip about member \(member.node), incoming: [\(member.status)] does not supersede current: [\(currentStatus)]", metadata: self.metadata)
+            return nil
         }
     }
 
+    /// Indicates the gossip payload was processed and changes to the membership were made.
     public enum GossipProcessedDirective {
         /// The gossip was applied to the local membership view and an event may want to be emitted for it.
         ///
@@ -1486,16 +1484,10 @@ extension SWIM.Instance {
         /// ### Note for connection based implementations
         /// You may need to establish a new connection if the changes' `previousStatus` is `nil`, as it means we have
         /// not seen this member before and in order to send messages to it, one may want to eagerly establish a connection to it.
-        case applied(change: SWIM.MemberStatusChangedEvent?, level: Logger.Level?, message: Logger.Message?)
-        /// Ignoring a gossip update is perfectly fine: it may be "too old" or other reasons
-        case ignored(level: Logger.Level?, message: Logger.Message?) // TODO: allow the instance to log
+        case applied(change: SWIM.MemberStatusChangedEvent?)
 
-        static func applied(change: SWIM.MemberStatusChangedEvent?) -> SWIM.Instance.GossipProcessedDirective {
-            .applied(change: change, level: nil, message: nil)
-        }
-
-        static var ignored: SWIM.Instance.GossipProcessedDirective {
-            .ignored(level: nil, message: nil)
+        static var ignored: Self {
+            .applied(change: nil)
         }
     }
 

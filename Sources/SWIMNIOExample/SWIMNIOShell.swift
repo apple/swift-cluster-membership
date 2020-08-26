@@ -170,15 +170,15 @@ public final class SWIMNIOShell {
             "swim/ping/seqNr": "\(sequenceNumber)",
         ]))
 
-        let directives: [SWIM.Instance.PingDirective] = self.swim.onPing(pingOrigin: pingOrigin, payload: payload, sequenceNumber: sequenceNumber)
+        let directives: [SWIM.Instance.PingDirective] = self.swim.onPing(pingOrigin: pingOrigin.peer(self.channel), payload: payload, sequenceNumber: sequenceNumber)
         directives.forEach { directive in
             switch directive {
             case .gossipProcessed(let gossipDirective):
                 self.handleGossipPayloadProcessedDirective(gossipDirective)
 
-            case .sendAck(let replyTo, let pingedTarget, let incarnation, let payload, let sequenceNumber):
+            case .sendAck(let pingOrigin, let pingedTarget, let incarnation, let payload, let sequenceNumber):
                 self.tracelog(.reply(to: pingOrigin), message: "\(directive)")
-                replyTo.ack(acknowledging: sequenceNumber, target: pingedTarget, incarnation: incarnation, payload: payload)
+                pingOrigin.peer(self.channel).ack(acknowledging: sequenceNumber, target: pingedTarget, incarnation: incarnation, payload: payload)
             }
         }
     }
@@ -525,12 +525,7 @@ public final class SWIMNIOShell {
 
     func handleGossipPayloadProcessedDirective(_ directive: SWIM.Instance.GossipProcessedDirective) {
         switch directive {
-        case .ignored(let level, let message): // TODO: allow the instance to log
-            if let level = level, let message = message {
-                self.log.log(level: level, message, metadata: self.swim.metadata)
-            }
-
-        case .applied(let change, _, _):
+        case .applied(let change):
             self.tryAnnounceMemberReachability(change: change)
         }
     }
