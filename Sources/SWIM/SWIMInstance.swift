@@ -277,7 +277,7 @@ extension SWIM {
         ///
         /// - SeeAlso: `localHealthMultiplier` for more detailed documentation.
         /// - SeeAlso: Lifeguard IV.A. Local Health Multiplier (LHM)
-        public var dynamicLHMProtocolInterval: DispatchTimeInterval {
+        var dynamicLHMProtocolInterval: DispatchTimeInterval {
             .nanoseconds(Int(self.settings.probeInterval.nanoseconds * Int64(1 + self.localHealthMultiplier)))
         }
 
@@ -288,7 +288,7 @@ extension SWIM {
         ///
         /// - SeeAlso: `localHealthMultiplier` for more detailed documentation.
         /// - SeeAlso: Lifeguard IV.A. Local Health Multiplier (LHM)
-        public var dynamicLHMPingTimeout: DispatchTimeInterval {
+        var dynamicLHMPingTimeout: DispatchTimeInterval {
             .nanoseconds(Int(self.settings.pingTimeout.nanoseconds * Int64(1 + self.localHealthMultiplier)))
         }
 
@@ -297,7 +297,7 @@ extension SWIM {
         /// as outdated and we don't accidentally override state with older events. The incarnation can only
         /// be incremented by the respective node itself and will happen if that node receives a `.suspect` for
         /// itself, to which it will respond with an `.alive` with the incremented incarnation.
-        public var incarnation: SWIM.Incarnation {
+        var incarnation: SWIM.Incarnation {
             self._incarnation
         }
 
@@ -525,6 +525,7 @@ extension SWIM {
             }
         }
 
+        /// Current SWIM protocol period (i.e. which round of gossip the instance is in).
         public var protocolPeriod: Int {
             self._protocolPeriod
         }
@@ -680,7 +681,7 @@ extension SWIM.Instance {
     }
 
     func isMyself(_ member: SWIM.Member) -> Bool {
-        self.whenMyself(member) != nil
+        self.isMyself(member.node)
     }
 
     func whenMyself(_ member: SWIM.Member) -> SWIM.Member? {
@@ -692,13 +693,18 @@ extension SWIM.Instance {
     }
 
     func isMyself(_ peer: SWIMAddressablePeer) -> Bool {
+        self.isMyself(peer.node)
+    }
+
+
+    func isMyself(_ node: Node) -> Bool {
         // we are exactly that node:
-        self.node == peer.node ||
+        self.node == node ||
             // ...or, the incoming node has no UID; there was no handshake made,
             // and thus the other side does not know which specific node it is going to talk to; as such, "we" are that node
             // as such, "we" are that node; we should never add such peer to our members, but we will reply to that node with "us" and thus
             // inform it about our specific UID, and from then onwards it will know about specifically this node (by replacing its UID-less version with our UID-ful version).
-            self.node.withoutUID == peer.node
+            self.node.withoutUID == node
     }
 
     // TODO: ensure we actually store "us" in members; do we need this special handling if then at all?
