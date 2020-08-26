@@ -138,7 +138,7 @@ public protocol SWIMProtocol {
     /// some operations, however this is currently not implemented and the protocol follows the fairly
     /// standard mode of simply carrying payloads in periodic ping messages.
     ///
-    /// - Returns: directives to be acted on by an implementation, refer to the directive's docs for details.
+    /// - Returns: `SWIM.Instance.PeriodicPingTickDirective` which must be interpreted by a shell implementation
     mutating func onPeriodicPingTick() -> [SWIM.Instance.PeriodicPingTickDirective]
 
     /// MUST be invoked whenever a `ping` message is received.
@@ -150,8 +150,12 @@ public protocol SWIMProtocol {
     ///   - pingOrigin: the origin peer that issued this `ping`, it should be replied to (as instructed in the returned ping directive)
     ///   - payload: gossip information to be processed by this peer, resulting in potentially discovering new information about other members of the cluster
     ///   - sequenceNumber: sequence number of this ping, will be used to reply to the ping's origin using the same sequence number
-    /// - Returns: `SWIM.Instance.PingDirective` which instructs an implementation on how to react to this message.
-    mutating func onPing(pingOrigin: SWIMAddressablePeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) -> [SWIM.Instance.PingDirective]
+    /// - Returns: `SWIM.Instance.PingDirective` which must be interpreted by a shell implementation
+    mutating func onPing(
+        pingOrigin: SWIMAddressablePeer,
+        payload: SWIM.GossipPayload,
+        sequenceNumber: SWIM.SequenceNumber
+    ) -> [SWIM.Instance.PingDirective]
 
     /// MUST be invoked when a `pingRequest` is received.
     ///
@@ -162,8 +166,12 @@ public protocol SWIMProtocol {
     ///   - pingRequestOrigin: the origin of this ping request; it should be notified with an .ack once we get a reply from the probed peer
     ///   - payload: gossip information to be processed by this peer, resulting in potentially discovering new information about other members of the cluster
     ///   - sequenceNumber: the sequenceNumber of the incoming `pingRequest`, used to reply with the appropriate sequence number once we get an `ack` from the target
-    /// - Returns: directives to be acted on by an implementation, refer to the directive's docs for details.
-    mutating func onPingRequest(target: SWIMPeer, pingRequestOrigin: SWIMPingRequestOriginPeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) -> [SWIM.Instance.PingRequestDirective]
+    /// - Returns: `SWIM.Instance.` which must be interpreted by a shell implementation
+    mutating func onPingRequest(
+        target: SWIMPeer,
+        pingRequestOrigin: SWIMPingRequestOriginPeer,
+        payload: SWIM.GossipPayload,
+        sequenceNumber: SWIM.SequenceNumber) -> [SWIM.Instance.PingRequestDirective]
 
     /// MUST be invoked when a ping response (or timeout) occur for a specific ping.
     ///
@@ -171,16 +179,21 @@ public protocol SWIMProtocol {
     ///   - response: the response (or timeout) related to this ping
     ///   - pingRequestOrigin: if this ping was issued on behalf of a `pingRequestOrigin`, that peer, otherwise `nil`
     ///   - pingRequestSequenceNumber: if this ping was issued on behalf of a `pingRequestOrigin`, then the sequence number of that `pingRequest`, otherwise `nil`
-    /// - Returns: directives to be acted on by an implementation, refer to the directive's docs for details.
-    mutating func onPingResponse(response: SWIM.PingResponse, pingRequestOrigin: SWIMPingRequestOriginPeer?, pingRequestSequenceNumber: SWIM.SequenceNumber?) -> [SWIM.Instance.PingResponseDirective]
+    /// - Returns: `SWIM.Instance.PingResponseDirective` which must be interpreted by a shell implementation
+    mutating func onPingResponse(
+        response: SWIM.PingResponse,
+        pingRequestOrigin: SWIMPingRequestOriginPeer?,
+        pingRequestSequenceNumber: SWIM.SequenceNumber?
+    ) -> [SWIM.Instance.PingResponseDirective]
 
-    /// MUST be invoked be invoked on the *first successful response* from any number of `ping` messages that this peer
-    /// has performed on behalf of a `pingRequestOrigin`.
+    /// MUST be invoked be exactly in one of the two following situations:
+    /// - the *first successful response* from any number of `ping` messages that this peer has performed on behalf of a `pingRequestOrigin`,
+    /// - just one single time with a `timeout` if *none* of the pings successfully returned an `ack`.
     ///
     /// - parameters:
     ///   - response: the response representing this ping's result (i.e. `ack` or `timeout`).
     ///   - pinged: the pinged peer that this response is from
-    /// - Returns: directives to be acted on by an implementation, refer to the directive's docs for details.
+    /// - Returns: `SWIM.Instance.PingRequestResponseDirective` which must be interpreted by a shell implementation
     mutating func onPingRequestResponse(_ response: SWIM.PingResponse, pinged: SWIMPeer) -> [SWIM.Instance.PingRequestResponseDirective]
 
     /// MUST be invoked whenever a response to a `pingRequest` (an ack, nack or lack response i.e. a timeout) happens.
@@ -191,8 +204,11 @@ public protocol SWIMProtocol {
     /// - parameters:
     ///   - response: the response representing
     ///   - pinged: the pinged peer that this response is from
-    /// - Returns: directives to be acted on by an implementation, refer to the directive's docs for details.
-    mutating func onEveryPingRequestResponse(_ response: SWIM.PingResponse, pinged: SWIMPeer)
+    /// - Returns: `SWIM.Instance.PingRequestResponseDirective` which must be interpreted by a shell implementation
+    mutating func onEveryPingRequestResponse(
+        _ response: SWIM.PingResponse,
+        pinged: SWIMPeer
+    ) -> [SWIM.Instance.PingRequestResponseDirective]
 
     /// Optional, only relevant when using `settings.unreachable` status mode (which is disabled by default).
     ///
@@ -206,7 +222,7 @@ public protocol SWIMProtocol {
     /// to mark the node as dead, with all of its consequences.
     ///
     /// - Parameter peer: the peer which should be confirmed dead.
-    /// - Returns: a directive explaining what action was taken, and should be taken in response to this action.
+    /// - Returns: `SWIM.Instance.ConfirmDeadDirective` which must be interpreted by a shell implementation
     mutating func confirmDead(peer: SWIMPeer) -> SWIM.Instance.ConfirmDeadDirective
 }
 
@@ -217,7 +233,7 @@ extension SWIM {
     /// **Please refer to `SWIM` for an in-depth discussion of the algorithm and extensions implemented in this package.**
     ///
     /// - SeeAlso: `SWIM` for a complete and in depth discussion of the protocol.
-    public final class Instance: SWIMProtocol { // FIXME: make it a struct?
+    public final class Instance: SWIMProtocol { // TODO: could this be a struct?
         /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
@@ -227,7 +243,13 @@ extension SWIM {
 
         /// The `SWIM.Member` representing this instance, also referred to as "myself".
         public var member: SWIM.Member {
-            self.member(for: self.node)!
+            if let storedMyself = self.member(for: self.node),
+               !storedMyself.status.isAlive {
+                return storedMyself // it is something special, like .dead
+            } else {
+                // return the always up to date "our view" on ourselves
+                return SWIM.Member(peer: self.peer, status: .alive(incarnation: self.incarnation), protocolPeriod: self.protocolPeriod)
+            }
         }
 
         // We store the owning SWIMShell peer in order avoid adding it to the `membersToPing` list
@@ -1217,7 +1239,7 @@ extension SWIM.Instance {
         }
     }
 
-    public func onEveryPingRequestResponse(_ result: SWIM.PingResponse, pinged peer: SWIMPeer) {
+    public func onEveryPingRequestResponse(_ result: SWIM.PingResponse, pinged peer: SWIMPeer) -> [SWIM.Instance.PingRequestResponseDirective] {
         switch result {
         case .timeout:
             // Failed pingRequestResponse indicates a missed nack, we should adjust LHMultiplier
@@ -1225,6 +1247,8 @@ extension SWIM.Instance {
         default:
             () // Successful pingRequestResponse should be handled only once (and thus in `onPingRequestResponse` only)
         }
+
+        return [] // just so happens that we never actually perform any actions here (so far, keeping the return type for future compatibility)
     }
 
     /// Directs a shell implementation about how to handle an incoming ping request response.

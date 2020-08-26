@@ -19,6 +19,10 @@ import NIO
 import XCTest
 
 final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
+    override var alwaysPrintCaptureLogs: Bool {
+        true
+    }
+
     let firstNode = Node(protocol: "test", host: "127.0.0.1", port: 7001, uid: 1111)
     let secondNode = Node(protocol: "test", host: "127.0.0.1", port: 7002, uid: 1111)
 
@@ -116,6 +120,7 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
         XCTAssertEqual(first.swim.localHealthMultiplier, 0)
         first.sendPing(to: unreachablePeer, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil, timeout: .milliseconds(100), sequenceNumber: 4)
         self.timeoutPings(first, unreachable)
+        self.timeoutPings(first, unreachable)
         XCTAssertEqual(first.swim.localHealthMultiplier, 1)
         self.timeoutPings(first, second)
         XCTAssertEqual(first.swim.localHealthMultiplier, 2)
@@ -162,17 +167,18 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
 
         XCTAssertEqual(first.swim.localHealthMultiplier, 0)
         first.sendPing(to: unreachablePeer, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil, timeout: .milliseconds(100), sequenceNumber: 4)
+        self.timeoutPings(first, unreachable) // push ping
         self.timeoutPings(first, unreachable)
         XCTAssertEqual(first.swim.localHealthMultiplier, 1)
         // Sending ping requests. It's a one directional communication, the reply won't be ready until
         // we enforce communication roundtrip between indirect ping peer and ping target
         self.sendMessage(from: first, to: second)
         self.sendMessage(from: first, to: third)
-        self.timeoutPings(second, unreachable, pingRequestOrigin: first.peer)
+        self.timeoutPings(second, unreachable, pingRequestOrigin: first.peer, pingRequestSequenceNumber: 1)
         // Sending `nack`
         self.sendMessage(from: second, to: first)
         XCTAssertEqual(first.swim.localHealthMultiplier, 1)
-        self.timeoutPings(third, unreachable, pingRequestOrigin: first.peer)
+        self.timeoutPings(third, unreachable, pingRequestOrigin: first.peer, pingRequestSequenceNumber: 2)
         // Sending `nack`
         self.sendMessage(from: third, to: first)
         XCTAssertEqual(first.swim.localHealthMultiplier, 1)
@@ -208,9 +214,7 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
         let firstEmbeddedChannel = first.channel as! EmbeddedChannel
         let secondEmbeddedChannel = second.channel as! EmbeddedChannel
 
-        guard let writeCommand1 = try! firstEmbeddedChannel.readOutbound(as: SWIMNIOWriteCommand.self) else {
-            return
-        }
+        if let writeCommand1 = try! firstEmbeddedChannel.readOutbound(as: SWIMNIOWriteCommand.self) {
         switch writeCommand1.message {
         case .ping(_, _, let sequenceNumber), .pingRequest(_, _, _, let sequenceNumber):
             first.receivePingResponse(
@@ -222,20 +226,20 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
             // deliver others as usual
             second.receiveMessage(message: writeCommand1.message)
         }
-
-        guard let writeCommand2 = try! secondEmbeddedChannel.readOutbound(as: SWIMNIOWriteCommand.self) else {
-            return
         }
+
+        if let writeCommand2 = try! secondEmbeddedChannel.readOutbound(as: SWIMNIOWriteCommand.self) {
         switch writeCommand2.message {
-        case .ping(_, _, let sequenceNumber):
+        case .ping(_, _, let sequenceNumber), .pingRequest(_, _, _, let sequenceNumber):
             second.receivePingResponse(
                 response: .timeout(target: second.peer, pingRequestOrigin: nil, timeout: .milliseconds(1), sequenceNumber: sequenceNumber),
-                pingRequestOriginPeer: nil, // FIXME?
-                pingRequestSequenceNumber: nil
+                pingRequestOriginPeer: pingRequestOrigin,
+                pingRequestSequenceNumber: pingRequestSequenceNumber
             )
         default:
             // deliver others as usual
             first.receiveMessage(message: writeCommand2.message)
+        }
         }
     }
 }
