@@ -20,7 +20,6 @@ import SWIM
 import XCTest
 
 final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
-
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: White box tests // TODO: implement more of the tests in terms of inspecting events
 
@@ -258,7 +257,6 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
         try self.capturedLogs(of: secondHandler.shell.node)
             .awaitLog(grep: #""swim/suspects/count": 1"#)
     }
-
 }
 
 private struct TestError: Error {

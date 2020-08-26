@@ -13,12 +13,12 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import struct Dispatch.DispatchTime
+import enum Dispatch.DispatchTimeInterval
 import Logging
 import NIO
 import NIOFoundationCompat
 import SWIM
-import struct Dispatch.DispatchTime
-import enum Dispatch.DispatchTimeInterval
 
 /// `ChannelDuplexHandler` responsible for encoding/decoding SWIM messages to/from the `SWIMNIOShell`.
 ///
@@ -262,7 +262,7 @@ struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
         hasher.combine(sequenceNumber)
     }
 
-    static func ==(lhs: PendingResponseCallbackIdentifier, rhs: PendingResponseCallbackIdentifier) -> Bool {
+    static func == (lhs: PendingResponseCallbackIdentifier, rhs: PendingResponseCallbackIdentifier) -> Bool {
         lhs.peerAddress == rhs.peerAddress &&
             lhs.sequenceNumber == rhs.sequenceNumber
     }
@@ -277,8 +277,6 @@ struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
         """
     }
 }
-
-
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Errors

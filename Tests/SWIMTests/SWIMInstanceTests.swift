@@ -481,14 +481,13 @@ final class SWIMInstanceTests: XCTestCase {
         var settings = SWIM.Settings()
         settings.unreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
-        swim.incrementProtocolPeriod()
+        swim.incrementProtocolPeriod() // @1
 
         var myselfMember = swim.member
         myselfMember.status = .unreachable(incarnation: 0)
         let directive = swim.onGossipPayload(about: myselfMember)
 
-        let myMember = swim.member
-        XCTAssertEqual(myMember.status, .alive(incarnation: 0))
+        XCTAssertEqual(swim.member.status, .alive(incarnation: 1)) // equal to the incremented @1
 
         switch directive {
         case .ignored:
@@ -687,34 +686,37 @@ final class SWIMInstanceTests: XCTestCase {
     func test_onPingRequestResponse_handlesNacksCorrectly() {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        _ = swim.addMember(second, status: .alive(incarnation: 0))
-        _ = swim.addMember(third, status: .alive(incarnation: 0))
-        _ = swim.addMember(fourth, status: .suspect(incarnation: 0, suspectedBy: [self.third.node]))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.fourth, status: .suspect(incarnation: 0, suspectedBy: [self.third.node]))
 
         XCTAssertEqual(swim.localHealthMultiplier, 0)
         // pretend first sends:
         //   - second.pingRequest(fourth)
         //   - third.pingRequest(fourth)
 
-        // get nack from second
+        // expect 2 nacks:
+
+        // get nack from second 1/2
         _ = swim.onPingRequestResponse(
-            .timeout(target: fourth, pingRequestOrigin: nil, timeout: .nanoseconds(1), sequenceNumber: 2),
-            pinged: fourth
+            .timeout(target: self.fourth, pingRequestOrigin: nil, timeout: .nanoseconds(1), sequenceNumber: 2),
+            pinged: self.fourth
         )
         XCTAssertEqual(swim.localHealthMultiplier, 0)
-        // get nack from third
+        // get nack from third 2/2
         _ = swim.onPingRequestResponse(
-            .timeout(target: fourth, pingRequestOrigin: nil, timeout: .nanoseconds(1), sequenceNumber: 3),
-            pinged: fourth
+            .timeout(target: self.fourth, pingRequestOrigin: nil, timeout: .nanoseconds(1), sequenceNumber: 3),
+            pinged: self.fourth
         )
         XCTAssertEqual(swim.localHealthMultiplier, 0)
     }
+
     func test_onPingRequestResponse_handlesMissingNacksCorrectly() {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
-        _ = swim.addMember(second, status: .alive(incarnation: 0))
-        _ = swim.addMember(third, status: .alive(incarnation: 0))
-        _ = swim.addMember(fourth, status: .suspect(incarnation: 0, suspectedBy: [self.third.node]))
+        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.fourth, status: .suspect(incarnation: 0, suspectedBy: [self.third.node]))
 
         XCTAssertEqual(swim.localHealthMultiplier, 0)
         // pretend first sends:
@@ -723,25 +725,27 @@ final class SWIMInstanceTests: XCTestCase {
 
         // timeout, no nack from third
         _ = swim.onEveryPingRequestResponse(
-            .timeout(target: fourth, pingRequestOrigin: nil, timeout: .nanoseconds(1), sequenceNumber: 2),
-            pinged: fourth
+            .timeout(target: self.fourth, pingRequestOrigin: nil, timeout: .nanoseconds(1), sequenceNumber: 2),
+            pinged: self.fourth
         )
         XCTAssertEqual(swim.localHealthMultiplier, 1)
         // timeout, no nack from third
         _ = swim.onEveryPingRequestResponse(
-            .timeout(target: fourth, pingRequestOrigin: nil, timeout: .nanoseconds(1), sequenceNumber: 2),
-            pinged: fourth
+            .timeout(target: self.fourth, pingRequestOrigin: nil, timeout: .nanoseconds(1), sequenceNumber: 2),
+            pinged: self.fourth
         )
         XCTAssertEqual(swim.localHealthMultiplier, 2)
 
         // all probes failed, thus the "main" one as well:
         _ = swim.onPingRequestResponse(
-            .timeout(target: fourth, pingRequestOrigin: nil, timeout: .nanoseconds(1), sequenceNumber: 2),
-            pinged: fourth
+            .timeout(target: self.fourth, pingRequestOrigin: nil, timeout: .nanoseconds(1), sequenceNumber: 2),
+            pinged: self.fourth
         )
         // this was already accounted for in the onEveryPingRequestResponse
         XCTAssertEqual(swim.localHealthMultiplier, 2)
     }
+
+    // TODO: handle ack after nack scenarios; this needs modifications in SWIMNIO to handle these as well
 
     func test_onPingRequestResponse_decrementLHAMultiplier_whenGotAck() {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)

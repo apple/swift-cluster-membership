@@ -19,10 +19,6 @@ import NIO
 import XCTest
 
 final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
-    override var alwaysPrintCaptureLogs: Bool {
-        true
-    }
-
     let firstNode = Node(protocol: "test", host: "127.0.0.1", port: 7001, uid: 1111)
     let secondNode = Node(protocol: "test", host: "127.0.0.1", port: 7002, uid: 1111)
 
@@ -115,15 +111,15 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
         self.exchangeMessages(first, third)
         self.exchangeMessages(first, unreachable)
 
-        let unreachablePeer = unreachable.peer
-
         XCTAssertEqual(first.swim.localHealthMultiplier, 0)
-        first.sendPing(to: unreachablePeer, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil, timeout: .milliseconds(100), sequenceNumber: 4)
-        self.timeoutPings(first, unreachable)
-        self.timeoutPings(first, unreachable)
+        first.sendPing(to: unreachable.peer, payload: .none, pingRequestOrigin: nil, pingRequestSequenceNumber: nil, timeout: .milliseconds(100), sequenceNumber: 4)
+        self.timeoutPings(first, unreachable) // cause timeout
+        self.timeoutPings(first, unreachable) // miss a nack
         XCTAssertEqual(first.swim.localHealthMultiplier, 1)
         self.timeoutPings(first, second)
+        self.timeoutPings(first, second)
         XCTAssertEqual(first.swim.localHealthMultiplier, 2)
+        self.timeoutPings(first, third)
         self.timeoutPings(first, third)
         XCTAssertEqual(first.swim.localHealthMultiplier, 3)
     }
@@ -166,7 +162,7 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
         let unreachablePeer = unreachable.peer
 
         XCTAssertEqual(first.swim.localHealthMultiplier, 0)
-        first.sendPing(to: unreachablePeer, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil, timeout: .milliseconds(100), sequenceNumber: 4)
+        first.sendPing(to: unreachablePeer, payload: .none, pingRequestOrigin: nil, pingRequestSequenceNumber: nil, timeout: .milliseconds(100), sequenceNumber: 4)
         self.timeoutPings(first, unreachable) // push ping
         self.timeoutPings(first, unreachable)
         XCTAssertEqual(first.swim.localHealthMultiplier, 1)
@@ -207,7 +203,7 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
     /// Timeout pings between nodes
     private func timeoutPings(_ first: SWIMNIOShell, _ second: SWIMNIOShell, pingRequestOrigin: SWIMPingRequestOriginPeer? = nil, pingRequestSequenceNumber: SWIM.SequenceNumber? = nil) {
         if pingRequestOrigin != nil && pingRequestSequenceNumber == nil ||
-           pingRequestOrigin == nil && pingRequestSequenceNumber != nil {
+            pingRequestOrigin == nil && pingRequestSequenceNumber != nil {
             fatalError("either both or none pingRequest parameters must be set, was: \(String(reflecting: pingRequestOrigin)), \(String(reflecting: pingRequestSequenceNumber))")
         }
 
@@ -215,31 +211,31 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
         let secondEmbeddedChannel = second.channel as! EmbeddedChannel
 
         if let writeCommand1 = try! firstEmbeddedChannel.readOutbound(as: SWIMNIOWriteCommand.self) {
-        switch writeCommand1.message {
-        case .ping(_, _, let sequenceNumber), .pingRequest(_, _, _, let sequenceNumber):
-            first.receivePingResponse(
-                response: .timeout(target: second.peer, pingRequestOrigin: pingRequestOrigin, timeout: .milliseconds(1), sequenceNumber: sequenceNumber),
-                pingRequestOriginPeer: pingRequestOrigin,
-                pingRequestSequenceNumber: pingRequestSequenceNumber
-            )
-        default:
-            // deliver others as usual
-            second.receiveMessage(message: writeCommand1.message)
-        }
+            switch writeCommand1.message {
+            case .ping(_, _, let sequenceNumber), .pingRequest(_, _, _, let sequenceNumber):
+                first.receivePingResponse(
+                    response: .timeout(target: second.peer, pingRequestOrigin: pingRequestOrigin, timeout: .milliseconds(1), sequenceNumber: sequenceNumber),
+                    pingRequestOriginPeer: pingRequestOrigin,
+                    pingRequestSequenceNumber: pingRequestSequenceNumber
+                )
+            default:
+                // deliver others as usual
+                second.receiveMessage(message: writeCommand1.message)
+            }
         }
 
         if let writeCommand2 = try! secondEmbeddedChannel.readOutbound(as: SWIMNIOWriteCommand.self) {
-        switch writeCommand2.message {
-        case .ping(_, _, let sequenceNumber), .pingRequest(_, _, _, let sequenceNumber):
-            second.receivePingResponse(
-                response: .timeout(target: second.peer, pingRequestOrigin: nil, timeout: .milliseconds(1), sequenceNumber: sequenceNumber),
-                pingRequestOriginPeer: pingRequestOrigin,
-                pingRequestSequenceNumber: pingRequestSequenceNumber
-            )
-        default:
-            // deliver others as usual
-            first.receiveMessage(message: writeCommand2.message)
-        }
+            switch writeCommand2.message {
+            case .ping(_, _, let sequenceNumber), .pingRequest(_, _, _, let sequenceNumber):
+                second.receivePingResponse(
+                    response: .timeout(target: second.peer, pingRequestOrigin: nil, timeout: .milliseconds(1), sequenceNumber: sequenceNumber),
+                    pingRequestOriginPeer: pingRequestOrigin,
+                    pingRequestSequenceNumber: pingRequestSequenceNumber
+                )
+            default:
+                // deliver others as usual
+                first.receiveMessage(message: writeCommand2.message)
+            }
         }
     }
 }

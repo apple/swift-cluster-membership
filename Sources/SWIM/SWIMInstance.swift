@@ -171,7 +171,8 @@ public protocol SWIMProtocol {
         target: SWIMPeer,
         pingRequestOrigin: SWIMPingRequestOriginPeer,
         payload: SWIM.GossipPayload,
-        sequenceNumber: SWIM.SequenceNumber) -> [SWIM.Instance.PingRequestDirective]
+        sequenceNumber: SWIM.SequenceNumber
+    ) -> [SWIM.Instance.PingRequestDirective]
 
     /// MUST be invoked when a ping response (or timeout) occur for a specific ping.
     ///
@@ -227,7 +228,6 @@ public protocol SWIMProtocol {
 }
 
 extension SWIM {
-
     /// The `SWIM.Instance` encapsulates the complete algorithm implementation of the `SWIM` protocol.
     ///
     /// **Please refer to `SWIM` for an in-depth discussion of the algorithm and extensions implemented in this package.**
@@ -244,7 +244,7 @@ extension SWIM {
         /// The `SWIM.Member` representing this instance, also referred to as "myself".
         public var member: SWIM.Member {
             if let storedMyself = self.member(for: self.node),
-               !storedMyself.status.isAlive {
+                !storedMyself.status.isAlive {
                 return storedMyself // it is something special, like .dead
             } else {
                 // return the always up to date "our view" on ourselves
@@ -350,6 +350,13 @@ extension SWIM {
         ///
         /// - Parameter event: event which causes the LHM adjustment.
         public func adjustLHMultiplier(_ event: LHModifierEvent) {
+            defer {
+                self.settings.logger.trace("Adjusted LHM multiplier", metadata: [
+                    "swim/lhm/event": "\(event)",
+                    "swim/lhm": "\(self.localHealthMultiplier)",
+                ])
+            }
+
             self.localHealthMultiplier =
                 min(
                     max(0, self.localHealthMultiplier + event.lhmAdjustment),
@@ -718,7 +725,6 @@ extension SWIM.Instance {
         self.isMyself(peer.node)
     }
 
-
     func isMyself(_ node: Node) -> Bool {
         // we are exactly that node:
         self.node == node ||
@@ -834,7 +840,13 @@ extension SWIM.Instance {
 
         // 2) if we have someone to ping, let's do so
         if let toPing = self.nextMemberToPing() {
-            directives.append(.sendPing(target: toPing, timeout: self.dynamicLHMPingTimeout, sequenceNumber: self.nextSequenceNumber()))
+            directives.append(
+                .sendPing(
+                    target: toPing,
+                    payload: self.makeGossipPayload(to: toPing),
+                    timeout: self.dynamicLHMPingTimeout, sequenceNumber: self.nextSequenceNumber()
+                )
+            )
         }
 
         // 3) ALWAYS schedule the next tick
@@ -848,7 +860,7 @@ extension SWIM.Instance {
         /// The membership has changed, e.g. a member was declared unreachable or dead and an event may need to be emitted.
         case membershipChanged(SWIM.MemberStatusChangedEvent)
         /// Send a ping to the requested `target` peer using the provided timeout and sequenceNumber.
-        case sendPing(target: SWIMPeer, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
+        case sendPing(target: SWIMPeer, payload: SWIM.GossipPayload, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
         /// Schedule the next timer `onPeriodicPingTick` invocation in `delay` time.
         case scheduleNextTick(delay: DispatchTimeInterval)
     }
@@ -983,7 +995,13 @@ extension SWIM.Instance {
         pingRequestOrigin: SWIMPingOriginPeer?,
         sequenceNumber: SWIM.SequenceNumber
     ) -> [PingResponseDirective] {
-        // The presence of the nack by itself is a feature -- it means we will not trigger a timeout anymore // FIXME: implement and test this!!!!
+        // Important:
+        // We do _nothing_ here, however we actually handle nacks implicitly in today's SWIMNIO implementation...
+        // This works because the arrival of the nack means we removed the callback from the handler,
+        // so the timeout also is cancelled and thus no +1 will happen since the timeout will not trigger as well
+        //
+        // we should solve this more nicely, so any implementation benefits from this;
+        // FIXME: .nack handling discussion https://github.com/apple/swift-cluster-membership/issues/52
         []
     }
 
@@ -997,7 +1015,7 @@ extension SWIM.Instance {
 
         var directives: [PingResponseDirective] = []
         if let pingRequestOrigin = pingRequestOrigin,
-           let pingRequestSequenceNumber = pingRequestSequenceNumber {
+            let pingRequestSequenceNumber = pingRequestSequenceNumber {
             // Meaning we were doing a ping on behalf of the pingReq origin, we got a timeout, and thus need to report a nack back.
             directives.append(
                 .sendNack(
@@ -1131,15 +1149,10 @@ extension SWIM.Instance {
         var directives: [PingRequestDirective] = []
 
         // 1) Process gossip
-        switch payload {
-        case .membership(let members):
-            directives = members.map { member in
-                let directive = self.onGossipPayload(about: member)
-                return .gossipProcessed(directive)
-            }
-        case .none:
-            () // ok, no gossip payload
+        let gossipDirectives: [PingRequestDirective] = self.onGossipPayload(payload).map { directive in
+            .gossipProcessed(directive)
         }
+        directives.append(contentsOf: gossipDirectives)
 
         // 2) Process the ping request itself
         guard self.notMyself(target) else {
@@ -1152,17 +1165,22 @@ extension SWIM.Instance {
             // since payload will always contain suspicion about target member; no need to inform the shell again about this
             _ = self.addMember(target, status: .alive(incarnation: 0))
         }
+
         let pingSequenceNumber = self.nextSequenceNumber()
         // Indirect ping timeout should always be shorter than pingRequest timeout.
         // Setting it to a fraction of initial ping timeout as suggested in the original paper.
         // - SeeAlso: Local Health Multiplier (LHM)
-        let timeoutNanos = Int(Double(self.settings.pingTimeout.nanoseconds) * self.settings.lifeguard.indirectPingTimeoutMultiplier)
+        let indirectPingTimeout = DispatchTimeInterval.nanoseconds(
+            Int(Double(self.settings.pingTimeout.nanoseconds) * self.settings.lifeguard.indirectPingTimeoutMultiplier)
+        )
+
         directives.append(
-            PingRequestDirective.sendPing(
+            .sendPing(
                 target: target,
+                payload: self.makeGossipPayload(to: target),
                 pingRequestOrigin: pingRequestOrigin,
                 pingRequestSequenceNumber: sequenceNumber,
-                timeout: .nanoseconds(timeoutNanos),
+                timeout: indirectPingTimeout,
                 pingSequenceNumber: pingSequenceNumber
             )
         )
@@ -1175,10 +1193,12 @@ extension SWIM.Instance {
         case gossipProcessed(GossipProcessedDirective)
         case sendPing(
             target: SWIMPeer,
+            payload: SWIM.GossipPayload,
             pingRequestOrigin: SWIMPingRequestOriginPeer,
             pingRequestSequenceNumber: SWIM.SequenceNumber,
             timeout: DispatchTimeInterval,
-            pingSequenceNumber: SWIM.SequenceNumber)
+            pingSequenceNumber: SWIM.SequenceNumber
+        )
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -1242,6 +1262,7 @@ extension SWIM.Instance {
     public func onEveryPingRequestResponse(_ result: SWIM.PingResponse, pinged peer: SWIMPeer) -> [SWIM.Instance.PingRequestResponseDirective] {
         switch result {
         case .timeout:
+            print("MISSED NACK")
             // Failed pingRequestResponse indicates a missed nack, we should adjust LHMultiplier
             self.adjustLHMultiplier(.probeWithMissedNack)
         default:
