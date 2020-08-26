@@ -164,6 +164,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                     self.log.trace("Received response, key: \(callbackKey); Invoking callback...", metadata: [
                         "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
+                    self.shell.swim.metrics.roundTripTime.recordNanoseconds(callback.nanosecondsSinceCallbackStored())
                     callback(.success(message))
                 } else {
                     self.log.trace("No callback for \(callbackKey)... It may have been removed due to a timeout already.", metadata: [
@@ -272,9 +273,13 @@ struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
         PendingResponseCallbackIdentifier(\
         peerAddress: \(peerAddress), \
         sequenceNumber: \(sequenceNumber), \
-        storedAt: \(self.storedAt) (\(DispatchTimeInterval.nanoseconds(Int(DispatchTime.now().uptimeNanoseconds - storedAt.uptimeNanoseconds)).prettyDescription) ago)\
+        storedAt: \(self.storedAt) (\(nanosecondsSinceCallbackStored().prettyDescription) ago)\
         )
         """
+    }
+
+    func nanosecondsSinceCallbackStored(now: DispatchTime = .now()) -> DispatchTimeInterval {
+        DispatchTimeInterval.nanoseconds(Int(now.uptimeNanoseconds - storedAt.uptimeNanoseconds))
     }
 }
 
