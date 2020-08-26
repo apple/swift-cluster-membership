@@ -134,7 +134,7 @@ public final class SWIMNIOShell {
             self.receivePingRequest(target: target, pingRequestOrigin: pingRequestOrigin, payload: payload, sequenceNumber: sequenceNumber)
 
         case .response(let pingResponse):
-            self.receivePingResponse(response: pingResponse, pingRequestOriginPeer: nil)
+            self.receivePingResponse(response: pingResponse, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil)
         }
     }
 
@@ -186,30 +186,50 @@ public final class SWIMNIOShell {
 
     private func receivePingRequest(
         target: SWIM.NIOPeer,
-        pingRequestOrigin replyTo: SWIM.NIOPeer,
+        pingRequestOrigin: SWIM.NIOPeer,
         payload: SWIM.GossipPayload,
-        sequenceNumber pingReqSequenceNr: SWIM.SequenceNumber
+        sequenceNumber: SWIM.SequenceNumber
     ) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
-                self.receivePingRequest(target: target, pingRequestOrigin: replyTo, payload: payload, sequenceNumber: pingReqSequenceNr)
+                self.receivePingRequest(target: target, pingRequestOrigin: pingRequestOrigin, payload: payload, sequenceNumber: sequenceNumber)
             }
         }
 
         self.log.trace("Received pingRequest", metadata: [
-            "swim/pingRequestOrigin": "\(replyTo.node)",
+            "swim/pingRequest/origin": "\(pingRequestOrigin.node)",
+            "swim/pingRequest/sequenceNumber": "\(sequenceNumber)",
             "swim/target": "\(target.node)",
             "swim/gossip/payload": "\(payload)",
         ])
 
-        let directives: [SWIM.Instance.PingRequestDirective] = self.swim.onPingRequest(target: target, pingRequestOrigin: replyTo, payload: payload)
+        let directives = self.swim.onPingRequest(
+            target: target,
+            pingRequestOrigin: pingRequestOrigin,
+            payload: payload,
+            sequenceNumber: sequenceNumber
+        )
         directives.forEach { directive in
             switch directive {
             case .gossipProcessed(let gossipDirective):
                 self.handleGossipPayloadProcessedDirective(gossipDirective)
 
-            case .sendPing(let target, let pingRequestOriginPeer, let timeout, let sequenceNumber):
-                self.sendPing(to: target, pingRequestOriginPeer: pingRequestOriginPeer, timeout: timeout, sequenceNumber: sequenceNumber)
+            case .sendPing(let target, let pingRequestOriginPeer, let pingRequestSequenceNumber, let timeout, let sequenceNumber):
+                // FIXME PAYLOAD!!!!!!
+                // FIXME PAYLOAD!!!!!!
+                // FIXME PAYLOAD!!!!!!
+                // FIXME PAYLOAD!!!!!!
+                // FIXME PAYLOAD!!!!!!
+                // FIXME PAYLOAD!!!!!!
+                // FIXME PAYLOAD!!!!!!
+                // FIXME PAYLOAD!!!!!!
+                self.sendPing(
+                    to: target,
+                    pingRequestOriginPeer: pingRequestOriginPeer,
+                    pingRequestSequenceNumber: pingRequestSequenceNumber,
+                    timeout: timeout,
+                    sequenceNumber: sequenceNumber
+                )
             }
         }
     }
@@ -217,22 +237,23 @@ public final class SWIMNIOShell {
     ///   - pingRequestOrigin: is set only when the ping that this is a reply to was originated as a `pingRequest`.
     func receivePingResponse(
         response: SWIM.PingResponse,
-        pingRequestOriginPeer: SWIMPingRequestOriginPeer?
+        pingRequestOriginPeer: SWIMPingRequestOriginPeer?,
+        pingRequestSequenceNumber: SWIM.SequenceNumber?
     ) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
-                self.receivePingResponse(response: response, pingRequestOriginPeer: pingRequestOriginPeer)
+                self.receivePingResponse(response: response, pingRequestOriginPeer: pingRequestOriginPeer, pingRequestSequenceNumber: pingRequestSequenceNumber)
             }
         }
 
-        let sequenceNumber = response.sequenceNumber
-
         self.log.debug("Receive ping response: \(response)", metadata: self.swim.metadata([
-            "swim/pingRequestOriginPeer": "\(pingRequestOriginPeer, orElse: "nil")",
-            "swim/response/sequenceNumber": "\(sequenceNumber)",
+            "swim/pingRequest/origin": "\(pingRequestOriginPeer, orElse: "nil")",
+            "swim/pingRequest/sequenceNumber": "\(pingRequestSequenceNumber, orElse: "nil")",
+            "swim/response": "\(response)",
+            "swim/response/sequenceNumber": "\(response.sequenceNumber)",
         ]))
 
-        let directives = self.swim.onPingResponse(response: response, pingRequestOrigin: pingRequestOriginPeer)
+        let directives = self.swim.onPingResponse(response: response, pingRequestOrigin: pingRequestOriginPeer, pingRequestSequenceNumber: pingRequestSequenceNumber)
         // optionally debug log all directives here
         directives.forEach { directive in
             switch directive {
@@ -251,7 +272,7 @@ public final class SWIMNIOShell {
         }
     }
 
-    func receiveEveryPingRequestResponse(result: SWIM.PingResponse, pingedPeer: SWIMAddressablePeer) {
+    func receiveEveryPingRequestResponse(result: SWIM.PingResponse, pingedPeer: SWIMPeer) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
                 self.receiveEveryPingRequestResponse(result: result, pingedPeer: pingedPeer)
@@ -261,7 +282,7 @@ public final class SWIMNIOShell {
         self.swim.onEveryPingRequestResponse(result, pinged: pingedPeer)
     }
 
-    func receivePingRequestResponse(result: SWIM.PingResponse, pingedPeer: SWIMAddressablePeer) {
+    func receivePingRequestResponse(result: SWIM.PingResponse, pingedPeer: SWIMPeer) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
                 self.receivePingRequestResponse(result: result, pingedPeer: pingedPeer)
@@ -308,33 +329,46 @@ public final class SWIMNIOShell {
 
     /// Send a `ping` message to the `target` peer.
     ///
+    /// - parameters:
     ///   - pingRequestOrigin: is set only when the ping that this is a reply to was originated as a `pingRequest`.
+    ///   - sequenceNumber: sequence number to use for the `ping` message
     func sendPing(
-        to target: SWIMAddressablePeer,
+        to target: SWIMPeer,
         pingRequestOriginPeer: SWIMPingRequestOriginPeer?,
+        pingRequestSequenceNumber: SWIM.SequenceNumber?,
         timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber
     ) {
         let payload = self.swim.makeGossipPayload(to: target)
 
         self.log.trace("Sending ping", metadata: self.swim.metadata([
-            "swim/target": "\(target.node)",
+            "swim/target": "\(target)",
             "swim/gossip/payload": "\(payload)",
             "swim/timeout": "\(timeout)",
         ]))
 
-        let targetPeer = target.peer(self.channel)
-
-        self.tracelog(.send(to: targetPeer), message: "ping(replyTo: \(self.peer), payload: \(payload), sequenceNr: \(sequenceNumber))")
-        targetPeer.ping(payload: payload, from: self.peer, timeout: timeout, sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
+        self.tracelog(.send(to: target), message: "ping(replyTo: \(self.peer), payload: \(payload), sequenceNr: \(sequenceNumber))")
+        target.ping(payload: payload, from: self.peer, timeout: timeout, sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
             switch result {
             case .success(let response):
-                self.receivePingResponse(response: response, pingRequestOriginPeer: pingRequestOriginPeer)
+                self.receivePingResponse(
+                    response: response,
+                    pingRequestOriginPeer: pingRequestOriginPeer,
+                    pingRequestSequenceNumber: pingRequestSequenceNumber
+                )
             case .failure(let error as SWIMNIOTimeoutError):
-                self.receivePingResponse(response: .timeout(target: target, pingRequestOrigin: pingRequestOriginPeer, timeout: error.timeout, sequenceNumber: sequenceNumber), pingRequestOriginPeer: pingRequestOriginPeer)
+                self.receivePingResponse(
+                    response: .timeout(target: target, pingRequestOrigin: pingRequestOriginPeer, timeout: error.timeout, sequenceNumber: sequenceNumber),
+                    pingRequestOriginPeer: pingRequestOriginPeer,
+                    pingRequestSequenceNumber: pingRequestSequenceNumber
+                )
             case .failure(let error):
                 self.log.debug("Failed to ping", metadata: ["ping/target": "\(target)", "error": "\(error)"])
-                self.receivePingResponse(response: .timeout(target: target, pingRequestOrigin: pingRequestOriginPeer, timeout: timeout, sequenceNumber: sequenceNumber), pingRequestOriginPeer: pingRequestOriginPeer)
+                self.receivePingResponse(
+                    response: .timeout(target: target, pingRequestOrigin: pingRequestOriginPeer, timeout: timeout, sequenceNumber: sequenceNumber),
+                    pingRequestOriginPeer: pingRequestOriginPeer,
+                    pingRequestSequenceNumber: pingRequestSequenceNumber
+                )
             }
         }
     }
@@ -347,13 +381,11 @@ public final class SWIMNIOShell {
         let pingTimeout = self.swim.dynamicLHMPingTimeout
         let target = directive.target
         for pingRequest in directive.requestDetails {
-            let memberToPingRequestThrough = pingRequest.memberToPingRequestThrough
+            let peerToPingRequestThrough = pingRequest.peerToPingRequestThrough
             let payload = pingRequest.payload
             let sequenceNumber = pingRequest.sequenceNumber
 
-            self.log.trace("Sending ping request for [\(target)] to [\(memberToPingRequestThrough)] with payload: \(payload)")
-
-            let peerToPingRequestThrough = memberToPingRequestThrough.node.peer(on: self.channel)
+            self.log.trace("Sending ping request for [\(target)] to [\(peerToPingRequestThrough.node)] with payload: \(payload)")
 
             self.tracelog(.send(to: peerToPingRequestThrough), message: "pingRequest(target: \(target), replyTo: \(self.peer), payload: \(payload), sequenceNumber: \(sequenceNumber))")
             peerToPingRequestThrough.pingRequest(target: target, payload: payload, from: self.peer, timeout: pingTimeout, sequenceNumber: sequenceNumber) { result in
@@ -411,7 +443,7 @@ public final class SWIMNIOShell {
 
             case .sendPing(let target, let timeout, let sequenceNumber):
                 self.log.trace("Periodic ping random member, among: \(self.swim.otherMemberCount)", metadata: self.swim.metadata)
-                self.sendPing(to: target, pingRequestOriginPeer: nil, timeout: timeout, sequenceNumber: sequenceNumber)
+                self.sendPing(to: target, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil, timeout: timeout, sequenceNumber: sequenceNumber)
 
             case .scheduleNextTick(let delay):
                 self.log.trace("Schedule next tick for: \(delay)")
@@ -446,7 +478,7 @@ public final class SWIMNIOShell {
         targetPeer.ping(payload: .none, from: self.peer, timeout: .seconds(1), sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
             switch result {
             case .success(let response):
-                self.receivePingResponse(response: response, pingRequestOriginPeer: nil)
+                self.receivePingResponse(response: response, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil)
             case .failure(let error):
                 self.log.debug("Failed to initial ping, will try again", metadata: ["ping/target": "\(node)", "error": "\(error)"])
                 // TODO: implement via re-trying a few times and then giving up https://github.com/apple/swift-cluster-membership/issues/32

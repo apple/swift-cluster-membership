@@ -60,7 +60,7 @@ extension SWIM {
         }
 
         public func pingRequest(
-            target: SWIMAddressablePeer,
+            target: SWIMPeer,
             payload: GossipPayload,
             from origin: SWIMPingRequestOriginPeer,
             timeout: DispatchTimeInterval,
@@ -93,7 +93,7 @@ extension SWIM {
 
         public func ack(
             acknowledging sequenceNumber: SWIM.SequenceNumber,
-            target: SWIMAddressablePeer,
+            target: SWIMPeer,
             incarnation: Incarnation,
             payload: GossipPayload
         ) {
@@ -105,7 +105,7 @@ extension SWIM {
 
         public func nack(
             acknowledging sequenceNumber: SWIM.SequenceNumber,
-            target: SWIMAddressablePeer
+            target: SWIMPeer
         ) {
             let message = SWIM.Message.response(.nack(target: target, sequenceNumber: sequenceNumber))
             let command = SWIMNIOWriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)

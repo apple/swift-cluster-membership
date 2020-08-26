@@ -23,11 +23,11 @@ final class SWIMInstanceTests: XCTestCase {
     let fourthNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7004, uid: 4444)
     let fifthNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7005, uid: 5555)
 
-    var myself: SWIMPeer!
-    var second: SWIMPeer!
-    var third: SWIMPeer!
-    var fourth: SWIMPeer!
-    var fifth: SWIMPeer!
+    var myself: TestPeer!
+    var second: TestPeer!
+    var third: TestPeer!
+    var fourth: TestPeer!
+    var fifth: TestPeer!
 
     override func setUp() {
         super.setUp()
@@ -435,7 +435,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_myself_withUnreachable_unreachabilityEnabled() throws {
         var settings = SWIM.Settings()
-        settings.extensionUnreachability = .enabled
+        settings.unreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         var myselfMember = swim.myselfMember
@@ -459,7 +459,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_other_withUnreachable_unreachabilityEnabled() throws {
         var settings = SWIM.Settings()
-        settings.extensionUnreachability = .enabled
+        settings.unreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         let other = self.second!
 
@@ -479,7 +479,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_myself_withOldUnreachable_unreachabilityEnabled() throws {
         var settings = SWIM.Settings()
-        settings.extensionUnreachability = .enabled
+        settings.unreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         swim.incrementProtocolPeriod()
 
@@ -500,7 +500,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_other_withOldUnreachable_unreachabilityEnabled() throws {
         var settings = SWIM.Settings()
-        settings.extensionUnreachability = .enabled
+        settings.unreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         let other = self.second!
 
@@ -520,7 +520,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_myself_withUnreachable_unreachabilityDisabled() throws {
         var settings = SWIM.Settings()
-        settings.extensionUnreachability = .disabled
+        settings.unreachability = .disabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         var myselfMember = swim.myselfMember
@@ -543,7 +543,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_onGossipPayload_other_withUnreachable_unreachabilityDisabled() throws {
         var settings = SWIM.Settings()
-        settings.extensionUnreachability = .disabled
+        settings.unreachability = .disabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
         let other = self.second!
 
@@ -696,9 +696,74 @@ final class SWIMInstanceTests: XCTestCase {
             incarnation: 0,
             payload: .none,
             pingRequestOrigin: nil,
+            pingRequestSequenceNumber: nil,
             sequenceNumber: 0
         )
         XCTAssertEqual(swim.localHealthMultiplier, 0)
+    }
+
+    func test_onPingAckResponse_forwardAckToOriginWithRightSequenceNumber_onAckFromTarget() {
+        let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
+
+        _ = swim.addMember(self.second, status: .alive(incarnation: 12))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 33))
+
+        // let's pretend `third` asked us to ping `second`, and we get the ack back:
+        let pingRequestOrigin = self.third!
+        let pingRequestSequenceNumber: UInt32 = 1212
+
+        let directives = swim.onPingAckResponse(
+            target: self.second,
+            incarnation: 12,
+            payload: .none,
+            pingRequestOrigin: pingRequestOrigin,
+            pingRequestSequenceNumber: pingRequestSequenceNumber,
+            sequenceNumber: 2 // the sequence number that we used to send the `ping` with
+        )
+
+        XCTAssertTrue(directives.contains {
+            switch $0 {
+            case .sendAck(let peer, let acknowledging, let target, let incarnation, _):
+                XCTAssertEqual(peer.node, pingRequestOrigin.node)
+                XCTAssertEqual(acknowledging, pingRequestSequenceNumber)
+                XCTAssertEqual(self.second.node, target.node)
+                XCTAssertEqual(incarnation, 12)
+                return true
+            default:
+                return false
+            }
+        }, "directives should contain .sendAck")
+    }
+
+    func test_onPingAckResponse_sendNackWithRightSequenceNumberToOrigin_onTimeout() {
+        let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
+
+        _ = swim.addMember(self.second, status: .alive(incarnation: 12))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 33))
+
+        // let's pretend `third` asked us to ping `second`
+        let pingRequestOrigin = self.third!
+        let pingRequestSequenceNumber: UInt32 = 1212
+
+        // and we get a timeout (so we should send a nack to the origin)
+        let directives = swim.onPingResponseTimeout(
+            target: self.second,
+            timeout: .seconds(1),
+            pingRequestOrigin: pingRequestOrigin,
+            pingRequestSequenceNumber: pingRequestSequenceNumber
+        )
+
+        XCTAssertTrue(directives.contains {
+            switch $0 {
+            case .sendNack(let peer, let acknowledging, let target):
+                XCTAssertEqual(peer.node, pingRequestOrigin.node)
+                XCTAssertEqual(acknowledging, pingRequestSequenceNumber)
+                XCTAssertEqual(self.second.node, target.node)
+                return true
+            default:
+                return false
+            }
+        }, "directives should contain .sendAck")
     }
 
     func test_onPingRequestResponse_notIncrementLHAMultiplier_whenSeeOldSuspicion_onGossip() {
@@ -975,7 +1040,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_memberCount_shouldCountUnreachableMembers() {
         var settings = SWIM.Settings()
-        settings.extensionUnreachability = .enabled
+        settings.unreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         let aliveAtZero = SWIM.Status.alive(incarnation: 0)
@@ -1081,7 +1146,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_confirmDead_anUnknownNode_shouldDoNothing() throws {
         var settings = SWIM.Settings()
-        settings.extensionUnreachability = .enabled
+        settings.unreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         let directive = swim.confirmDead(peer: self.second)
@@ -1095,7 +1160,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_confirmDead_aKnownOtherNode_shouldApply() throws {
         var settings = SWIM.Settings()
-        settings.extensionUnreachability = .enabled
+        settings.unreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         _ = swim.addMember(self.second, status: .alive(incarnation: 10))
@@ -1114,7 +1179,7 @@ final class SWIMInstanceTests: XCTestCase {
 
     func test_confirmDead_myself_shouldApply() throws {
         var settings = SWIM.Settings()
-        settings.extensionUnreachability = .enabled
+        settings.unreachability = .enabled
         let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
         _ = swim.addMember(self.second, status: .alive(incarnation: 10))
@@ -1151,7 +1216,7 @@ final class SWIMInstanceTests: XCTestCase {
     }
 
     func validateMark(
-        swim: SWIM.Instance, peer: SWIMAddressablePeer, status: SWIM.Status, shouldSucceed: Bool,
+        swim: SWIM.Instance, peer: SWIMPeer, status: SWIM.Status, shouldSucceed: Bool,
         file: StaticString = (#file), line: UInt = #line
     ) throws {
         let markResult = swim.mark(peer, as: status)
