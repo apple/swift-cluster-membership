@@ -109,7 +109,11 @@ extension SWIM {
     ///
     /// A gossip will only be spread a limited number of times, as configured by `settings.gossip.gossipedEnoughTimes(_:members:)`.
     public struct Gossip: Equatable {
+        /// The specific member (including status) that this gossip is about.
+        ///
+        /// A change in member status implies a new gossip must be created and the count for the rumor mongering must be reset.
         public let member: SWIM.Member
+        /// The number of times this specific gossip message was gossiped to another peer.
         public internal(set) var numberOfTimesGossiped: Int
     }
 

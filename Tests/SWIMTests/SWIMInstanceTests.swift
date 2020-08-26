@@ -221,7 +221,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         let directive = swim.onPing(pingOrigin: self.second, payload: .none, sequenceNumber: 0).first!
         switch directive {
-        case .sendAck(let pinged, _, _, _):
+        case .sendAck(_, let pinged, _, _, _):
             XCTAssertEqual(pinged.node, self.myselfNode) // which was added as myself to this swim instance
         case let other:
             XCTFail("Expected .sendAck, but got \(other)")
@@ -240,7 +240,7 @@ final class SWIMInstanceTests: XCTestCase {
         let res = swim.onPing(pingOrigin: self.third, payload: .none, sequenceNumber: 0).first!
 
         switch res {
-        case .sendAck(_, let incarnation, _, _):
+        case .sendAck(_, _, let incarnation, _, _):
             // did not have to increment its incarnation number:
             XCTAssertEqual(incarnation, 0)
         case let reply:

@@ -128,7 +128,7 @@ public final class SWIMNIOShell {
 
         switch message {
         case .ping(let replyTo, let payload, let sequenceNumber):
-            self.receivePing(replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
+            self.receivePing(pingOrigin: replyTo, payload: payload, sequenceNumber: sequenceNumber)
 
         case .pingRequest(let target, let pingRequestOrigin, let payload, let sequenceNumber):
             self.receivePingRequest(target: target, pingRequestOrigin: pingRequestOrigin, payload: payload, sequenceNumber: sequenceNumber)
@@ -157,29 +157,28 @@ public final class SWIMNIOShell {
         }
     }
 
-    private func receivePing(replyTo: SWIMPingOriginPeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) {
+    private func receivePing(pingOrigin: SWIMPingOriginPeer, payload: SWIM.GossipPayload, sequenceNumber: SWIM.SequenceNumber) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
-                self.receivePing(replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
+                self.receivePing(pingOrigin: pingOrigin, payload: payload, sequenceNumber: sequenceNumber)
             }
         }
 
         self.log.debug("Received ping@\(sequenceNumber)", metadata: self.swim.metadata([
-            "swim/ping/replyTo": "\(replyTo.node)",
+            "swim/ping/pingOrigin": "\(pingOrigin.node)",
             "swim/ping/payload": "\(payload)",
             "swim/ping/seqNr": "\(sequenceNumber)",
         ]))
 
-        let directives: [SWIM.Instance.PingDirective] = self.swim.onPing(pingOrigin: replyTo, payload: payload, sequenceNumber: sequenceNumber)
+        let directives: [SWIM.Instance.PingDirective] = self.swim.onPing(pingOrigin: pingOrigin, payload: payload, sequenceNumber: sequenceNumber)
         directives.forEach { directive in
             switch directive {
             case .gossipProcessed(let gossipDirective):
                 self.handleGossipPayloadProcessedDirective(gossipDirective)
 
-            case .sendAck(let myself, let incarnation, let payload, let identifier):
-                self.tracelog(.reply(to: replyTo), message: "\(directive)")
-                assert(myself.node == self.node, "Since we are replying to a ping, the target has to be myself node")
-                replyTo.peer(self.channel).ack(acknowledging: identifier, target: self.myself, incarnation: incarnation, payload: payload)
+            case .sendAck(let replyTo, let pingedTarget, let incarnation, let payload, let sequenceNumber):
+                self.tracelog(.reply(to: pingOrigin), message: "\(directive)")
+                replyTo.ack(acknowledging: sequenceNumber, target: pingedTarget, incarnation: incarnation, payload: payload)
             }
         }
     }
