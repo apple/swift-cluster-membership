@@ -237,6 +237,8 @@ extension SWIM {
         /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
+        public let metrics: SWIM.Metrics
+
         private var node: ClusterMembership.Node {
             self.peer.node
         }
@@ -335,6 +337,7 @@ extension SWIM {
             self.peer = myself
             self._members = [:]
             self.membersToPing = []
+            self.metrics = SWIM.Metrics(settings: settings)
             _ = self.addMember(myself, status: .alive(incarnation: 0))
         }
 
