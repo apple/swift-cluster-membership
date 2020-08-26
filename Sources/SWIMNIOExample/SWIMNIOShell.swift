@@ -279,7 +279,15 @@ public final class SWIMNIOShell {
             }
         }
         self.tracelog(.receive(pinged: pingedPeer), message: "\(result)")
-        self.swim.onEveryPingRequestResponse(result, pinged: pingedPeer)
+        let directives = self.swim.onEveryPingRequestResponse(result, pinged: pingedPeer)
+        if !directives.isEmpty {
+            fatalError("""
+                           Ignored directive from: onEveryPingRequestResponse! \
+                           This directive used to be implemented as always returning no directives. \
+                           Check your shell implementations if you updated the SWIM library as it seems this has changed. \
+                           Directive was: \(directives), swim was: \(self.swim.metadata)
+                           """)
+        }
     }
 
     func receivePingRequestResponse(result: SWIM.PingResponse, pingedPeer: SWIMPeer) {
