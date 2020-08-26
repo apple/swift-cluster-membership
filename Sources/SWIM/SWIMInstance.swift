@@ -739,7 +739,10 @@ extension SWIM.Instance {
             self.node.withoutUID == node
     }
 
-    // TODO: ensure we actually store "us" in members; do we need this special handling if then at all?
+    /// Returns status of the passed in peer's member of the cluster, if known.
+    ///
+    /// - Parameter peer: the peer to look up the status for.
+    /// - Returns: Status of the peer, if known.
     public func status(of peer: SWIMAddressablePeer) -> SWIM.Status? {
         if self.notMyself(peer) {
             return self._members[peer.node]?.status
@@ -1225,6 +1228,17 @@ extension SWIM.Instance {
         /// Indicates that incoming gossip was processed and the membership may have changed because of it,
         /// inspect the `GossipProcessedDirective` to learn more about what change was applied.
         case gossipProcessed(GossipProcessedDirective)
+        /// Send a ping to the requested `target` peer using the provided timeout and sequenceNumber.
+        ///
+        /// - parameters:
+        ///   - target: the target peer which should be probed
+        ///   - payload: gossip information to be processed by this peer,
+        ///     resulting in potentially discovering new information about other members of the cluster
+        ///   - pingRequestOrigin: peer on whose behalf we are performing this indirect ping;
+        ///     it will be useful to pipe back replies from the target to the origin member.
+        ///   - pingRequestSequenceNumber: sequence number that must be used when replying to the `pingRequestOrigin`
+        ///   - timeout: timeout to be used when performing the ping probe (it MAY be smaller than a normal direct ping probe's timeout)
+        ///   - pingSequenceNumber: sequence number to use for the `ping` message
         case sendPing(
             target: SWIMPeer,
             payload: SWIM.GossipPayload,
@@ -1513,6 +1527,7 @@ extension SWIM.Instance {
         }
     }
 
+    /// Directs how to handle the result of a `confirmDead` call.
     public enum ConfirmDeadDirective {
         /// The change was applied and caused a membership change.
         ///
@@ -1563,9 +1578,14 @@ extension SWIM.Instance {
     ///
     /// - SeeAlso: Lifeguard IV.A. Local Health Aware Probe, which describes the rationale behind the events.
     public enum LHModifierEvent: Equatable {
+        /// A successful ping/ack probe cycle was completed.
         case successfulProbe
+        /// A direct ping/ack cycle has failed (timed-out).
         case failedProbe
+        /// Some other member has suspected this member, and we had to refute the suspicion.
         case refutingSuspectMessageAboutSelf
+        /// During a `pingRequest` the ping request origin (us) received a timeout without seeing `.nack`
+        /// from the intermediary member; This could mean we are having network trouble and are a faulty node.
         case probeWithMissedNack
 
         /// - Returns: by how much the LHM should be adjusted in response to this event.
@@ -1587,6 +1607,7 @@ extension SWIM.Instance {
 // MARK: SWIM Logging Metadata
 
 extension SWIM.Instance {
+    /// Allows for convenient adding of additional metadata to the `SWIM.Instance.metadata`.
     public func metadata(_ additional: Logger.Metadata) -> Logger.Metadata {
         var metadata = self.metadata
         metadata.merge(additional, uniquingKeysWith: { _, r in r })
