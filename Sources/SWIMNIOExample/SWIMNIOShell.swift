@@ -214,18 +214,11 @@ public final class SWIMNIOShell {
             case .gossipProcessed(let gossipDirective):
                 self.handleGossipPayloadProcessedDirective(gossipDirective)
 
-            case .sendPing(let target, let pingRequestOriginPeer, let pingRequestSequenceNumber, let timeout, let sequenceNumber):
-                // FIXME PAYLOAD!!!!!!
-                // FIXME PAYLOAD!!!!!!
-                // FIXME PAYLOAD!!!!!!
-                // FIXME PAYLOAD!!!!!!
-                // FIXME PAYLOAD!!!!!!
-                // FIXME PAYLOAD!!!!!!
-                // FIXME PAYLOAD!!!!!!
-                // FIXME PAYLOAD!!!!!!
+            case .sendPing(let target, let payload, let pingRequestOriginPeer, let pingRequestSequenceNumber, let timeout, let sequenceNumber):
                 self.sendPing(
                     to: target,
-                    pingRequestOriginPeer: pingRequestOriginPeer,
+                    payload: payload,
+                    pingRequestOrigin: pingRequestOriginPeer,
                     pingRequestSequenceNumber: pingRequestSequenceNumber,
                     timeout: timeout,
                     sequenceNumber: sequenceNumber
@@ -282,11 +275,11 @@ public final class SWIMNIOShell {
         let directives = self.swim.onEveryPingRequestResponse(result, pinged: pingedPeer)
         if !directives.isEmpty {
             fatalError("""
-                           Ignored directive from: onEveryPingRequestResponse! \
-                           This directive used to be implemented as always returning no directives. \
-                           Check your shell implementations if you updated the SWIM library as it seems this has changed. \
-                           Directive was: \(directives), swim was: \(self.swim.metadata)
-                           """)
+            Ignored directive from: onEveryPingRequestResponse! \
+            This directive used to be implemented as always returning no directives. \
+            Check your shell implementations if you updated the SWIM library as it seems this has changed. \
+            Directive was: \(directives), swim was: \(self.swim.metadata)
+            """)
         }
     }
 
@@ -339,22 +332,21 @@ public final class SWIMNIOShell {
     ///
     /// - parameters:
     ///   - pingRequestOrigin: is set only when the ping that this is a reply to was originated as a `pingRequest`.
+    ///   - payload: the gossip payload to be sent with the `ping` message
     ///   - sequenceNumber: sequence number to use for the `ping` message
     func sendPing(
         to target: SWIMPeer,
-        pingRequestOriginPeer: SWIMPingRequestOriginPeer?,
+        payload: SWIM.GossipPayload,
+        pingRequestOrigin: SWIMPingRequestOriginPeer?,
         pingRequestSequenceNumber: SWIM.SequenceNumber?,
         timeout: DispatchTimeInterval,
-        sequenceNumber: SWIM.SequenceNumber,
-        file: String = #file, line: UInt = #line
+        sequenceNumber: SWIM.SequenceNumber
     ) {
-        let payload = self.swim.makeGossipPayload(to: target)
-
         self.log.error("Sending ping", metadata: self.swim.metadata([
             "swim/target": "\(target)",
             "swim/gossip/payload": "\(payload)",
             "swim/timeout": "\(timeout)",
-        ]), file: file, line: line)
+        ]))
 
         self.tracelog(.send(to: target), message: "ping(replyTo: \(self.peer), payload: \(payload), sequenceNr: \(sequenceNumber))")
         target.ping(payload: payload, from: self.peer, timeout: timeout, sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
@@ -362,20 +354,20 @@ public final class SWIMNIOShell {
             case .success(let response):
                 self.receivePingResponse(
                     response: response,
-                    pingRequestOriginPeer: pingRequestOriginPeer,
+                    pingRequestOriginPeer: pingRequestOrigin,
                     pingRequestSequenceNumber: pingRequestSequenceNumber
                 )
             case .failure(let error as SWIMNIOTimeoutError):
                 self.receivePingResponse(
-                    response: .timeout(target: target, pingRequestOrigin: pingRequestOriginPeer, timeout: error.timeout, sequenceNumber: sequenceNumber),
-                    pingRequestOriginPeer: pingRequestOriginPeer,
+                    response: .timeout(target: target, pingRequestOrigin: pingRequestOrigin, timeout: error.timeout, sequenceNumber: sequenceNumber),
+                    pingRequestOriginPeer: pingRequestOrigin,
                     pingRequestSequenceNumber: pingRequestSequenceNumber
                 )
             case .failure(let error):
                 self.log.debug("Failed to ping", metadata: ["ping/target": "\(target)", "error": "\(error)"])
                 self.receivePingResponse(
-                    response: .timeout(target: target, pingRequestOrigin: pingRequestOriginPeer, timeout: timeout, sequenceNumber: sequenceNumber),
-                    pingRequestOriginPeer: pingRequestOriginPeer,
+                    response: .timeout(target: target, pingRequestOrigin: pingRequestOrigin, timeout: timeout, sequenceNumber: sequenceNumber),
+                    pingRequestOriginPeer: pingRequestOrigin,
                     pingRequestSequenceNumber: pingRequestSequenceNumber
                 )
             }
@@ -450,9 +442,9 @@ public final class SWIMNIOShell {
             case .membershipChanged(let change):
                 self.tryAnnounceMemberReachability(change: change)
 
-            case .sendPing(let target, let timeout, let sequenceNumber):
+            case .sendPing(let target, let payload, let timeout, let sequenceNumber):
                 self.log.trace("Periodic ping random member, among: \(self.swim.otherMemberCount)", metadata: self.swim.metadata)
-                self.sendPing(to: target, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil, timeout: timeout, sequenceNumber: sequenceNumber)
+                self.sendPing(to: target, payload: payload, pingRequestOrigin: nil, pingRequestSequenceNumber: nil, timeout: timeout, sequenceNumber: sequenceNumber)
 
             case .scheduleNextTick(let delay):
                 self.log.trace("Schedule next tick in: \(delay.prettyDescription)")
