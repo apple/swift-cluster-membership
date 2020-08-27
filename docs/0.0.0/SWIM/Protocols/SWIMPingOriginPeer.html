@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>SWIMPingOriginPeer Protocol Reference</title>
+    <link rel="stylesheet" type="text/css" href="../css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="../css/highlight.css" />
+    <meta charset="utf-8">
+    <script src="../js/jquery.min.js" defer></script>
+    <script src="../js/jazzy.js" defer></script>
+    
+    <script src="../js/lunr.min.js" defer></script>
+    <script src="../js/typeahead.jquery.js" defer></script>
+    <script src="../js/jazzy.search.js" defer></script>
+  </head>
+  <body>
+
+    <a name="//apple_ref/swift/Protocol/SWIMPingOriginPeer" class="dashAnchor"></a>
+
+    <a title="SWIMPingOriginPeer Protocol Reference"></a>
+
+    <header class="header">
+      <p class="header-col header-col--primary">
+        <a class="header-link" href="../index.html">
+          SWIM Docs
+        </a>
+         (96% documented)
+      </p>
+    
+      <p class="header-col--secondary">
+        <form role="search" action="../search.json">
+          <input type="text" placeholder="Search documentation" data-typeahead>
+        </form>
+      </p>
+    
+        <p class="header-col header-col--secondary">
+          <a class="header-link" href="https://github.com/apple/swift-cluster-membership">
+            <img class="header-icon" src="../img/gh.png"/>
+            View on GitHub
+          </a>
+        </p>
+    
+    </header>
+
+    <p class="breadcrumbs">
+      <a class="breadcrumb" href="../index.html">SWIM Reference</a>
+      <img class="carat" src="../img/carat.png" />
+      SWIMPingOriginPeer Protocol Reference
+    </p>
+
+    <div class="content-wrapper">
+      <nav class="navigation">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../Documentation.html">Documentation</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM.html">SWIM</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/MemberStatusChangedEvent.html">– MemberStatusChangedEvent</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/Member.html">– Member</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/PingResponse.html">– PingResponse</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/Gossip.html">– Gossip</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/GossipPayload.html">– GossipPayload</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/Instance.html">– Instance</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/Settings.html">– Settings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/Status.html">– Status</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../Other%20Protocols.html">Other Protocols</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Protocols/SWIMAddressablePeer.html">SWIMAddressablePeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Protocols/SWIMPeer.html">SWIMPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Protocols/SWIMPingOriginPeer.html">SWIMPingOriginPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Protocols/SWIMPingRequestOriginPeer.html">SWIMPingRequestOriginPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Protocols/SWIMProtocol.html">SWIMProtocol</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../Other%20Structs.html">Other Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Structs/SWIMGossipSettings.html">SWIMGossipSettings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Structs/SWIMLifeguardSettings.html">SWIMLifeguardSettings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Structs/_SWIMPrettyMetadataLogHandler.html">_SWIMPrettyMetadataLogHandler</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+
+        <section class="section">
+          <div class="section-content top-matter">
+            <h1>SWIMPingOriginPeer</h1>
+              <div class="declaration">
+                <div class="language">
+                  <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">protocol</span> <span class="kt">SWIMPingOriginPeer</span> <span class="p">:</span> <span class="kt"><a href="../Protocols/SWIMAddressablePeer.html">SWIMAddressablePeer</a></span></code></pre>
+
+                </div>
+              </div>
+            <p>SWIM A peer which originated a <code>ping</code>, should be replied to with an <code>ack</code>.</p>
+
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-content">
+            <div class="task-group">
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM18SWIMPingOriginPeerP3ack13acknowledging6target11incarnation7payloadys6UInt32V_AA8SWIMPeer_ps6UInt64VA2AO13GossipPayloadOtF"></a>
+                    <a name="//apple_ref/swift/Method/ack(acknowledging:target:incarnation:payload:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM18SWIMPingOriginPeerP3ack13acknowledging6target11incarnation7payloadys6UInt32V_AA8SWIMPeer_ps6UInt64VA2AO13GossipPayloadOtF">ack(acknowledging:<wbr>target:<wbr>incarnation:<wbr>payload:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Acknowledge a <code>ping</code>.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">func</span> <span class="nf">ack</span><span class="p">(</span>
+    <span class="n">acknowledging</span> <span class="nv">sequenceNumber</span><span class="p">:</span> <span class="kt"><a href="../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt">SequenceNumber</span><span class="p">,</span>
+    <span class="nv">target</span><span class="p">:</span> <span class="kt"><a href="../Protocols/SWIMPeer.html">SWIMPeer</a></span><span class="p">,</span>
+    <span class="nv">incarnation</span><span class="p">:</span> <span class="kt"><a href="../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt">Incarnation</span><span class="p">,</span>
+    <span class="nv">payload</span><span class="p">:</span> <span class="kt"><a href="../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt">GossipPayload</span>
+<span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>sequenceNumber</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>the sequence number of the incoming ping that this ack should acknowledge</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>target</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>target peer which received the ping (i.e. &ldquo;myself&rdquo; on the recipient of the <code>ping</code>).</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>incarnation</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>incarnation number of the target (myself),
+which is used to clarify which status is the most recent on the recipient of this acknowledgement.</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>payload</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>additional gossip data to be carried with the message.
+It is already trimmed to be no larger than configured in <code><a href="../Enums/SWIM/Settings.html">SWIM.Settings</a></code>.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Peer.swift#L36">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+      </article>
+    </div>
+    <section class="footer">
+      <p>&copy; 2020 <a class="link" href="https://github.com/apple/swift-cluster-membership" target="_blank" rel="external">Swift Cluster Membership Team</a>. All rights reserved. (Last updated: 2020-08-27)</p>
+      <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.13.3</a>, a <a class="link" href="https://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+    </section>
+  </body>
+</div>
+</html>

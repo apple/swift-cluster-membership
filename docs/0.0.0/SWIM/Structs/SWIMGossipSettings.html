@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>SWIMGossipSettings Structure Reference</title>
+    <link rel="stylesheet" type="text/css" href="../css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="../css/highlight.css" />
+    <meta charset="utf-8">
+    <script src="../js/jquery.min.js" defer></script>
+    <script src="../js/jazzy.js" defer></script>
+    
+    <script src="../js/lunr.min.js" defer></script>
+    <script src="../js/typeahead.jquery.js" defer></script>
+    <script src="../js/jazzy.search.js" defer></script>
+  </head>
+  <body>
+
+    <a name="//apple_ref/swift/Struct/SWIMGossipSettings" class="dashAnchor"></a>
+
+    <a title="SWIMGossipSettings Structure Reference"></a>
+
+    <header class="header">
+      <p class="header-col header-col--primary">
+        <a class="header-link" href="../index.html">
+          SWIM Docs
+        </a>
+         (96% documented)
+      </p>
+    
+      <p class="header-col--secondary">
+        <form role="search" action="../search.json">
+          <input type="text" placeholder="Search documentation" data-typeahead>
+        </form>
+      </p>
+    
+        <p class="header-col header-col--secondary">
+          <a class="header-link" href="https://github.com/apple/swift-cluster-membership">
+            <img class="header-icon" src="../img/gh.png"/>
+            View on GitHub
+          </a>
+        </p>
+    
+    </header>
+
+    <p class="breadcrumbs">
+      <a class="breadcrumb" href="../index.html">SWIM Reference</a>
+      <img class="carat" src="../img/carat.png" />
+      SWIMGossipSettings Structure Reference
+    </p>
+
+    <div class="content-wrapper">
+      <nav class="navigation">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../Documentation.html">Documentation</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM.html">SWIM</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/MemberStatusChangedEvent.html">– MemberStatusChangedEvent</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/Member.html">– Member</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/PingResponse.html">– PingResponse</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/Gossip.html">– Gossip</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/GossipPayload.html">– GossipPayload</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/Instance.html">– Instance</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/Settings.html">– Settings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIM/Status.html">– Status</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../Other%20Protocols.html">Other Protocols</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Protocols/SWIMAddressablePeer.html">SWIMAddressablePeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Protocols/SWIMPeer.html">SWIMPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Protocols/SWIMPingOriginPeer.html">SWIMPingOriginPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Protocols/SWIMPingRequestOriginPeer.html">SWIMPingRequestOriginPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Protocols/SWIMProtocol.html">SWIMProtocol</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../Other%20Structs.html">Other Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Structs/SWIMGossipSettings.html">SWIMGossipSettings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Structs/SWIMLifeguardSettings.html">SWIMLifeguardSettings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Structs/_SWIMPrettyMetadataLogHandler.html">_SWIMPrettyMetadataLogHandler</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+
+        <section class="section">
+          <div class="section-content top-matter">
+            <h1>SWIMGossipSettings</h1>
+              <div class="declaration">
+                <div class="language">
+                  <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">struct</span> <span class="kt">SWIMGossipSettings</span></code></pre>
+
+                </div>
+              </div>
+            <p>Settings specific to the gossip payloads used in the SWIM gossip dissemination subsystem.</p>
+
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-content">
+            <div class="task-group">
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM18SWIMGossipSettingsVACycfc"></a>
+                    <a name="//apple_ref/swift/Method/init()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM18SWIMGossipSettingsVACycfc">init()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Create default settings.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="nf">init</span><span class="p">()</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Settings.swift#L171">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM18SWIMGossipSettingsV28maxNumberOfMessagesPerGossipSivp"></a>
+                    <a name="//apple_ref/swift/Property/maxNumberOfMessagesPerGossip" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM18SWIMGossipSettingsV28maxNumberOfMessagesPerGossipSivp">maxNumberOfMessagesPerGossip</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Limits the number of <code>GossipPayload</code>s to be piggy-backed in a single message.</p>
+
+<p>Notes: The Ping/Ack messages are used to piggy-back the gossip information along those messages.
+In order to prevent these messages from growing too large, heuristics or a simple limit must be imposed on them/
+Currently, we limit the message sizes by simply counting how many gossip payloads are allowed to be carried.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">maxNumberOfMessagesPerGossip</span><span class="p">:</span> <span class="kt">Int</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Settings.swift#L178">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM18SWIMGossipSettingsV19gossipedEnoughTimes_7membersSbA2AO6GossipV_SitF"></a>
+                    <a name="//apple_ref/swift/Method/gossipedEnoughTimes(_:members:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM18SWIMGossipSettingsV19gossipedEnoughTimes_7membersSbA2AO6GossipV_SitF">gossipedEnoughTimes(_:<wbr>members:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Each gossip (i.e. an observation by this specific node of a specific node&rsquo;s specific status),
+is gossiped only a limited number of times, after which the algorithms</p>
+<div class="aside aside-see-also">
+    <p class="aside-title">See also</p>
+    <p>SWIM 4.1. Infection-Style Dissemination Component</p>
+
+</div><div class="aside aside-see-also">
+    <p class="aside-title">See also</p>
+    <p>SWIM 5. Performance Evaluation of a Prototype</p>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">gossipedEnoughTimes</span><span class="p">(</span><span class="n">_</span> <span class="nv">gossip</span><span class="p">:</span> <span class="kt"><a href="../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt">Gossip</span><span class="p">,</span> <span class="n">members</span> <span class="nv">n</span><span class="p">:</span> <span class="kt">Int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Bool</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>n</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>total number of cluster members (including myself), MUST be &gt;= 1 (or will crash)</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Settings.swift#L188-L196">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM18SWIMGossipSettingsV33gossipedEnoughTimesBaseMultiplierSdvp"></a>
+                    <a name="//apple_ref/swift/Property/gossipedEnoughTimesBaseMultiplier" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM18SWIMGossipSettingsV33gossipedEnoughTimesBaseMultiplierSdvp">gossipedEnoughTimesBaseMultiplier</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Used to adjust the <code>gossipedEnoughTimes</code> value.</p>
+
+<p>Should not be lower than 3, since for</p>
+<div class="aside aside-see-also">
+    <p class="aside-title">See also</p>
+    SWIM 5. Performance Evaluation of a Prototype
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">gossipedEnoughTimesBaseMultiplier</span><span class="p">:</span> <span class="kt">Double</span> <span class="p">{</span> <span class="k">get</span> <span class="k">set</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Settings.swift#L207-L212">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+      </article>
+    </div>
+    <section class="footer">
+      <p>&copy; 2020 <a class="link" href="https://github.com/apple/swift-cluster-membership" target="_blank" rel="external">Swift Cluster Membership Team</a>. All rights reserved. (Last updated: 2020-08-27)</p>
+      <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.13.3</a>, a <a class="link" href="https://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+    </section>
+  </body>
+</div>
+</html>
