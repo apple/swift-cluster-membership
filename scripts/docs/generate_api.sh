@@ -77,10 +77,10 @@ if ! command -v jazzy > /dev/null; then
   gem install jazzy --no-ri --no-rdoc
 fi
 
-mkdir -p "$root_path/.build/docs/api/$version"
-mkdir -p "$root_path/.build/docs/docset/$version"
+mkdir -p "$root_path/.build/docs/jazzy/api/$version"
+mkdir -p "$root_path/.build/docs/jazzy/docset/$version"
 for module in "${modules[@]}"; do
-  args=("${jazzy_args[@]}" --output "$root_path/.build/docs/api/$version/$module" --docset-path "$root_path/.build/docs/docset/$version/$module" --module "$module")
+  args=("${jazzy_args[@]}" --output "$root_path/.build/docs/jazzy/api/$version/$module" --docset-path "$root_path/.build/docs/jazzy/docset/$version/$module" --module "$module")
   if [[ "$(uname -s)" == "Linux" ]]; then
     args+=(--sourcekitten-sourcefile "$root_path/.build/sourcekitten/$module.json")
   fi
