@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Instance Class Reference</title>
+    <link rel="stylesheet" type="text/css" href="../../css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/highlight.css" />
+    <meta charset="utf-8">
+    <script src="../../js/jquery.min.js" defer></script>
+    <script src="../../js/jazzy.js" defer></script>
+    
+    <script src="../../js/lunr.min.js" defer></script>
+    <script src="../../js/typeahead.jquery.js" defer></script>
+    <script src="../../js/jazzy.search.js" defer></script>
+  </head>
+  <body>
+
+    <a name="//apple_ref/swift/Class/Instance" class="dashAnchor"></a>
+
+    <a title="Instance Class Reference"></a>
+
+    <header class="header">
+      <p class="header-col header-col--primary">
+        <a class="header-link" href="../../index.html">
+          SWIM Docs
+        </a>
+         (96% documented)
+      </p>
+    
+      <p class="header-col--secondary">
+        <form role="search" action="../../search.json">
+          <input type="text" placeholder="Search documentation" data-typeahead>
+        </form>
+      </p>
+    
+        <p class="header-col header-col--secondary">
+          <a class="header-link" href="https://github.com/apple/swift-cluster-membership">
+            <img class="header-icon" src="../../img/gh.png"/>
+            View on GitHub
+          </a>
+        </p>
+    
+    </header>
+
+    <p class="breadcrumbs">
+      <a class="breadcrumb" href="../../index.html">SWIM Reference</a>
+      <img class="carat" src="../../img/carat.png" />
+      Instance Class Reference
+    </p>
+
+    <div class="content-wrapper">
+      <nav class="navigation">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../../Documentation.html">Documentation</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM.html">SWIM</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/MemberStatusChangedEvent.html">– MemberStatusChangedEvent</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/Member.html">– Member</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/PingResponse.html">– PingResponse</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/Gossip.html">– Gossip</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/GossipPayload.html">– GossipPayload</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/Instance.html">– Instance</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/Settings.html">– Settings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/Status.html">– Status</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../../Other%20Protocols.html">Other Protocols</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Protocols/SWIMAddressablePeer.html">SWIMAddressablePeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Protocols/SWIMPeer.html">SWIMPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Protocols/SWIMPingOriginPeer.html">SWIMPingOriginPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Protocols/SWIMPingRequestOriginPeer.html">SWIMPingRequestOriginPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Protocols/SWIMProtocol.html">SWIMProtocol</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../../Other%20Structs.html">Other Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Structs/SWIMGossipSettings.html">SWIMGossipSettings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Structs/SWIMLifeguardSettings.html">SWIMLifeguardSettings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Structs/_SWIMPrettyMetadataLogHandler.html">_SWIMPrettyMetadataLogHandler</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+
+        <section class="section">
+          <div class="section-content top-matter">
+            <h1>Instance</h1>
+              <div class="declaration">
+                <div class="language">
+                  <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">final</span> <span class="kd">class</span> <span class="kt">Instance</span> <span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMProtocol.html">SWIMProtocol</a></span></code></pre>
+<pre class="highlight swift"><code><span class="kd">extension</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt">Instance</span><span class="p">:</span> <span class="kt">CustomDebugStringConvertible</span></code></pre>
+
+                </div>
+              </div>
+            <p>The <code>SWIM.Instance</code> encapsulates the complete algorithm implementation of the <code><a href="../../Enums/SWIM.html">SWIM</a></code> protocol.</p>
+
+<p><strong>Please refer to <code><a href="../../Enums/SWIM.html">SWIM</a></code> for an in-depth discussion of the algorithm and extensions implemented in this package.</strong></p>
+<div class="aside aside-see-also">
+    <p class="aside-title">See also</p>
+    <code><a href="../../Enums/SWIM.html">SWIM</a></code> for a complete and in depth discussion of the protocol.
+
+</div>
+
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-content">
+            <div class="task-group">
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC8settingsAB8SettingsVvp"></a>
+                    <a name="//apple_ref/swift/Property/settings" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC8settingsAB8SettingsVvp">settings</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>The settings currently in use by this instance.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">let</span> <span class="nv">settings</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/Settings.html">Settings</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L238">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC6memberAB6MemberVvp"></a>
+                    <a name="//apple_ref/swift/Property/member" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC6memberAB6MemberVvp">member</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>The <code><a href="../../Enums/SWIM/Member.html">SWIM.Member</a></code> representing this instance, also referred to as &ldquo;myself&rdquo;.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">member</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/Member.html">Member</a></span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L249-L257">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC18nextSequenceNumbers6UInt32VyF"></a>
+                    <a name="//apple_ref/swift/Method/nextSequenceNumber()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC18nextSequenceNumbers6UInt32VyF">nextSequenceNumber()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Sequence numbers are used to identify messages and pair them up into request/replies.</p>
+<div class="aside aside-see-also">
+    <p class="aside-title">See also</p>
+    <code><a href="../../Enums/SWIM.html#/s:4SWIMAAO14SequenceNumbera">SWIM.SequenceNumber</a></code>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">nextSequenceNumber</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM.html#/s:4SWIMAAO14SequenceNumbera">SequenceNumber</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L276-L281">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC21localHealthMultiplierSivp"></a>
+                    <a name="//apple_ref/swift/Property/localHealthMultiplier" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC21localHealthMultiplierSivp">localHealthMultiplier</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Lifeguard IV.A. Local Health Multiplier (LHM)</p>
+
+<blockquote>
+<p>These different sources of feedback are combined in a Local Health Multiplier (LHM).
+LHM is a saturating counter, with a max value S and min value zero, meaning it will not
+increase above S or decrease below zero.</p>
+</blockquote>
+
+<p>The local health multiplier (LHM for short) is designed to relax the <code>probeInterval</code> and <code>pingTimeout</code>.</p>
+
+<p>The value MUST be &gt;= 0.</p>
+<div class="aside aside-see-also">
+    <p class="aside-title">See also</p>
+    <code><a href="../../Enums/SWIM/Instance/LHModifierEvent.html">SWIM.Instance.LHModifierEvent</a></code> for details how and when the LHM is adjusted.
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">localHealthMultiplier</span><span class="p">:</span> <span class="kt">Int</span> <span class="p">{</span> <span class="k">get</span> <span class="k">set</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L293-L297">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC8settings6myselfAdB8SettingsV_AA8SWIMPeer_ptcfc"></a>
+                    <a name="//apple_ref/swift/Method/init(settings:myself:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC8settings6myselfAdB8SettingsV_AA8SWIMPeer_ptcfc">init(settings:<wbr>myself:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Creates a new SWIM algorithm instance.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="nf">init</span><span class="p">(</span><span class="nv">settings</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/Settings.html">Settings</a></span><span class="p">,</span> <span class="nv">myself</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMPeer.html">SWIMPeer</a></span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L333-L339">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC18adjustLHMultiplieryyAD15LHModifierEventOF"></a>
+                    <a name="//apple_ref/swift/Method/adjustLHMultiplier(_:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC18adjustLHMultiplieryyAD15LHModifierEventOF">adjustLHMultiplier(_:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Adjust the Local Health-aware Multiplier based on the event causing it.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">adjustLHMultiplier</span><span class="p">(</span><span class="n">_</span> <span class="nv">event</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM/Instance/LHModifierEvent.html">LHModifierEvent</a></span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>event</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>event which causes the LHM adjustment.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L356-L369">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC14protocolPeriodSivp"></a>
+                    <a name="//apple_ref/swift/Property/protocolPeriod" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC14protocolPeriodSivp">protocolPeriod</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Current SWIM protocol period (i.e. which round of gossip the instance is in).</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">protocolPeriod</span><span class="p">:</span> <span class="kt">Int</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L562-L564">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC16suspicionTimeout16suspectedByCount8Dispatch0H12TimeIntervalOSi_tF"></a>
+                    <a name="//apple_ref/swift/Method/suspicionTimeout(suspectedByCount:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC16suspicionTimeout16suspectedByCount8Dispatch0H12TimeIntervalOSi_tF">suspicionTimeout(suspectedByCount:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Local Health Aware Suspicion timeout calculation, as defined Lifeguard IV.B.</p>
+
+<p>Suspicion timeout is logarithmically decaying from <code>suspicionTimeoutPeriodsMax</code> to <code>suspicionTimeoutPeriodsMin</code>
+depending on a number of suspicion confirmations.</p>
+
+<p>Suspicion timeout adjusted according to number of known independent suspicions of given member.</p>
+
+<p>See: Lifeguard IV-B: Local Health Aware Suspicion</p>
+
+<p>The timeout for a given suspicion is calculated as follows:</p>
+<pre class="highlight swift"><code>                                            <span class="nf">log</span><span class="p">(</span><span class="kt">C</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="n">􏰁</span>
+<span class="kt">SuspicionTimeout</span> <span class="o">=</span><span class="n">􏰀</span> <span class="nf">max</span><span class="p">(</span><span class="kt">Min</span><span class="p">,</span> <span class="kt">Max</span> <span class="err">−</span> <span class="p">(</span><span class="kt">Max</span><span class="err">−</span><span class="kt">Min</span><span class="p">)</span> <span class="o">----------</span><span class="p">)</span>
+                                            <span class="nf">log</span><span class="p">(</span><span class="kt">K</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+</code></pre>
+
+<p>where:</p>
+
+<ul>
+<li><code>Min</code> and <code>Max</code> are the minimum and maximum Suspicion timeout.
+See Section <code>V-C</code> for discussion of their configuration.</li>
+<li><code>K</code> is the number of independent suspicions required to be received before setting the suspicion timeout to <code>Min</code>.
+We default <code>K</code> to <code>3</code>.</li>
+<li><code>C</code> is the number of independent suspicions about that member received since the local suspicion was raised.</li>
+</ul>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">suspicionTimeout</span><span class="p">(</span><span class="nv">suspectedByCount</span><span class="p">:</span> <span class="kt">Int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">DispatchTimeInterval</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L601-L613">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC9isExpired8deadlineSb8Dispatch0F4TimeV_tF"></a>
+                    <a name="//apple_ref/swift/Method/isExpired(deadline:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC9isExpired8deadlineSb8Dispatch0F4TimeV_tF">isExpired(deadline:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Checks if a deadline is expired (relating to current time).</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">isExpired</span><span class="p">(</span><span class="nv">deadline</span><span class="p">:</span> <span class="kt">DispatchTime</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Bool</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>deadline</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>deadline we want to check if it&rsquo;s expired</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>true if the <code>now()</code> time is &ldquo;past&rdquo; the deadline</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L619-L621">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC17makeGossipPayload2toAB0dE0OAA19SWIMAddressablePeer_pSg_tF"></a>
+                    <a name="//apple_ref/swift/Method/makeGossipPayload(to:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC17makeGossipPayload2toAB0dE0OAA19SWIMAddressablePeer_pSg_tF">makeGossipPayload(to:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Create a gossip payload (i.e. a set of <code><a href="../../Enums/SWIM/Gossip.html">SWIM.Gossip</a></code> messages) that should be gossiped with failure detector
+messages, or using some other medium.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">makeGossipPayload</span><span class="p">(</span><span class="n">to</span> <span class="nv">target</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMAddressablePeer.html">SWIMAddressablePeer</a></span><span class="p">?)</span> <span class="o">-&gt;</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/GossipPayload.html">GossipPayload</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>target</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Allows passing the target peer this gossip will be sent to.
+If gossiping to a specific peer, and given peer is suspect, we will always prioritize
+letting it know that it is being suspected, such that it can refute the suspicion as soon as possible,
+if if still is alive.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>The gossip payload to be gossiped.</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L638-L693">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <div class="task-name-container">
+                <a name="/SWIM%20Member%20helper%20functions"></a>
+                <a name="//apple_ref/swift/Section/SWIM Member helper functions" class="dashAnchor"></a>
+                <div class="section-name-container">
+                  <a class="section-name-link" href="#/SWIM%20Member%20helper%20functions"></a>
+                  <h3 class="section-name"><p>SWIM Member helper functions</p>
+</h3>
+                </div>
+              </div>
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC6status2ofAB6StatusOSgAA19SWIMAddressablePeer_p_tF"></a>
+                    <a name="//apple_ref/swift/Method/status(of:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC6status2ofAB6StatusOSgAA19SWIMAddressablePeer_p_tF">status(of:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Returns status of the passed in peer&rsquo;s member of the cluster, if known.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">status</span><span class="p">(</span><span class="n">of</span> <span class="nv">peer</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMAddressablePeer.html">SWIMAddressablePeer</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/Status.html">Status</a></span><span class="p">?</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>peer</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>the peer to look up the status for.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>Status of the peer, if known.</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L746-L753">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC8isMember_9ignoreUIDSbAA19SWIMAddressablePeer_p_SbtF"></a>
+                    <a name="//apple_ref/swift/Method/isMember(_:ignoreUID:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC8isMember_9ignoreUIDSbAA19SWIMAddressablePeer_p_SbtF">isMember(_:<wbr>ignoreUID:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Checks if the passed in peer is already a known member of the swim cluster.</p>
+
+<p>Note: <code>.dead</code> members are eventually removed from the swim instance and as such peers are not remembered forever!</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">isMember</span><span class="p">(</span><span class="n">_</span> <span class="nv">peer</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMAddressablePeer.html">SWIMAddressablePeer</a></span><span class="p">,</span> <span class="nv">ignoreUID</span><span class="p">:</span> <span class="kt">Bool</span> <span class="o">=</span> <span class="kc">false</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Bool</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>peer</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Peer to check if it currently is a member</p>
+                                </div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>ignoreUID</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>Whether or not to ignore the peers UID, e.g. this is useful when issuing a &ldquo;join 127.0.0.1:7337&rdquo;
+       command, while being unaware of the nodes specific UID. When it joins, it joins with the specific UID after all.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>true if the peer is currently a member of the swim cluster (regardless of status it is in)</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L764-L772">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC6member3forAB6MemberVSgAA19SWIMAddressablePeer_p_tF"></a>
+                    <a name="//apple_ref/swift/Method/member(for:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC6member3forAB6MemberVSgAA19SWIMAddressablePeer_p_tF">member(for:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Returns specific <code><a href="../../Enums/SWIM/Member.html">SWIM.Member</a></code> instance for the passed in peer.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">member</span><span class="p">(</span><span class="k">for</span> <span class="nv">peer</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMAddressablePeer.html">SWIMAddressablePeer</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/Member.html">Member</a></span><span class="p">?</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>peer</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>peer whose member should be looked up (by its node identity, including the UID)</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>the peer&rsquo;s member instance, if it currently is a member of this cluster</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L778-L780">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC6member3forAB6MemberVSg17ClusterMembership4NodeV_tF"></a>
+                    <a name="//apple_ref/swift/Method/member(for:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC6member3forAB6MemberVSg17ClusterMembership4NodeV_tF">member(for:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Returns specific <code><a href="../../Enums/SWIM/Member.html">SWIM.Member</a></code> instance for the passed in node.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">member</span><span class="p">(</span><span class="k">for</span> <span class="nv">node</span><span class="p">:</span> <span class="kt">ClusterMembership</span><span class="o">.</span><span class="kt">Node</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/Member.html">Member</a></span><span class="p">?</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Parameters</h4>
+                        <table class="graybox">
+                          <tbody>
+                            <tr>
+                              <td>
+                                <code>
+                                <em>node</em>
+                                </code>
+                              </td>
+                              <td>
+                                <div>
+                                  <p>node whose member should be looked up (matching also by node UID)</p>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>the peer&rsquo;s member instance, if it currently is a member of this cluster</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L786-L788">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC18notDeadMemberCountSivp"></a>
+                    <a name="//apple_ref/swift/Property/notDeadMemberCount" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC18notDeadMemberCountSivp">notDeadMemberCount</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Count of only non-dead members.</p>
+<div class="aside aside-see-also">
+    <p class="aside-title">See also</p>
+    <code><a href="../../Enums/SWIM/Status.html">SWIM.Status</a></code>
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">notDeadMemberCount</span><span class="p">:</span> <span class="kt">Int</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L793-L797">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC16otherMemberCountSivp"></a>
+                    <a name="//apple_ref/swift/Property/otherMemberCount" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC16otherMemberCountSivp">otherMemberCount</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Count of all &ldquo;other&rdquo; members known to this instance (meaning members other than <code>myself</code>).</p>
+
+<p>This is equal to <code>n-1</code> where <code>n</code> is the number of nodes in the cluster.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">otherMemberCount</span><span class="p">:</span> <span class="kt">Int</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L802-L804">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC14allMemberCountSivp"></a>
+                    <a name="//apple_ref/swift/Property/allMemberCount" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC14allMemberCountSivp">allMemberCount</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Count of all members, including the myself node as well as any unreachable and dead nodes which are still kept in the membership.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">allMemberCount</span><span class="p">:</span> <span class="kt">Int</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L807-L809">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC7membersSD6ValuesVy17ClusterMembership4NodeVAB6MemberV_Gvp"></a>
+                    <a name="//apple_ref/swift/Property/members" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC7membersSD6ValuesVy17ClusterMembership4NodeVAB6MemberV_Gvp">members</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Lists all members known to this SWIM instance currently, potentially including even <code>.dead</code> nodes.</p>
+<div class="aside aside-complexity">
+    <p class="aside-title">Complexity</p>
+    O(1)
+
+</div>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">members</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM.html#/s:4SWIMAAO10Membershipa">Membership</a></span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>Returns all current members of the cluster, including suspect, unreachable and potentially dead members.</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L815-L817">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <div class="task-name-container">
+                <a name="/On%20Periodic%20Ping%20Tick%20Handler"></a>
+                <a name="//apple_ref/swift/Section/On Periodic Ping Tick Handler" class="dashAnchor"></a>
+                <div class="section-name-container">
+                  <a class="section-name-link" href="#/On%20Periodic%20Ping%20Tick%20Handler"></a>
+                  <h3 class="section-name"><p>On Periodic Ping Tick Handler</p>
+</h3>
+                </div>
+              </div>
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM12SWIMProtocolP18onPeriodicPingTickSayA2AO8InstanceC0deF9DirectiveOGyF"></a>
+                    <a name="//apple_ref/swift/Method/onPeriodicPingTick()" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM12SWIMProtocolP18onPeriodicPingTickSayA2AO8InstanceC0deF9DirectiveOGyF">onPeriodicPingTick()</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">onPeriodicPingTick</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="kt"><a href="../../Enums/SWIM/Instance/PeriodicPingTickDirective.html">PeriodicPingTickDirective</a></span><span class="p">]</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L838-L863">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC25PeriodicPingTickDirectiveO"></a>
+                    <a name="//apple_ref/swift/Enum/PeriodicPingTickDirective" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC25PeriodicPingTickDirectiveO">PeriodicPingTickDirective</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Describes how a periodic tick should be handled.</p>
+
+                        <a href="../../Enums/SWIM/Instance/PeriodicPingTickDirective.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">enum</span> <span class="kt">PeriodicPingTickDirective</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L866-L873">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <div class="task-name-container">
+                <a name="/On%20Ping%20Handler"></a>
+                <a name="//apple_ref/swift/Section/On Ping Handler" class="dashAnchor"></a>
+                <div class="section-name-container">
+                  <a class="section-name-link" href="#/On%20Ping%20Handler"></a>
+                  <h3 class="section-name"><p>On Ping Handler</p>
+</h3>
+                </div>
+              </div>
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM12SWIMProtocolP6onPing10pingOrigin7payload14sequenceNumberSayA2AO8InstanceC0D9DirectiveOGAA08SWIMPingF4Peer_p_AH13GossipPayloadOs6UInt32VtF"></a>
+                    <a name="//apple_ref/swift/Method/onPing(pingOrigin:payload:sequenceNumber:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM12SWIMProtocolP6onPing10pingOrigin7payload14sequenceNumberSayA2AO8InstanceC0D9DirectiveOGAA08SWIMPingF4Peer_p_AH13GossipPayloadOs6UInt32VtF">onPing(pingOrigin:<wbr>payload:<wbr>sequenceNumber:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">onPing</span><span class="p">(</span><span class="nv">pingOrigin</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMPingOriginPeer.html">SWIMPingOriginPeer</a></span><span class="p">,</span> <span class="nv">payload</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/GossipPayload.html">GossipPayload</a></span><span class="p">,</span> <span class="nv">sequenceNumber</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM.html#/s:4SWIMAAO14SequenceNumbera">SequenceNumber</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="kt"><a href="../../Enums/SWIM/Instance/PingDirective.html">PingDirective</a></span><span class="p">]</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L919-L937">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC13PingDirectiveO"></a>
+                    <a name="//apple_ref/swift/Enum/PingDirective" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC13PingDirectiveO">PingDirective</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Directs a shell implementation about how to handle an incoming <code>.ping</code>.</p>
+
+                        <a href="../../Enums/SWIM/Instance/PingDirective.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">enum</span> <span class="kt">PingDirective</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L940-L961">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <div class="task-name-container">
+                <a name="/On%20Ping%20Response%20Handlers"></a>
+                <a name="//apple_ref/swift/Section/On Ping Response Handlers" class="dashAnchor"></a>
+                <div class="section-name-container">
+                  <a class="section-name-link" href="#/On%20Ping%20Response%20Handlers"></a>
+                  <h3 class="section-name"><p>On Ping Response Handlers</p>
+</h3>
+                </div>
+              </div>
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM12SWIMProtocolP14onPingResponse8response17pingRequestOrigin0gH14SequenceNumberSayA2AO8InstanceC0dE9DirectiveOGAH0dE0O_AA08SWIMPinghI4Peer_pSgs6UInt32VSgtF"></a>
+                    <a name="//apple_ref/swift/Method/onPingResponse(response:pingRequestOrigin:pingRequestSequenceNumber:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM12SWIMProtocolP14onPingResponse8response17pingRequestOrigin0gH14SequenceNumberSayA2AO8InstanceC0dE9DirectiveOGAH0dE0O_AA08SWIMPinghI4Peer_pSgs6UInt32VSgtF">onPingResponse(response:<wbr>pingRequestOrigin:<wbr>pingRequestSequenceNumber:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">onPingResponse</span><span class="p">(</span><span class="nv">response</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/PingResponse.html">PingResponse</a></span><span class="p">,</span> <span class="nv">pingRequestOrigin</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMPingRequestOriginPeer.html">SWIMPingRequestOriginPeer</a></span><span class="p">?,</span> <span class="nv">pingRequestSequenceNumber</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM.html#/s:4SWIMAAO14SequenceNumbera">SequenceNumber</a></span><span class="p">?)</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="kt"><a href="../../Enums/SWIM/Instance/PingResponseDirective.html">PingResponseDirective</a></span><span class="p">]</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L966-L975">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC21PingResponseDirectiveO"></a>
+                    <a name="//apple_ref/swift/Enum/PingResponseDirective" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC21PingResponseDirectiveO">PingResponseDirective</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Directs a shell implementation about how to handle an incoming <code>.pingRequest</code>.</p>
+
+                        <a href="../../Enums/SWIM/Instance/PingResponseDirective.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">enum</span> <span class="kt">PingResponseDirective</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1116-L1147">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC24SendPingRequestDirectiveV"></a>
+                    <a name="//apple_ref/swift/Struct/SendPingRequestDirective" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC24SendPingRequestDirectiveV">SendPingRequestDirective</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Describes how a pingRequest should be performed.</p>
+
+<p>Only a single <code>target</code> peer is used, however it may be pinged &ldquo;through&rdquo; a few other members.
+The amount of fan-out in pingRequests is configurable by <code>swim.indirectProbeCount</code>.</p>
+
+                        <a href="../../Enums/SWIM/Instance/SendPingRequestDirective.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">struct</span> <span class="kt">SendPingRequestDirective</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1153-L1170">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <div class="task-name-container">
+                <a name="/On%20Ping%20Request"></a>
+                <a name="//apple_ref/swift/Section/On Ping Request" class="dashAnchor"></a>
+                <div class="section-name-container">
+                  <a class="section-name-link" href="#/On%20Ping%20Request"></a>
+                  <h3 class="section-name"><p>On Ping Request</p>
+</h3>
+                </div>
+              </div>
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM12SWIMProtocolP13onPingRequest6target04pingE6Origin7payload14sequenceNumberSayA2AO8InstanceC0dE9DirectiveOGAA8SWIMPeer_p_AA08SWIMPingeH4Peer_pAI13GossipPayloadOs6UInt32VtF"></a>
+                    <a name="//apple_ref/swift/Method/onPingRequest(target:pingRequestOrigin:payload:sequenceNumber:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM12SWIMProtocolP13onPingRequest6target04pingE6Origin7payload14sequenceNumberSayA2AO8InstanceC0dE9DirectiveOGAA8SWIMPeer_p_AA08SWIMPingeH4Peer_pAI13GossipPayloadOs6UInt32VtF">onPingRequest(target:<wbr>pingRequestOrigin:<wbr>payload:<wbr>sequenceNumber:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">onPingRequest</span><span class="p">(</span>
+    <span class="nv">target</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMPeer.html">SWIMPeer</a></span><span class="p">,</span>
+    <span class="nv">pingRequestOrigin</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMPingRequestOriginPeer.html">SWIMPingRequestOriginPeer</a></span><span class="p">,</span>
+    <span class="nv">payload</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/GossipPayload.html">GossipPayload</a></span><span class="p">,</span>
+    <span class="nv">sequenceNumber</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM.html#/s:4SWIMAAO14SequenceNumbera">SequenceNumber</a></span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="kt"><a href="../../Enums/SWIM/Instance/PingRequestDirective.html">PingRequestDirective</a></span><span class="p">]</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1175-L1224">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC20PingRequestDirectiveO"></a>
+                    <a name="//apple_ref/swift/Enum/PingRequestDirective" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC20PingRequestDirectiveO">PingRequestDirective</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Directs a shell implementation about how to handle an incoming <code>.pingRequest</code>.</p>
+
+                        <a href="../../Enums/SWIM/Instance/PingRequestDirective.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">enum</span> <span class="kt">PingRequestDirective</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1227-L1250">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <div class="task-name-container">
+                <a name="/On%20Ping%20Request%20Response"></a>
+                <a name="//apple_ref/swift/Section/On Ping Request Response" class="dashAnchor"></a>
+                <div class="section-name-container">
+                  <a class="section-name-link" href="#/On%20Ping%20Request%20Response"></a>
+                  <h3 class="section-name"><p>On Ping Request Response</p>
+</h3>
+                </div>
+              </div>
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC21onPingRequestResponse_6pingedSayAD0deF9DirectiveOGAB0dF0O_AA8SWIMPeer_ptF"></a>
+                    <a name="//apple_ref/swift/Method/onPingRequestResponse(_:pinged:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC21onPingRequestResponse_6pingedSayAD0deF9DirectiveOGAB0dF0O_AA8SWIMPeer_ptF">onPingRequestResponse(_:<wbr>pinged:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>This should be called on first successful (non-nack) pingRequestResponse</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">onPingRequestResponse</span><span class="p">(</span><span class="n">_</span> <span class="nv">response</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/PingResponse.html">PingResponse</a></span><span class="p">,</span> <span class="n">pinged</span> <span class="nv">pingedPeer</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMPeer.html">SWIMPeer</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="kt"><a href="../../Enums/SWIM/Instance/PingRequestResponseDirective.html">PingRequestResponseDirective</a></span><span class="p">]</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1256-L1308">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM12SWIMProtocolP26onEveryPingRequestResponse_6pingedSayA2AO8InstanceC0efG9DirectiveOGAF0eG0O_AA8SWIMPeer_ptF"></a>
+                    <a name="//apple_ref/swift/Method/onEveryPingRequestResponse(_:pinged:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM12SWIMProtocolP26onEveryPingRequestResponse_6pingedSayA2AO8InstanceC0efG9DirectiveOGAF0eG0O_AA8SWIMPeer_ptF">onEveryPingRequestResponse(_:<wbr>pinged:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">onEveryPingRequestResponse</span><span class="p">(</span><span class="n">_</span> <span class="nv">result</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/PingResponse.html">PingResponse</a></span><span class="p">,</span> <span class="n">pinged</span> <span class="nv">peer</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMPeer.html">SWIMPeer</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt">Instance</span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM/Instance/PingRequestResponseDirective.html">PingRequestResponseDirective</a></span><span class="p">]</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1310-L1321">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC28PingRequestResponseDirectiveO"></a>
+                    <a name="//apple_ref/swift/Enum/PingRequestResponseDirective" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC28PingRequestResponseDirectiveO">PingRequestResponseDirective</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Directs a shell implementation about how to handle an incoming ping request response.</p>
+
+                        <a href="../../Enums/SWIM/Instance/PingRequestResponseDirective.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">enum</span> <span class="kt">PingRequestResponseDirective</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1324-L1343">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC24GossipProcessedDirectiveO"></a>
+                    <a name="//apple_ref/swift/Enum/GossipProcessedDirective" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC24GossipProcessedDirectiveO">GossipProcessedDirective</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Indicates the gossip payload was processed and changes to the membership were made.</p>
+
+                        <a href="../../Enums/SWIM/Instance/GossipProcessedDirective.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">enum</span> <span class="kt">GossipProcessedDirective</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1488-L1506">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <div class="task-name-container">
+                <a name="/Confirm%20Dead"></a>
+                <a name="//apple_ref/swift/Section/Confirm Dead" class="dashAnchor"></a>
+                <div class="section-name-container">
+                  <a class="section-name-link" href="#/Confirm%20Dead"></a>
+                  <h3 class="section-name"><p>Confirm Dead</p>
+</h3>
+                </div>
+              </div>
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIM12SWIMProtocolP11confirmDead4peerA2AO8InstanceC07ConfirmD9DirectiveOAA8SWIMPeer_p_tF"></a>
+                    <a name="//apple_ref/swift/Method/confirmDead(peer:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIM12SWIMProtocolP11confirmDead4peerA2AO8InstanceC07ConfirmD9DirectiveOAA8SWIMPeer_p_tF">confirmDead(peer:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">confirmDead</span><span class="p">(</span><span class="nv">peer</span><span class="p">:</span> <span class="kt"><a href="../../Protocols/SWIMPeer.html">SWIMPeer</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt"><a href="../../Enums/SWIM/Instance/ConfirmDeadDirective.html">ConfirmDeadDirective</a></span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1511-L1528">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC20ConfirmDeadDirectiveO"></a>
+                    <a name="//apple_ref/swift/Enum/ConfirmDeadDirective" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC20ConfirmDeadDirectiveO">ConfirmDeadDirective</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Directs how to handle the result of a <code>confirmDead</code> call.</p>
+
+                        <a href="../../Enums/SWIM/Instance/ConfirmDeadDirective.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">enum</span> <span class="kt">ConfirmDeadDirective</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1531-L1539">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <div class="task-name-container">
+                <a name="/Handling%20SWIM%20protocol%20interactions"></a>
+                <a name="//apple_ref/swift/Section/Handling SWIM protocol interactions" class="dashAnchor"></a>
+                <div class="section-name-container">
+                  <a class="section-name-link" href="#/Handling%20SWIM%20protocol%20interactions"></a>
+                  <h3 class="section-name"><p>Handling SWIM protocol interactions</p>
+</h3>
+                </div>
+              </div>
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:s28CustomDebugStringConvertibleP16debugDescriptionSSvp"></a>
+                    <a name="//apple_ref/swift/Property/debugDescription" class="dashAnchor"></a>
+                    <a class="token" href="#/s:s28CustomDebugStringConvertibleP16debugDescriptionSSvp">debugDescription</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">debugDescription</span><span class="p">:</span> <span class="kt">String</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1543-L1564">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <div class="task-name-container">
+                <a name="/SWIM%20Lifeguard%20Local%20Health%20Modifier%20event"></a>
+                <a name="//apple_ref/swift/Section/SWIM Lifeguard Local Health Modifier event" class="dashAnchor"></a>
+                <div class="section-name-container">
+                  <a class="section-name-link" href="#/SWIM%20Lifeguard%20Local%20Health%20Modifier%20event"></a>
+                  <h3 class="section-name"><p>SWIM Lifeguard Local Health Modifier event</p>
+</h3>
+                </div>
+              </div>
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC15LHModifierEventO"></a>
+                    <a name="//apple_ref/swift/Enum/LHModifierEvent" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC15LHModifierEventO">LHModifierEvent</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Events which cause the modification of the Local health aware Multiplier to be adjusted.</p>
+
+<p>The LHM is increased (in increments of <code>1</code>) whenever an event occurs that indicates that the instance
+is not processing incoming messages in timely order.</p>
+
+<p>It is decreased and decreased (by <code>1</code>), whenever it processes a successful ping/ack cycle,
+meaning that is is healthy and properly processing incoming messages on time.</p>
+<div class="aside aside-see-also">
+    <p class="aside-title">See also</p>
+    Lifeguard IV.A. Local Health Aware Probe, which describes the rationale behind the events.
+
+</div>
+
+                        <a href="../../Enums/SWIM/Instance/LHModifierEvent.html" class="slightly-smaller">See more</a>
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">enum</span> <span class="kt">LHModifierEvent</span> <span class="p">:</span> <span class="kt">Equatable</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1580-L1603">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            <div class="task-group">
+              <div class="task-name-container">
+                <a name="/SWIM%20Logging%20Metadata"></a>
+                <a name="//apple_ref/swift/Section/SWIM Logging Metadata" class="dashAnchor"></a>
+                <div class="section-name-container">
+                  <a class="section-name-link" href="#/SWIM%20Logging%20Metadata"></a>
+                  <h3 class="section-name"><p>SWIM Logging Metadata</p>
+</h3>
+                </div>
+              </div>
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC8metadataySDySS7Logging6LoggerV13MetadataValueOGAKF"></a>
+                    <a name="//apple_ref/swift/Method/metadata(_:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC8metadataySDySS7Logging6LoggerV13MetadataValueOGAKF">metadata(_:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Allows for convenient adding of additional metadata to the <code><a href="../../Enums/SWIM/Instance.html#/s:4SWIMAAO8InstanceC8metadataSDySS7Logging6LoggerV13MetadataValueOGvp">SWIM.Instance.metadata</a></code>.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">metadata</span><span class="p">(</span><span class="n">_</span> <span class="nv">additional</span><span class="p">:</span> <span class="kt">Logger</span><span class="o">.</span><span class="kt">Metadata</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Logger</span><span class="o">.</span><span class="kt">Metadata</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1611-L1615">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO8InstanceC8metadataSDySS7Logging6LoggerV13MetadataValueOGvp"></a>
+                    <a name="//apple_ref/swift/Property/metadata" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO8InstanceC8metadataSDySS7Logging6LoggerV13MetadataValueOGvp">metadata</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>While the SWIM.Instance is not meant to be logging by itself, it does offer metadata for loggers to use.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">metadata</span><span class="p">:</span> <span class="kt">Logger</span><span class="o">.</span><span class="kt">Metadata</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/SWIMInstance.swift#L1618-L1628">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+      </article>
+    </div>
+    <section class="footer">
+      <p>&copy; 2020 <a class="link" href="https://github.com/apple/swift-cluster-membership" target="_blank" rel="external">Swift Cluster Membership Team</a>. All rights reserved. (Last updated: 2020-08-27)</p>
+      <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.13.3</a>, a <a class="link" href="https://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+    </section>
+  </body>
+</div>
+</html>

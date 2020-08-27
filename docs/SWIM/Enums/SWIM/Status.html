@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Status Enumeration Reference</title>
+    <link rel="stylesheet" type="text/css" href="../../css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/highlight.css" />
+    <meta charset="utf-8">
+    <script src="../../js/jquery.min.js" defer></script>
+    <script src="../../js/jazzy.js" defer></script>
+    
+    <script src="../../js/lunr.min.js" defer></script>
+    <script src="../../js/typeahead.jquery.js" defer></script>
+    <script src="../../js/jazzy.search.js" defer></script>
+  </head>
+  <body>
+
+    <a name="//apple_ref/swift/Enum/Status" class="dashAnchor"></a>
+
+    <a title="Status Enumeration Reference"></a>
+
+    <header class="header">
+      <p class="header-col header-col--primary">
+        <a class="header-link" href="../../index.html">
+          SWIM Docs
+        </a>
+         (96% documented)
+      </p>
+    
+      <p class="header-col--secondary">
+        <form role="search" action="../../search.json">
+          <input type="text" placeholder="Search documentation" data-typeahead>
+        </form>
+      </p>
+    
+        <p class="header-col header-col--secondary">
+          <a class="header-link" href="https://github.com/apple/swift-cluster-membership">
+            <img class="header-icon" src="../../img/gh.png"/>
+            View on GitHub
+          </a>
+        </p>
+    
+    </header>
+
+    <p class="breadcrumbs">
+      <a class="breadcrumb" href="../../index.html">SWIM Reference</a>
+      <img class="carat" src="../../img/carat.png" />
+      Status Enumeration Reference
+    </p>
+
+    <div class="content-wrapper">
+      <nav class="navigation">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../../Documentation.html">Documentation</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM.html">SWIM</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/MemberStatusChangedEvent.html">– MemberStatusChangedEvent</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/Member.html">– Member</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/PingResponse.html">– PingResponse</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/Gossip.html">– Gossip</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/GossipPayload.html">– GossipPayload</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/Instance.html">– Instance</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/Settings.html">– Settings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Enums/SWIM/Status.html">– Status</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../../Other%20Protocols.html">Other Protocols</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Protocols/SWIMAddressablePeer.html">SWIMAddressablePeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Protocols/SWIMPeer.html">SWIMPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Protocols/SWIMPingOriginPeer.html">SWIMPingOriginPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Protocols/SWIMPingRequestOriginPeer.html">SWIMPingRequestOriginPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Protocols/SWIMProtocol.html">SWIMProtocol</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../../Other%20Structs.html">Other Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Structs/SWIMGossipSettings.html">SWIMGossipSettings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Structs/SWIMLifeguardSettings.html">SWIMLifeguardSettings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../../Structs/_SWIMPrettyMetadataLogHandler.html">_SWIMPrettyMetadataLogHandler</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+
+        <section class="section">
+          <div class="section-content top-matter">
+            <h1>Status</h1>
+              <div class="declaration">
+                <div class="language">
+                  <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">enum</span> <span class="kt">Status</span> <span class="p">:</span> <span class="kt">Hashable</span></code></pre>
+<pre class="highlight swift"><code><span class="kd">extension</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt">Status</span><span class="p">:</span> <span class="kt">Comparable</span></code></pre>
+
+                </div>
+              </div>
+            <p>The SWIM membership status reflects how a node is perceived by the distributed failure detector.</p>
+<h3 id='modification-unreachable-status-opt-in' class='heading'>Modification: Unreachable status (opt-in)</h3>
+
+<p>If the unreachable status extension is enabled, it is set / when a classic SWIM implementation would have
+declared a node <code>.dead</code>, / yet since we allow for the higher level membership to decide when and how to eject
+members from a cluster, / only the <code>.unreachable</code> state is set and an <code>Cluster.ReachabilityChange</code> cluster event
+is emitted. / In response to this a high-level membership protocol MAY confirm the node as dead by issuing
+<code>Instance.confirmDead</code>, / which will promote the node to <code>.dead</code> in SWIM terms.</p>
+
+<blockquote>
+<p>The additional <code>.unreachable</code> status is only used it enabled explicitly by setting <code>settings.unreachable</code>
+to enabled. Otherwise, the implementation performs its failure checking as usual and directly marks detected
+to be failed members as <code>.dead</code>.</p>
+</blockquote>
+<h3 id='legal-transitions' class='heading'>Legal transitions:</h3>
+
+<ul>
+<li><code>alive -&gt; suspect</code></li>
+<li><code>alive -&gt; suspect</code>, with next <code><a href="../../Enums/SWIM.html#/s:4SWIMAAO11Incarnationa">SWIM.Incarnation</a></code>, e.g. during flaky network situations, we suspect and un-suspect a node depending on probing</li>
+<li><code>suspect -&gt; unreachable | alive</code>, if in SWIM terms, a node is &ldquo;most likely dead&rdquo; we declare it <code>.unreachable</code> instead, and await for high-level confirmation to mark it <code>.dead</code>.</li>
+<li><code>unreachable -&gt; alive | suspect</code>, with next <code><a href="../../Enums/SWIM.html#/s:4SWIMAAO11Incarnationa">SWIM.Incarnation</a></code> optional)</li>
+<li><p><code>alive | suspect | unreachable -&gt; dead</code></p></li>
+</ul><div class="aside aside-see-also">
+    <p class="aside-title">See also</p>
+    <p><code><a href="../../Enums/SWIM.html#/s:4SWIMAAO11Incarnationa">SWIM.Incarnation</a></code></p>
+
+</div>
+
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-content">
+            <div class="task-group">
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO6StatusO5aliveyADs6UInt64V_tcADmF"></a>
+                    <a name="//apple_ref/swift/Element/alive(incarnation:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO6StatusO5aliveyADs6UInt64V_tcADmF">alive(incarnation:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Indicates an <code>alive</code> member of the cluster, i.e. if is reachable and properly replies to all probes on time.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="k">case</span> <span class="nf">alive</span><span class="p">(</span><span class="nv">incarnation</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html#/s:4SWIMAAO11Incarnationa">Incarnation</a></span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L41">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO6StatusO7suspectyADs6UInt64V_Shy17ClusterMembership4NodeVGtcADmF"></a>
+                    <a name="//apple_ref/swift/Element/suspect(incarnation:suspectedBy:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO6StatusO7suspectyADs6UInt64V_Shy17ClusterMembership4NodeVGtcADmF">suspect(incarnation:<wbr>suspectedBy:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Indicates a <code>suspect</code> member of the cluster, meaning that it did not reply on time to probing and MAY be unreachable.
+Further probing and indirect probing will be performed to test if it really is unreachable/dead,
+or just had a small glitch (or network issues).</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="k">case</span> <span class="nf">suspect</span><span class="p">(</span><span class="nv">incarnation</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html#/s:4SWIMAAO11Incarnationa">Incarnation</a></span><span class="p">,</span> <span class="nv">suspectedBy</span><span class="p">:</span> <span class="kt">Set</span><span class="o">&lt;</span><span class="kt">Node</span><span class="o">&gt;</span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L45">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO6StatusO11unreachableyADs6UInt64V_tcADmF"></a>
+                    <a name="//apple_ref/swift/Element/unreachable(incarnation:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO6StatusO11unreachableyADs6UInt64V_tcADmF">unreachable(incarnation:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Extension from traditional SWIM states: indicates an unreachable node, under traditional SWIM it would have
+already been marked <code><a href="../../Enums/SWIM/Status.html#/s:4SWIMAAO6StatusO4deadyA2DmF">.dead</a></code>, however unreachability allows for a final extra step including a <code>swim.confirmDead()</code>
+call, to move the unreachable node to dead state.</p>
+
+<p>This only matters for multi layer membership protocols which use SWIM as their failure detection mechanism.</p>
+
+<p>This state is DISABLED BY DEFAULT, and if a node receives such unreachable status about another member while
+this setting is disabled it will immediately treat such member as <code><a href="../../Enums/SWIM/Status.html#/s:4SWIMAAO6StatusO4deadyA2DmF">.dead</a></code>. Do not run in mixed mode clusters,
+as this can yield unexpected consequences.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="k">case</span> <span class="nf">unreachable</span><span class="p">(</span><span class="nv">incarnation</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html#/s:4SWIMAAO11Incarnationa">Incarnation</a></span><span class="p">)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L55">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO6StatusO4deadyA2DmF"></a>
+                    <a name="//apple_ref/swift/Element/dead" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO6StatusO4deadyA2DmF">dead</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Indicates
+Note: In the original paper this state was referred to as &ldquo;confirm&rdquo;, which we found slightly confusing, thus the rename.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="k">case</span> <span class="n">dead</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L58">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:SL1loiySbx_xtFZ"></a>
+                    <a name="//apple_ref/swift/Method/&lt;(_:_:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:SL1loiySbx_xtFZ"><(_:<wbr>_:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">func</span> <span class="o">&lt;</span> <span class="p">(</span><span class="nv">lhs</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt">Status</span><span class="p">,</span> <span class="nv">rhs</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt">Status</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Bool</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L63-L88">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO6StatusO11incarnations6UInt64VSgvp"></a>
+                    <a name="//apple_ref/swift/Property/incarnation" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO6StatusO11incarnations6UInt64VSgvp">incarnation</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Only <code>alive</code> or <code>suspect</code> members carry an incarnation number.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">incarnation</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt"><a href="../../Enums/SWIM.html#/s:4SWIMAAO11Incarnationa">Incarnation</a></span><span class="p">?</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L93-L104">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO6StatusO7isAliveSbvp"></a>
+                    <a name="//apple_ref/swift/Property/isAlive" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO6StatusO7isAliveSbvp">isAlive</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">isAlive</span><span class="p">:</span> <span class="kt">Bool</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>true if the underlying member status is <code>.alive</code>, false otherwise.</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L107-L114">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO6StatusO9isSuspectSbvp"></a>
+                    <a name="//apple_ref/swift/Property/isSuspect" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO6StatusO9isSuspectSbvp">isSuspect</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">isSuspect</span><span class="p">:</span> <span class="kt">Bool</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>true if the underlying member status is <code>.suspect</code>, false otherwise.</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L117-L124">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO6StatusO13isUnreachableSbvp"></a>
+                    <a name="//apple_ref/swift/Property/isUnreachable" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO6StatusO13isUnreachableSbvp">isUnreachable</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">isUnreachable</span><span class="p">:</span> <span class="kt">Bool</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p>true if the underlying member status is <code>.unreachable</code>, false otherwise.</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L127-L134">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO6StatusO6isDeadSbvp"></a>
+                    <a name="//apple_ref/swift/Property/isDead" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO6StatusO6isDeadSbvp">isDead</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">var</span> <span class="nv">isDead</span><span class="p">:</span> <span class="kt">Bool</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div>
+                        <h4>Return Value</h4>
+                        <p><code>true</code> if the underlying member status is <code>.unreachable</code>, false otherwise.</p>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L137-L144">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:4SWIMAAO6StatusO10supersedesySbADF"></a>
+                    <a name="//apple_ref/swift/Method/supersedes(_:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:4SWIMAAO6StatusO10supersedesySbADF">supersedes(_:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">func</span> <span class="nf">supersedes</span><span class="p">(</span><span class="n">_</span> <span class="nv">other</span><span class="p">:</span> <span class="kt"><a href="../../Enums/SWIM.html">SWIM</a></span><span class="o">.</span><span class="kt">Status</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Bool</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIM/Status.swift#L148-L150">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+      </article>
+    </div>
+    <section class="footer">
+      <p>&copy; 2020 <a class="link" href="https://github.com/apple/swift-cluster-membership" target="_blank" rel="external">Swift Cluster Membership Team</a>. All rights reserved. (Last updated: 2020-08-27)</p>
+      <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.13.3</a>, a <a class="link" href="https://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+    </section>
+  </body>
+</div>
+</html>

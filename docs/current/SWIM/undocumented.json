@@ -1,0 +1,54 @@
+{
+  "warnings": [
+    {
+      "file": "/code/Sources/SWIM/Member.swift",
+      "line": 40,
+      "symbol": "SWIM.Member.protocolPeriod",
+      "symbol_kind": "source.lang.swift.decl.var.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIM/SWIMInstance.swift",
+      "line": 1329,
+      "symbol": "SWIM.Instance.PingRequestResponseDirective.alive(previousStatus:)",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIM/SWIMInstance.swift",
+      "line": 1330,
+      "symbol": "SWIM.Instance.PingRequestResponseDirective.nackReceived",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIM/SWIMInstance.swift",
+      "line": 1336,
+      "symbol": "SWIM.Instance.PingRequestResponseDirective.newlySuspect(previousStatus:suspect:)",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIM/SWIMInstance.swift",
+      "line": 1337,
+      "symbol": "SWIM.Instance.PingRequestResponseDirective.alreadySuspect",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIM/SWIMInstance.swift",
+      "line": 1338,
+      "symbol": "SWIM.Instance.PingRequestResponseDirective.alreadyUnreachable",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIM/SWIMInstance.swift",
+      "line": 1339,
+      "symbol": "SWIM.Instance.PingRequestResponseDirective.alreadyDead",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    }
+  ],
+  "source_directory": "/code"
+}

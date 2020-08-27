@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>SWIM  Reference</title>
+    <link rel="stylesheet" type="text/css" href="css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="css/highlight.css" />
+    <meta charset="utf-8">
+    <script src="js/jquery.min.js" defer></script>
+    <script src="js/jazzy.js" defer></script>
+    
+    <script src="js/lunr.min.js" defer></script>
+    <script src="js/typeahead.jquery.js" defer></script>
+    <script src="js/jazzy.search.js" defer></script>
+  </head>
+  <body>
+
+
+    <a title="SWIM  Reference"></a>
+
+    <header class="header">
+      <p class="header-col header-col--primary">
+        <a class="header-link" href="index.html">
+          SWIM Docs
+        </a>
+         (96% documented)
+      </p>
+    
+      <p class="header-col--secondary">
+        <form role="search" action="search.json">
+          <input type="text" placeholder="Search documentation" data-typeahead>
+        </form>
+      </p>
+    
+        <p class="header-col header-col--secondary">
+          <a class="header-link" href="https://github.com/apple/swift-cluster-membership">
+            <img class="header-icon" src="img/gh.png"/>
+            View on GitHub
+          </a>
+        </p>
+    
+    </header>
+
+    <p class="breadcrumbs">
+      <a class="breadcrumb" href="index.html">SWIM Reference</a>
+      <img class="carat" src="img/carat.png" />
+      SWIM  Reference
+    </p>
+
+    <div class="content-wrapper">
+      <nav class="navigation">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="Documentation.html">Documentation</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Enums/SWIM.html">SWIM</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Enums/SWIM/MemberStatusChangedEvent.html">– MemberStatusChangedEvent</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Enums/SWIM/Member.html">– Member</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Enums/SWIM/PingResponse.html">– PingResponse</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Enums/SWIM/Gossip.html">– Gossip</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Enums/SWIM/GossipPayload.html">– GossipPayload</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Enums/SWIM/Instance.html">– Instance</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Enums/SWIM/Settings.html">– Settings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Enums/SWIM/Status.html">– Status</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="Other%20Protocols.html">Other Protocols</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Protocols/SWIMAddressablePeer.html">SWIMAddressablePeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Protocols/SWIMPeer.html">SWIMPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Protocols/SWIMPingOriginPeer.html">SWIMPingOriginPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Protocols/SWIMPingRequestOriginPeer.html">SWIMPingRequestOriginPeer</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Protocols/SWIMProtocol.html">SWIMProtocol</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="Other%20Structs.html">Other Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Structs/SWIMGossipSettings.html">SWIMGossipSettings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Structs/SWIMLifeguardSettings.html">SWIMLifeguardSettings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="Structs/_SWIMPrettyMetadataLogHandler.html">_SWIMPrettyMetadataLogHandler</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+
+        <section class="section">
+          <div class="section-content top-matter">
+            
+            <h1 id='swim-cluster-membership-api-documentation' class='heading'>SWIM Cluster Membership API Documentation</h1>
+
+<p>Welcome to the API documentation of Swift Cluster Membership&rsquo;s SWIM implementation!</p>
+<h3 id='general-overview' class='heading'>General overview</h3>
+
+<p>Please refer to <a href="SWIM/Enums/SWIM.html"><code><a href="Enums/SWIM.html">SWIM</a></code></a> documentation for a general discussion and overview of the algorithm.</p>
+<h3 id='custom-transport-implementations' class='heading'>Custom transport implementations</h3>
+
+<p>When considering custom shell implementations, types of most interest are:</p>
+
+<ul>
+<li><a href="Protocols/SWIMProtocol.html">SWIMProtocol</a> which documents the callbacks which are needed to be invoked to drive the algorithm encapsulated in SWIM.Instance,</li>
+<li>and the peer protocols <a href="Protocols/SWIMPeer.html">SWIMPeer</a>, <a href="Protocols/SWIMPingOriginPeer.html">SWIMPingOriginPeer</a>, <a href="Protocols/SWIMPingRequestOriginPeer.html">SWIMPingRequestOriginPeer</a> which represent the various roles a peer plays in the protocol.</li>
+</ul>
+<h3 id='reusing-existing-implementations' class='heading'>Reusing existing implementations</h3>
+
+<p>For reusing existing implementations please refer to their documentation pages, listed below:</p>
+<h2 id='modules' class='heading'>Modules</h2>
+
+<p>Other modules</p>
+
+<!-- module links inserted here by generate_docs_api.sh -->
+
+<ul>
+<li><a href="../SWIM/index.html">SWIM</a></li>
+<li><a href="../SWIMNIOExample/index.html">SWIMNIOExample</a></li>
+</ul>
+
+          </div>
+        </section>
+
+
+      </article>
+    </div>
+    <section class="footer">
+      <p>&copy; 2020 <a class="link" href="https://github.com/apple/swift-cluster-membership" target="_blank" rel="external">Swift Cluster Membership Team</a>. All rights reserved. (Last updated: 2020-08-27)</p>
+      <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.13.3</a>, a <a class="link" href="https://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+    </section>
+  </body>
+</div>
+</html>

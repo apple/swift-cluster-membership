@@ -1,0 +1,320 @@
+{
+  "warnings": [
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 26,
+      "symbol": "SWIM.Message.DiscriminatorKeys",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 27,
+      "symbol": "SWIM.Message.DiscriminatorKeys.ping",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 28,
+      "symbol": "SWIM.Message.DiscriminatorKeys.pingRequest",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 29,
+      "symbol": "SWIM.Message.DiscriminatorKeys.response_ack",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 30,
+      "symbol": "SWIM.Message.DiscriminatorKeys.response_nack",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 33,
+      "symbol": "SWIM.Message.CodingKeys",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 34,
+      "symbol": "SWIM.Message.CodingKeys._case",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 35,
+      "symbol": "SWIM.Message.CodingKeys.replyTo",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 36,
+      "symbol": "SWIM.Message.CodingKeys.payload",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 37,
+      "symbol": "SWIM.Message.CodingKeys.sequenceNumber",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 38,
+      "symbol": "SWIM.Message.CodingKeys.incarnation",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 39,
+      "symbol": "SWIM.Message.CodingKeys.target",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 129,
+      "symbol": "SWIM.Member.CodingKeys",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 130,
+      "symbol": "SWIM.Member.CodingKeys.node",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 131,
+      "symbol": "SWIM.Member.CodingKeys.status",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 132,
+      "symbol": "SWIM.Member.CodingKeys.protocolPeriod",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 258,
+      "symbol": "SWIM.Status.DiscriminatorKeys",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 259,
+      "symbol": "SWIM.Status.DiscriminatorKeys.alive",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 260,
+      "symbol": "SWIM.Status.DiscriminatorKeys.suspect",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 261,
+      "symbol": "SWIM.Status.DiscriminatorKeys.unreachable",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 262,
+      "symbol": "SWIM.Status.DiscriminatorKeys.dead",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 265,
+      "symbol": "SWIM.Status.CodingKeys",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 266,
+      "symbol": "SWIM.Status.CodingKeys._status",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 267,
+      "symbol": "SWIM.Status.CodingKeys.incarnation",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 268,
+      "symbol": "SWIM.Status.CodingKeys.suspectedBy",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 317,
+      "symbol": "SWIMSerializationError.notSerializable(_:)",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 318,
+      "symbol": "SWIMSerializationError.missingField(_:type:)",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 319,
+      "symbol": "SWIMSerializationError.missingData(_:)",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 320,
+      "symbol": "SWIMSerializationError.unknownEnumValue(_:)",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Coding.swift",
+      "line": 321,
+      "symbol": "SWIMSerializationError.__nonExhaustiveAlwaysIncludeADefaultCaseWhenSwitchingOverTheseErrorsPlease",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Message.swift",
+      "line": 21,
+      "symbol": "SWIM.Message",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Message.swift",
+      "line": 22,
+      "symbol": "SWIM.Message.ping(replyTo:payload:sequenceNumber:)",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Message.swift",
+      "line": 25,
+      "symbol": "SWIM.Message",
+      "symbol_kind": "source.lang.swift.decl.extension",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Message.swift",
+      "line": 27,
+      "symbol": "SWIM.Message.response(_:)",
+      "symbol_kind": "source.lang.swift.decl.enumelement",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Message.swift",
+      "line": 71,
+      "symbol": "SWIM.LocalMessage",
+      "symbol_kind": "source.lang.swift.decl.enum",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/NIOPeer.swift",
+      "line": 29,
+      "symbol": "SWIM.NIOPeer.init(node:channel:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/NIOPeer.swift",
+      "line": 132,
+      "symbol": "SWIMNIOTimeoutError",
+      "symbol_kind": "source.lang.swift.decl.struct",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/SWIMNIOHandler.swift",
+      "line": 43,
+      "symbol": "SWIMNIOHandler.init(settings:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/SWIMNIOShell.swift",
+      "line": 39,
+      "symbol": "SWIMNIOShell.peer",
+      "symbol_kind": "source.lang.swift.decl.var.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/SWIMNIOShell.swift",
+      "line": 45,
+      "symbol": "SWIMNIOShell.node",
+      "symbol_kind": "source.lang.swift.decl.var.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/SWIMNIOShell.swift",
+      "line": 120,
+      "symbol": "SWIMNIOShell.receiveMessage(message:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Settings.swift",
+      "line": 29,
+      "symbol": "SWIMNIO.Settings.init()",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Settings.swift",
+      "line": 33,
+      "symbol": "SWIMNIO.Settings.init(swim:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Utils/time.swift",
+      "line": 34,
+      "symbol": "PrettyTimeAmountDescription.prettyDescription",
+      "symbol_kind": "source.lang.swift.decl.var.instance",
+      "warning": "undocumented"
+    },
+    {
+      "file": "/code/Sources/SWIMNIOExample/Utils/time.swift",
+      "line": 38,
+      "symbol": "PrettyTimeAmountDescription.prettyDescription(precision:)",
+      "symbol_kind": "source.lang.swift.decl.function.method.instance",
+      "warning": "undocumented"
+    }
+  ],
+  "source_directory": "/code"
+}

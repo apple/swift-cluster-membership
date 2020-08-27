@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>SWIMNIOWriteCommand Structure Reference</title>
+    <link rel="stylesheet" type="text/css" href="../css/jazzy.css" />
+    <link rel="stylesheet" type="text/css" href="../css/highlight.css" />
+    <meta charset="utf-8">
+    <script src="../js/jquery.min.js" defer></script>
+    <script src="../js/jazzy.js" defer></script>
+    
+    <script src="../js/lunr.min.js" defer></script>
+    <script src="../js/typeahead.jquery.js" defer></script>
+    <script src="../js/jazzy.search.js" defer></script>
+  </head>
+  <body>
+
+    <a name="//apple_ref/swift/Struct/SWIMNIOWriteCommand" class="dashAnchor"></a>
+
+    <a title="SWIMNIOWriteCommand Structure Reference"></a>
+
+    <header class="header">
+      <p class="header-col header-col--primary">
+        <a class="header-link" href="../index.html">
+          SWIMNIOExample Docs
+        </a>
+         (59% documented)
+      </p>
+    
+      <p class="header-col--secondary">
+        <form role="search" action="../search.json">
+          <input type="text" placeholder="Search documentation" data-typeahead>
+        </form>
+      </p>
+    
+        <p class="header-col header-col--secondary">
+          <a class="header-link" href="https://github.com/apple/swift-cluster-membership">
+            <img class="header-icon" src="../img/gh.png"/>
+            View on GitHub
+          </a>
+        </p>
+    
+    </header>
+
+    <p class="breadcrumbs">
+      <a class="breadcrumb" href="../index.html">SWIMNIOExample Reference</a>
+      <img class="carat" src="../img/carat.png" />
+      SWIMNIOWriteCommand Structure Reference
+    </p>
+
+    <div class="content-wrapper">
+      <nav class="navigation">
+        <ul class="nav-groups">
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../Classes.html">Classes</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Classes/SWIMNIOHandler.html">SWIMNIOHandler</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Classes/SWIMNIOShell.html">SWIMNIOShell</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../Enums.html">Enumerations</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/MemberReachability.html">MemberReachability</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIMNIO.html">SWIMNIO</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIMNIO/Settings.html">– Settings</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Enums/SWIMSerializationError.html">SWIMSerializationError</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../Extensions.html">Extensions</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Extensions/ClusterMembership.html">ClusterMembership</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Extensions/ClusterMembership/Node.html">– Node</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Extensions.html#/NIO">NIO</a>
+              </li>
+            </ul>
+          </li>
+          <li class="nav-group-name">
+            <a class="nav-group-name-link" href="../Structs.html">Structures</a>
+            <ul class="nav-group-tasks">
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Structs/SWIMNIOTimeoutError.html">SWIMNIOTimeoutError</a>
+              </li>
+              <li class="nav-group-task">
+                <a class="nav-group-task-link" href="../Structs/SWIMNIOWriteCommand.html">SWIMNIOWriteCommand</a>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+      <article class="main-content">
+
+        <section class="section">
+          <div class="section-content top-matter">
+            <h1>SWIMNIOWriteCommand</h1>
+              <div class="declaration">
+                <div class="language">
+                  <pre class="highlight swift"><code><span class="kd">public</span> <span class="kd">struct</span> <span class="kt">SWIMNIOWriteCommand</span></code></pre>
+
+                </div>
+              </div>
+            <p>Used to a command to the channel pipeline to write the message,
+and install a reply handler for the specific sequence number associated with the message (along with a timeout)
+when a callback is provided.</p>
+
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-content">
+            <div class="task-group">
+              <ul class="item-container">
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:14SWIMNIOExample19SWIMNIOWriteCommandV7message4SWIMAEOAAE7MessageOvp"></a>
+                    <a name="//apple_ref/swift/Property/message" class="dashAnchor"></a>
+                    <a class="token" href="#/s:14SWIMNIOExample19SWIMNIOWriteCommandV7message4SWIMAEOAAE7MessageOvp">message</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>SWIM message to be written.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">let</span> <span class="nv">message</span><span class="p">:</span> <span class="kt">SWIM</span><span class="o">.</span><span class="kt">Message</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIMNIOExample/SWIMNIOHandler.swift#L228">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:14SWIMNIOExample19SWIMNIOWriteCommandV9recipient3NIO13SocketAddressOvp"></a>
+                    <a name="//apple_ref/swift/Property/recipient" class="dashAnchor"></a>
+                    <a class="token" href="#/s:14SWIMNIOExample19SWIMNIOWriteCommandV9recipient3NIO13SocketAddressOvp">recipient</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Address of recipient peer where the message should be written to.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">let</span> <span class="nv">recipient</span><span class="p">:</span> <span class="kt">SocketAddress</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIMNIOExample/SWIMNIOHandler.swift#L230">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:14SWIMNIOExample19SWIMNIOWriteCommandV12replyTimeout3NIO10TimeAmountVvp"></a>
+                    <a name="//apple_ref/swift/Property/replyTimeout" class="dashAnchor"></a>
+                    <a class="token" href="#/s:14SWIMNIOExample19SWIMNIOWriteCommandV12replyTimeout3NIO10TimeAmountVvp">replyTimeout</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>If the <code><a href="../Structs/SWIMNIOWriteCommand.html#/s:14SWIMNIOExample19SWIMNIOWriteCommandV13replyCallbackys6ResultOy4SWIMAGOAAE7MessageOs5Error_pGcSgvp">replyCallback</a></code> is set, what timeout should be set for a reply to come back from the peer.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">let</span> <span class="nv">replyTimeout</span><span class="p">:</span> <span class="kt">NIO</span><span class="o">.</span><span class="kt">TimeAmount</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIMNIOExample/SWIMNIOHandler.swift#L233">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:14SWIMNIOExample19SWIMNIOWriteCommandV13replyCallbackys6ResultOy4SWIMAGOAAE7MessageOs5Error_pGcSgvp"></a>
+                    <a name="//apple_ref/swift/Property/replyCallback" class="dashAnchor"></a>
+                    <a class="token" href="#/s:14SWIMNIOExample19SWIMNIOWriteCommandV13replyCallbackys6ResultOy4SWIMAGOAAE7MessageOs5Error_pGcSgvp">replyCallback</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Callback to be invoked (calling into the SWIMNIOShell) when a reply to this message arrives.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="k">let</span> <span class="nv">replyCallback</span><span class="p">:</span> <span class="p">((</span><span class="kt">Result</span><span class="o">&lt;</span><span class="kt">SWIM</span><span class="o">.</span><span class="kt">Message</span><span class="p">,</span> <span class="kt">Error</span><span class="o">&gt;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Void</span><span class="p">)?</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIMNIOExample/SWIMNIOHandler.swift#L235">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+                <li class="item">
+                  <div>
+                    <code>
+                    <a name="/s:14SWIMNIOExample19SWIMNIOWriteCommandV7message2to12replyTimeout0F8CallbackAC4SWIMAHOAAE7MessageO_17ClusterMembership4NodeV3NIO10TimeAmountVys6ResultOyAKs5Error_pGcSgtcfc"></a>
+                    <a name="//apple_ref/swift/Method/init(message:to:replyTimeout:replyCallback:)" class="dashAnchor"></a>
+                    <a class="token" href="#/s:14SWIMNIOExample19SWIMNIOWriteCommandV7message2to12replyTimeout0F8CallbackAC4SWIMAHOAAE7MessageO_17ClusterMembership4NodeV3NIO10TimeAmountVys6ResultOyAKs5Error_pGcSgtcfc">init(message:<wbr>to:<wbr>replyTimeout:<wbr>replyCallback:<wbr>)</a>
+                    </code>
+                  </div>
+                  <div class="height-container">
+                    <div class="pointer-container"></div>
+                    <section class="section">
+                      <div class="pointer"></div>
+                      <div class="abstract">
+                        <p>Create a write command.</p>
+
+                      </div>
+                      <div class="declaration">
+                        <h4>Declaration</h4>
+                        <div class="language">
+                          <p class="aside-title">Swift</p>
+                          <pre class="highlight swift"><code><span class="kd">public</span> <span class="nf">init</span><span class="p">(</span><span class="nv">message</span><span class="p">:</span> <span class="kt">SWIM</span><span class="o">.</span><span class="kt">Message</span><span class="p">,</span> <span class="n">to</span> <span class="nv">recipient</span><span class="p">:</span> <span class="kt">Node</span><span class="p">,</span> <span class="nv">replyTimeout</span><span class="p">:</span> <span class="kt">TimeAmount</span><span class="p">,</span> <span class="nv">replyCallback</span><span class="p">:</span> <span class="p">((</span><span class="kt">Result</span><span class="o">&lt;</span><span class="kt">SWIM</span><span class="o">.</span><span class="kt">Message</span><span class="p">,</span> <span class="kt">Error</span><span class="o">&gt;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Void</span><span class="p">)?)</span></code></pre>
+
+                        </div>
+                      </div>
+                      <div class="slightly-smaller">
+                        <a href="https://github.com/apple/swift-cluster-membership/blob/0.0.0/Sources/SWIMNIOExample/SWIMNIOHandler.swift#L238-L243">Show on GitHub</a>
+                      </div>
+                    </section>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+      </article>
+    </div>
+    <section class="footer">
+      <p>&copy; 2020 <a class="link" href="https://github.com/apple/swift-cluster-membership" target="_blank" rel="external">Swift Cluster Membership Team</a>. All rights reserved. (Last updated: 2020-08-27)</p>
+      <p>Generated by <a class="link" href="https://github.com/realm/jazzy" target="_blank" rel="external">jazzy ♪♫ v0.13.3</a>, a <a class="link" href="https://realm.io" target="_blank" rel="external">Realm</a> project.</p>
+    </section>
+  </body>
+</div>
+</html>
