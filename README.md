@@ -14,7 +14,7 @@ There are various trade-offs one can take while implementing a membership protoc
 
 Today, along with the initial release of this package, we’re open sourcing an implementation of one such membership protocol:
 
-## 🏊‍♀️🏊‍♂️🐟 SWIMming with Swift
+## 🏊🏾‍♀️🏊🏻‍♀️🏊🏾‍♂️🏊🏼‍♂️ SWIMming with Swift
 
 The first membership protocol we are open sourcing is an implementation of the [*Scalable Weakly-consistent Infection-style process group Membership*](https://research.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf) algorithm (also known as "SWIM"), along with a few notable protocol extensions as documented in the 2018 [*Lifeguard: Local Health Awareness for More Accurate Failure Detection*](https://arxiv.org/abs/1707.00788) paper.
 
