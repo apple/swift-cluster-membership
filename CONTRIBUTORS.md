@@ -14,5 +14,4 @@ needs to be listed here.
 - Konrad `ktoso` Malawski <ktoso@apple.com> <konrad_malawski@apple.com>
 - Dario Rexin <drexin@apple.com>
 - Anton Volokhov <avolokhov@apple.com>
-- Tom Doron <volokhov@apple.com>
-- Johannes Weiss <johannesweiss@apple.com>
+- Tom Doron <tomer@apple.com>
