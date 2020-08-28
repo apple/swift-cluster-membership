@@ -16,7 +16,7 @@ There are various trade-offs one can take while implementing a membership protoc
 
 ### High-level Protocol Description
 
-> For a more in-depth discussion of the protocol and modifications in this implementation we suggest reading the API Documentation, as well as the associated papers. (todo link)
+> For a more in-depth discussion of the protocol and modifications in this implementation we suggest reading the [SWIM API Documentation](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/Enums/SWIM.html), as well as the associated papers linked below.
 
 The [*Scalable Weakly-consistent Infection-style process group Membership*](https://research.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf) algorithm (also known as "SWIM"), along with a few notable protocol extensions as documented in the 2018 [*Lifeguard: Local Health Awareness for More Accurate Failure Detection*](https://arxiv.org/abs/1707.00788) paper.
 
@@ -24,7 +24,7 @@ SWIM is a [gossip protocol](https://en.wikipedia.org/wiki/Gossip_protocol) in wh
 
 At a high level, SWIM works like this: 
 
-* A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a .ping message to that peer, expecting an `.ack` to be sent back. See how `A` probes `B` initially in the diagram below.
+* A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a .ping message to that peer, expecting an [`.ack`](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/Protocols/SWIMPingOriginPeer.html#/s:4SWIM18SWIMPingOriginPeerP3ack13acknowledging6target11incarnation7payloadys6UInt32V_AA8SWIMPeer_ps6UInt64VA2AO13GossipPayloadOtF) to be sent back. See how `A` probes `B` initially in the diagram below.
     * The exchanged messages also carry a gossip `payload`, which is (partial) information about what other peers the sender of the message is aware of, along with their membership status (`.alive`, `.suspect`, etc.)
 * If it receives an `.ack`, the peer is considered still `.alive`. Otherwise, the target peer might have terminated/crashed or is unresponsive for other reasons. 
     * In order to double check if the peer really is dead, the origin asks a few other peers about the state of the unresponsive peer by sending `.pingRequest` messages to a configured number of other peers, which then issue direct pings to that peer (probing peer E in the diagram below).
@@ -136,7 +136,7 @@ self.swim.onPingRequest(
 
 In general this allows for all the tricky "what to do when" to be encapsulated within the protocol instance, and a Shell only has to follow instructions implementing them. The actual implementations will often need to perform some more involved concurrency and networking thasks, like awaiting for a sequence of responses, and handling them in a specific way etc, however the general outline of the protocol is orchestrated by the instance's directives.
 
-For detailed documentation about each of the callbacks, when to invoke them, and how all this fits together, please refer to the **API Documentation** (todo: link).
+For detailed documentation about each of the callbacks, when to invoke them, and how all this fits together, please refer to the [**API Documentation**](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/index.html).
 
 ### Example: SWIMming with Swift NIO
 
