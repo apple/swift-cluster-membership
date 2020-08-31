@@ -54,7 +54,7 @@ public protocol SWIMPingRequestOriginPeer: SWIMPingOriginPeer {
     ///   - sequenceNumber: the sequence number of the incoming `pingRequest` that this nack is a response to
     ///   - target: the target peer which was attempted to be pinged but we didn't get an ack from it yet and are sending a nack back eagerly
     func nack(
-        acknowledging: SWIM.SequenceNumber,
+        acknowledging sequenceNumber: SWIM.SequenceNumber,
         target: SWIMPeer
     )
 }
