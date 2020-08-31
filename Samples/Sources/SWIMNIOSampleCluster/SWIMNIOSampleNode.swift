@@ -35,7 +35,7 @@ struct SampleSWIMNIONode {
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in
                 return channel.pipeline
-                    .addHandler(SWIMNIOHandler(settings: settings)).flatMap {
+                    .addHandler(SWIMNIOHandler(settings: self.settings)).flatMap {
                         channel.pipeline.addHandler(SWIMNIOSampleHandler())
                     }
             }
@@ -56,7 +56,7 @@ struct SampleSWIMNIONode {
 
 final class SWIMNIOSampleHandler: ChannelInboundHandler {
     public typealias InboundIn = SWIM.MemberStatusChangedEvent
-    
+
     let log = Logger(label: "SWIMNIOSample")
 
     public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
