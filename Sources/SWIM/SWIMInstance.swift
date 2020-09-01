@@ -1310,7 +1310,6 @@ extension SWIM.Instance {
     public func onEveryPingRequestResponse(_ result: SWIM.PingResponse, pinged peer: SWIMPeer) -> [SWIM.Instance.PingRequestResponseDirective] {
         switch result {
         case .timeout:
-            print("MISSED NACK")
             // Failed pingRequestResponse indicates a missed nack, we should adjust LHMultiplier
             self.adjustLHMultiplier(.probeWithMissedNack)
         default:
