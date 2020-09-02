@@ -164,7 +164,7 @@ public final class SWIMNIOShell {
             }
         }
 
-        self.log.debug("Received ping@\(sequenceNumber)", metadata: self.swim.metadata([
+        self.log.trace("Received ping@\(sequenceNumber)", metadata: self.swim.metadata([
             "swim/ping/pingOrigin": "\(pingOrigin.node)",
             "swim/ping/payload": "\(payload)",
             "swim/ping/seqNr": "\(sequenceNumber)",
@@ -238,7 +238,7 @@ public final class SWIMNIOShell {
             }
         }
 
-        self.log.debug("Receive ping response: \(response)", metadata: self.swim.metadata([
+        self.log.trace("Receive ping response: \(response)", metadata: self.swim.metadata([
             "swim/pingRequest/origin": "\(pingRequestOriginPeer, orElse: "nil")",
             "swim/pingRequest/sequenceNumber": "\(pingRequestSequenceNumber, orElse: "nil")",
             "swim/response": "\(response)",
@@ -341,7 +341,7 @@ public final class SWIMNIOShell {
         timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber
     ) {
-        self.log.error("Sending ping", metadata: self.swim.metadata([
+        self.log.trace("Sending ping", metadata: self.swim.metadata([
             "swim/target": "\(target)",
             "swim/gossip/payload": "\(payload)",
             "swim/timeout": "\(timeout)",
