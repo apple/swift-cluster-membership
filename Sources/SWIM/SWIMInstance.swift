@@ -271,6 +271,9 @@ extension SWIM {
             self._membersToPingIndex
         }
 
+        /// Tombstones are needed to avoid accidentally re-adding a member that we confirmed as dead already.
+        internal var removedDeadMemberTombstones: Set<MemberTombstone> = []
+
         private var _sequenceNumber: SWIM.SequenceNumber = 0
         /// Sequence numbers are used to identify messages and pair them up into request/replies.
         /// - SeeAlso: `SWIM.SequenceNumber`
@@ -392,10 +395,16 @@ extension SWIM {
 
         /// Take care about peers with UID and without (!), some shells may not be quite good about this.
         internal func addMember(_ peer: SWIMPeer, status: SWIM.Status) -> [AddMemberDirective] {
-            let maybeExistingMember = self.member(for: peer)
-
             var directives: [AddMemberDirective] = []
 
+            if self.hasTombstone(peer.node) {
+                // We saw this member already and even confirmed it dead, it shall never be added again
+                self.log.debug("Attempt to re-add already confirmed dead peer \(peer), ignoring it.")
+                directives.append(.memberAlreadyKnownDead(Member(peer: peer, status: .dead, protocolPeriod: 0)))
+                return directives
+            }
+
+            let maybeExistingMember = self.member(for: peer)
             if let existingMember = maybeExistingMember, existingMember.status.supersedes(status) {
                 // we already have a newer state for this member
                 directives.append(.newerMemberAlreadyPresent(existingMember))
@@ -429,7 +438,7 @@ extension SWIM {
             let member = SWIM.Member(peer: peer, status: status, protocolPeriod: self.protocolPeriod)
             self._members[member.node] = member
 
-            if self.notMyself(member) && !member.isDead {
+            if self.notMyself(member), !member.isDead {
                 // We know this is a new member.
                 //
                 // Newly added members are inserted at a random spot in the list of members
@@ -470,6 +479,12 @@ extension SWIM {
             /// We already have information about this exact `Member`, and our information is more recent (higher incarnation number).
             /// The incoming information was discarded and the returned here member is the most up to date information we have.
             case newerMemberAlreadyPresent(SWIM.Member)
+            /// Member already was part of the cluster, became dead and we removed it.
+            /// It shall never be part of the cluster again.
+            ///
+            /// This is only enforced by tombstones which are kept in the system for a period of time,
+            /// in the hope that all other nodes stop gossiping about this known dead member until then as well.
+            case memberAlreadyKnownDead(SWIM.Member)
         }
 
         /// Implements the round-robin yet shuffled member to probe selection as proposed in the SWIM paper.
@@ -534,7 +549,7 @@ extension SWIM {
             } else if case .suspect = status {
                 suspicionStartedAt = self.now()
             } else if case .unreachable = status,
-                case .disabled = self.settings.unreachability {
+                case SWIM.Settings.UnreachabilitySettings.disabled = self.settings.unreachability {
                 self.log.warning("Attempted to mark \(peer.node) as `.unreachable`, but unreachability is disabled! Promoting to `.dead`!")
                 status = .dead
             }
@@ -550,6 +565,11 @@ extension SWIM {
             if status.isDead {
                 self._members.removeValue(forKey: peer.node)
                 self.removeFromMembersToPing(member)
+                if let uid = member.node.uid {
+                    let deadline = self.protocolPeriod + self.settings.tombstoneTimeToLiveInTicks
+                    let tombstone = MemberTombstone(uid: uid, deadlineProtocolPeriod: deadline)
+                    self.removedDeadMemberTombstones.insert(tombstone)
+                }
             }
 
             self.resetGossipPayloads(member: member)
@@ -743,7 +763,7 @@ extension SWIM.Instance {
     }
 
     func notMyself(_ peer: SWIMAddressablePeer) -> Bool {
-        !self.isMyself(peer)
+        !self.isMyself(peer.node)
     }
 
     func isMyself(_ member: SWIM.Member) -> Bool {
@@ -887,6 +907,12 @@ extension SWIM.Instance {
                     timeout: self.dynamicLHMPingTimeout, sequenceNumber: self.nextSequenceNumber()
                 )
             )
+        }
+
+        // 3) periodic cleanup of tombstones
+        // TODO: could be optimized a bit to keep the "oldest one" and know if we have to scan already or not yet" etc
+        if self.protocolPeriod % UInt64(self.settings.tombstoneCleanupIntervalInTicks) == 0 {
+            cleanupTombstones()
         }
 
         // 3) ALWAYS schedule the next tick
@@ -1495,12 +1521,14 @@ extension SWIM.Instance {
 
             // the Shell may need to set up a connection if we just made a move from previousStatus: nil,
             // so we definitely need to emit this change
-            return self.addMember(member.peer, status: member.status).map { directive in
+            return self.addMember(member.peer, status: member.status).compactMap { directive in
                 switch directive {
                 case .added(let member):
                     return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
                 case .previousHostPortMemberConfirmedDead(let change):
                     return .applied(change: change)
+                case .memberAlreadyKnownDead:
+                    return nil
                 case .newerMemberAlreadyPresent(let member):
                     return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
                 }
@@ -1570,6 +1598,39 @@ extension SWIM.Instance {
 
         /// The confirmation had not effect, either the peer was not known, or is already dead.
         case ignored
+    }
+
+    /// Returns if this node is known to have already been marked dead at some point.
+    func hasTombstone(_ node: Node) -> Bool {
+        guard let uid = node.uid else {
+            return false
+        }
+
+        let anythingAsNotTakenIntoAccountInEquality: UInt64 = 0
+        return self.removedDeadMemberTombstones.contains(.init(uid: uid, deadlineProtocolPeriod: anythingAsNotTakenIntoAccountInEquality))
+    }
+
+    private func cleanupTombstones() { // time to cleanup the tombstones
+        self.removedDeadMemberTombstones = self.removedDeadMemberTombstones.filter {
+            // keep the ones where their deadline is still in the future
+            self.protocolPeriod < $0.deadlineProtocolPeriod
+        }
+    }
+
+    /// Used to store known "confirmed dead" member unique identifiers.
+    struct MemberTombstone: Hashable {
+        /// UID of the dead member
+        let uid: UInt64
+        /// After how many protocol periods ("ticks") should this tombstone be cleaned up
+        let deadlineProtocolPeriod: UInt64
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(self.uid)
+        }
+
+        static func == (lhs: MemberTombstone, rhs: MemberTombstone) -> Bool {
+            lhs.uid == rhs.uid
+        }
     }
 }
 
