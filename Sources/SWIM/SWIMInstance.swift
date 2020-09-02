@@ -390,21 +390,45 @@ extension SWIM {
         )
 
         /// Take care about peers with UID and without (!), some shells may not be quite good about this.
-        internal func addMember(_ peer: SWIMPeer, status: SWIM.Status) -> AddMemberDirective {
+        internal func addMember(_ peer: SWIMPeer, status: SWIM.Status) -> [AddMemberDirective] {
             let maybeExistingMember = self.member(for: peer)
+
+            var directives: [AddMemberDirective] = []
 
             if let existingMember = maybeExistingMember, existingMember.status.supersedes(status) {
                 // we already have a newer state for this member
-                return .newerMemberAlreadyPresent(existingMember)
+                directives.append(.newerMemberAlreadyPresent(existingMember))
+                return directives
+            }
+
+            /// if we're adding a node, it may be a reason to declare the previous "incarnation" as dead
+            // TODO: could solve by another dictionary without the UIDs?
+            if let withoutUIDMatchMember = self._members.first(where: { $0.value.node.withoutUID == peer.node.withoutUID })?.value,
+                peer.node.uid != nil, // the incoming node has UID, so it definitely is a real peer
+                peer.node.uid != withoutUIDMatchMember.node.uid { // the peers don't agree on UID, it must be a new node on same host/port
+                switch self.confirmDead(peer: withoutUIDMatchMember.peer) {
+                case .ignored:
+                    () // should not happen?
+                case .applied(let change):
+                    directives.append(.previousHostPortMemberConfirmedDead(change))
+                }
             }
 
             // just in case we had a peer added manually, and thus we did not know its uuid, let us remove it
-            _ = self._members.removeValue(forKey: self.node.withoutUID)
+            // maybe we replaced a mismatching UID node already, but let's sanity check and remove also if we stored any "without UID" node
+            if let removed = self._members.removeValue(forKey: self.node.withoutUID) {
+                switch self.confirmDead(peer: removed.peer) {
+                case .ignored:
+                    () // should not happen?
+                case .applied(let change):
+                    directives.append(.previousHostPortMemberConfirmedDead(change))
+                }
+            }
 
             let member = SWIM.Member(peer: peer, status: status, protocolPeriod: self.protocolPeriod)
             self._members[member.node] = member
 
-            if maybeExistingMember == nil, self.notMyself(member) {
+            if self.notMyself(member) {
                 // We know this is a new member.
                 //
                 // Newly added members are inserted at a random spot in the list of members
@@ -429,13 +453,21 @@ extension SWIM {
             // even if a node joined an otherwise quiescent cluster.
             self.resetGossipPayloads(member: member)
 
-            return .added(member)
+            directives.append(.added(member))
+
+            return directives
         }
 
         enum AddMemberDirective {
             /// Informs an implementation that a new member was added and now has the following state.
-            /// An implementation should react to this
+            /// An implementation should react to this by emitting a cluster membership change event.
             case added(SWIM.Member)
+            /// By adding a node with a new UID on the same host/port, we may actually invalidate any previous member that
+            /// existed on this host/port part. If this is the case, we confirm the "previous" member on the same host/port
+            /// pair as dead immediately.
+            case previousHostPortMemberConfirmedDead(SWIM.MemberStatusChangedEvent)
+            /// We already have information about this exact `Member`, and our information is more recent (higher incarnation number).
+            /// The incoming information was discarded and the returned here member is the most up to date information we have.
             case newerMemberAlreadyPresent(SWIM.Member)
         }
 
@@ -502,8 +534,7 @@ extension SWIM {
                 suspicionStartedAt = self.now()
             } else if case .unreachable = status,
                 case .disabled = self.settings.unreachability {
-                // This node is not configured to respect unreachability and thus will immediately promote this status to dead
-                // TODO: log warning here
+                self.log.warning("Attempted to mark \(peer.node) as `.unreachable`, but unreachability is disabled! Promoting to `.dead`!")
                 status = .dead
             }
 
@@ -516,6 +547,7 @@ extension SWIM {
             self._members[peer.node] = member
 
             if status.isDead {
+                self._members.removeValue(forKey: member.node)
                 self.removeFromMembersToPing(member)
             }
 
@@ -1346,15 +1378,15 @@ extension SWIM.Instance {
         case .none:
             return []
         case .membership(let members):
-            return members.compactMap { member in
+            return members.flatMap { member in
                 self.onGossipPayload(about: member)
             }
         }
     }
 
-    internal func onGossipPayload(about member: SWIM.Member) -> GossipProcessedDirective? {
+    internal func onGossipPayload(about member: SWIM.Member) -> [GossipProcessedDirective] {
         if self.isMyself(member) {
-            return self.onMyselfGossipPayload(myself: member)
+            return [self.onMyselfGossipPayload(myself: member)]
         } else {
             return self.onOtherMemberGossipPayload(member: member)
         }
@@ -1446,7 +1478,7 @@ extension SWIM.Instance {
     /// ### Unreachability status handling
     /// Performs all special handling of `.unreachable` such that if it is disabled members are automatically promoted to `.dead`.
     /// See `settings.unreachability` for more details.
-    private func onOtherMemberGossipPayload(member: SWIM.Member) -> SWIM.Instance.GossipProcessedDirective? {
+    private func onOtherMemberGossipPayload(member: SWIM.Member) -> [SWIM.Instance.GossipProcessedDirective] {
         assert(self.node != member.node, "Attempted to process gossip as-if not-myself, but WAS same peer, was: \(member). Myself: \(self.peer, orElse: "nil")")
 
         guard self.isMember(member.peer) else {
@@ -1457,34 +1489,40 @@ extension SWIM.Instance {
                     "member": "\(member)",
                     "member/node": "\(member.node.detailedDescription)",
                 ]))
-                return nil
+                return []
             }
 
             // the Shell may need to set up a connection if we just made a move from previousStatus: nil,
             // so we definitely need to emit this change
-            switch self.addMember(member.peer, status: member.status) {
-            case .added(let member):
-                return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
-            case .newerMemberAlreadyPresent(let member):
-                return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
+            return self.addMember(member.peer, status: member.status).map { directive in
+                switch directive {
+                case .added(let member):
+                    return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
+                case .previousHostPortMemberConfirmedDead(let change):
+                    return .applied(change: change)
+                case .newerMemberAlreadyPresent(let member):
+                    return .applied(change: SWIM.MemberStatusChangedEvent(previousStatus: nil, member: member))
+                }
             }
         }
 
+        var directives: [SWIM.Instance.GossipProcessedDirective] = []
         switch self.mark(member.peer, as: member.status) {
         case .applied(let previousStatus, let member):
             if member.status.isSuspect, previousStatus?.isAlive ?? false {
                 self.log.debug("Member [\(member.peer.node, orElse: "<unknown-node>")] marked as suspect, via incoming gossip", metadata: self.metadata)
             }
-            return .applied(change: .init(previousStatus: previousStatus, member: member))
+            directives.append(.applied(change: .init(previousStatus: previousStatus, member: member)))
 
         case .ignoredDueToOlderStatus(let currentStatus):
             self.log.trace("Gossip about member \(member.node), incoming: [\(member.status)] does not supersede current: [\(currentStatus)]", metadata: self.metadata)
-            return nil
         }
+
+        return directives
     }
 
     /// Indicates the gossip payload was processed and changes to the membership were made.
-    public enum GossipProcessedDirective {
+    public enum GossipProcessedDirective: Equatable {
         /// The gossip was applied to the local membership view and an event may want to be emitted for it.
         ///
         /// It is up to the shell implementation which events are published, but generally it is recommended to
@@ -1508,13 +1546,9 @@ extension SWIM.Instance {
     // MARK: Confirm Dead
 
     public func confirmDead(peer: SWIMPeer) -> ConfirmDeadDirective {
-        guard let member = self.member(for: peer) else {
-            return .ignored
-        }
-
-        guard !member.isDead else {
-            // the member seems to be already dead, no need to mark it dead again
-            return .ignored
+        if self.member(for: peer) == nil,
+            self._members.first(where: { $0.key == peer.node }) == nil {
+            return .ignored // this peer is absolutely unknown to us, we should not even emit events about it
         }
 
         switch self.mark(peer, as: .dead) {
