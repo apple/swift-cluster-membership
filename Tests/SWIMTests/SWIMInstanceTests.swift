@@ -1289,6 +1289,77 @@ final class SWIMInstanceTests: XCTestCase {
         XCTAssertNotEqual(swim.nextPeerToPing()?.node, self.second.node)
     }
 
+    func test_confirmDead_shouldStoreATombstone_disallowAddingAgain() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        _ = swim.addMember(self.second, status: .alive(incarnation: 10))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 10))
+
+        let secondMember = swim.member(for: self.secondNode)!
+
+        _ = swim.confirmDead(peer: self.second)
+        XCTAssertFalse(swim.members.contains(secondMember))
+        XCTAssertFalse(swim.membersToPing.contains(secondMember))
+
+        // "you are already dead"
+        let directives = swim.addMember(self.second, status: .alive(incarnation: 100))
+
+        // no mercy for zombies; don't add it again
+        XCTAssertTrue(directives.count == 1)
+        switch directives.first {
+        case .memberAlreadyKnownDead(let dead):
+            XCTAssertEqual(dead.status, SWIM.Status.dead)
+            XCTAssertEqual(dead.node, self.secondNode)
+        default:
+            XCTFail("")
+        }
+        XCTAssertFalse(swim.members.contains(secondMember))
+        XCTAssertFalse(swim.membersToPing.contains(secondMember))
+    }
+
+    func test_confirmDead_tombstone_shouldExpireAfterConfiguredAmountOfTicks() throws {
+        var settings = SWIM.Settings()
+        settings.tombstoneCleanupIntervalInTicks = 3
+        settings.tombstoneTimeToLiveInTicks = 2
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        _ = swim.addMember(self.second, status: .alive(incarnation: 10))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 10))
+
+        let secondMember = swim.member(for: self.secondNode)!
+
+        _ = swim.confirmDead(peer: self.second)
+        XCTAssertFalse(swim.membersToPing.contains(secondMember))
+
+        XCTAssertTrue(
+            swim.removedDeadMemberTombstones
+                .contains(.init(uid: self.secondNode.uid!, deadlineProtocolPeriod: 0 /* not part of equality*/ ))
+        )
+
+        _ = swim.onPeriodicPingTick()
+        _ = swim.onPeriodicPingTick()
+
+        XCTAssertTrue(
+            swim.removedDeadMemberTombstones
+                .contains(.init(uid: self.secondNode.uid!, deadlineProtocolPeriod: 0 /* not part of equality*/ ))
+        )
+
+        _ = swim.onPeriodicPingTick()
+        _ = swim.onPeriodicPingTick()
+
+        XCTAssertFalse(
+            swim.removedDeadMemberTombstones
+                .contains(.init(uid: self.secondNode.uid!, deadlineProtocolPeriod: 0 /* not part of equality*/ ))
+        )
+
+        // past the deadline and tombstone expiration, we'd be able to smuggle in that node again...!
+        _ = swim.addMember(self.second, status: .alive(incarnation: 135_342))
+        let member = swim.member(for: self.second)
+        XCTAssertEqual(member?.node, self.secondNode)
+    }
+
     // ==== ----------------------------------------------------------------------------------------------------------------
     // MARK: Sanity checks
 

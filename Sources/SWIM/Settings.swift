@@ -70,6 +70,29 @@ extension SWIM {
             }
         }
 
+        /// When a member is "confirmed dead" we stop gossiping about it and in order to prevent a node to accidentally
+        /// re-join the cluster by us having fully forgotten about it while it still remains lingering around, we use tombstones.
+        ///
+        /// The time to live configures how long the tombstones are kept around, meaning some accumulating overhead,
+        /// however added safety in case the node "comes back". Note that this may be solved on higher level layers
+        /// e.g. by forbidding such node to even form a connection to us in a connection-ful implementation, in such case
+        /// lower timeouts are permittable.
+        ///
+        /// Assuming a default of 1 second per protocol period (probe interval), the default value results in 4 hours of delay.
+        public var tombstoneTimeToLiveInTicks: UInt64 =
+            4 * 60 * 60
+
+        /// An interval, as expressed in number of `probeInterval` ticks.
+        ///
+        /// Every so often the additional task of checking the accumulated tombstones for any overdue ones (see `tombstoneTimeToLive`),
+        /// will be performed. Outdated tombstones are then removed. This is done this way to benefit from using a plain Set of the tombstones
+        /// for the checking if a peer has a tombstone or not (O(1), performed frequently), while only having to clean them up periodically (O(n)).
+        public var tombstoneCleanupIntervalInTicks: Int = 5 * 60 {
+            willSet {
+                precondition(newValue > 0, "`tombstoneCleanupIntervalInTicks` MUST be > 0")
+            }
+        }
+
         /// Optional feature: Set of "initial contact points" to automatically contact and join upon starting a node
         ///
         /// Optionally, a Shell implementation MAY use this setting automatically contact a set of initial contact point nodes,
@@ -84,7 +107,7 @@ extension SWIM {
         /// Interval at which gossip messages should be issued.
         /// This property sets only a base value of probe interval, which will later be multiplied by `SWIM.Instance.localHealthMultiplier`.
         /// - SeeAlso: `maxLocalHealthMultiplier`
-        /// Every `interval` a `fan-out` number of gossip messages will be sent. // TODO which fanout, better docs
+        /// Every `interval` a `fan-out` number of gossip messages will be sent.
         public var probeInterval: DispatchTimeInterval = .seconds(1)
 
         /// Time amount after which a sent ping without ack response is considered timed-out.
