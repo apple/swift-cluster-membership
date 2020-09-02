@@ -237,7 +237,8 @@ extension SWIM {
         /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
-        private var node: ClusterMembership.Node {
+        /// Node which this SWIM.Instance is representing in the cluster.
+        public var node: ClusterMembership.Node {
             self.peer.node
         }
 
@@ -428,7 +429,7 @@ extension SWIM {
             let member = SWIM.Member(peer: peer, status: status, protocolPeriod: self.protocolPeriod)
             self._members[member.node] = member
 
-            if self.notMyself(member) {
+            if self.notMyself(member) && !member.isDead {
                 // We know this is a new member.
                 //
                 // Newly added members are inserted at a random spot in the list of members
