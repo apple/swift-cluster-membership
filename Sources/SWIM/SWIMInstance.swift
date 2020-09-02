@@ -372,7 +372,7 @@ extension SWIM {
         // of the cluster. At the end of every ping cycle, the number will be incremented.
         // Suspicion timeouts are based on the protocol period, i.e. if a probe did not
         // reply within any of the `suspicionTimeoutPeriodsMax` rounds, it would be marked as `.suspect`.
-        private var _protocolPeriod: Int = 0
+        private var _protocolPeriod: UInt64 = 0
 
         /// In order to speed up the spreading of "fresh" rumors, we order gossips in their "number of times gossiped",
         /// and thus are able to easily pick the least spread rumor and pick it for the next gossip round.
@@ -591,7 +591,7 @@ extension SWIM {
         }
 
         /// Current SWIM protocol period (i.e. which round of gossip the instance is in).
-        public var protocolPeriod: Int {
+        public var protocolPeriod: UInt64 {
             self._protocolPeriod
         }
 
@@ -1654,7 +1654,7 @@ extension SWIM.Instance {
             "swim/timeoutSuspectsBeforePeriodMax": "\(self.timeoutSuspectsBeforePeriodMax)",
             "swim/timeoutSuspectsBeforePeriodMin": "\(self.timeoutSuspectsBeforePeriodMin)",
             "swim/incarnation": "\(self.incarnation)",
-            "swim/members/all": Logger.Metadata.Value.array(self.members.map { "\($0)" }),
+            "swim/members/all": Logger.Metadata.Value.array(self.members.map { "\(reflecting: $0)" }),
             "swim/members/count": "\(self.notDeadMemberCount)",
             "swim/suspects/count": "\(self.suspects.count)",
         ]

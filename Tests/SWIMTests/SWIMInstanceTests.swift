@@ -607,7 +607,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myself)
 
         for i in 0 ..< 10 {
-            XCTAssertEqual(swim.protocolPeriod, i)
+            XCTAssertEqual(swim.protocolPeriod, UInt64(i))
             swim.incrementProtocolPeriod()
         }
     }
