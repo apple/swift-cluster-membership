@@ -136,7 +136,7 @@ extension SWIM.Member: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let peer = try container.decode(SWIM.NIOPeer.self, forKey: .node)
         let status = try container.decode(SWIM.Status.self, forKey: .status)
-        let protocolPeriod = try container.decode(Int.self, forKey: .protocolPeriod)
+        let protocolPeriod = try container.decode(UInt64.self, forKey: .protocolPeriod)
         self.init(peer: peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: nil)
     }
 

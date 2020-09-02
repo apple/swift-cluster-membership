@@ -37,7 +37,7 @@ extension SWIM {
         public var status: SWIM.Status
 
         // Period in which protocol period was this state set
-        public var protocolPeriod: Int
+        public var protocolPeriod: UInt64
 
         /// Indicates a _local_ point in time when suspicion was started.
         ///
@@ -46,7 +46,7 @@ extension SWIM {
         public let localSuspicionStartedAt: DispatchTime? // could be "status updated at"?
 
         /// Create a new member.
-        public init(peer: SWIMPeer, status: SWIM.Status, protocolPeriod: Int, suspicionStartedAt: DispatchTime? = nil) {
+        public init(peer: SWIMPeer, status: SWIM.Status, protocolPeriod: UInt64, suspicionStartedAt: DispatchTime? = nil) {
             self.peer = peer
             self.status = status
             self.protocolPeriod = protocolPeriod
@@ -98,9 +98,18 @@ extension SWIM.Member: Hashable, Equatable {
     }
 }
 
-extension SWIM.Member: CustomStringConvertible {
+extension SWIM.Member: CustomStringConvertible, CustomDebugStringConvertible {
     public var description: String {
         var res = "SWIM.Member(\(self.peer), \(self.status), protocolPeriod: \(self.protocolPeriod)"
+        if let suspicionStartedAt = self.localSuspicionStartedAt {
+            res.append(", suspicionStartedAt: \(suspicionStartedAt)")
+        }
+        res.append(")")
+        return res
+    }
+
+    public var debugDescription: String {
+        var res = "SWIM.Member(\(String(reflecting: self.peer)), \(self.status), protocolPeriod: \(self.protocolPeriod)"
         if let suspicionStartedAt = self.localSuspicionStartedAt {
             res.append(", suspicionStartedAt: \(suspicionStartedAt)")
         }
