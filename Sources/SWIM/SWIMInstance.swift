@@ -483,7 +483,7 @@ extension SWIM {
         ///   but in a round-robin fashion. Instead, a newly joining member is inserted in the membership list at
         ///   a position that is chosen uniformly at random. On completing a traversal of the entire list,
         ///   rearranges the membership list to a random reordering.
-        func nextMemberToPing() -> SWIMPeer? {
+        func nextPeerToPing() -> SWIMPeer? {
             if self.membersToPing.isEmpty {
                 return nil
             }
@@ -548,7 +548,7 @@ extension SWIM {
             self._members[peer.node] = member
 
             if status.isDead {
-                self._members.removeValue(forKey: member.node)
+                self._members.removeValue(forKey: peer.node)
                 self.removeFromMembersToPing(member)
             }
 
@@ -879,7 +879,7 @@ extension SWIM.Instance {
         directives.append(contentsOf: self.checkSuspicionTimeouts())
 
         // 2) if we have someone to ping, let's do so
-        if let toPing = self.nextMemberToPing() {
+        if let toPing = self.nextPeerToPing() {
             directives.append(
                 .sendPing(
                     target: toPing,

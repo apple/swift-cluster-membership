@@ -857,7 +857,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         var seenNodes: [Node] = []
         for _ in 1 ... memberCount {
-            guard let member = swim.nextMemberToPing() else {
+            guard let member = swim.nextPeerToPing() else {
                 XCTFail("Could not fetch member to ping")
                 return
             }
@@ -872,7 +872,7 @@ final class SWIMInstanceTests: XCTestCase {
 
         // should loop around and we should encounter all the same members now
         for _ in 1 ... memberCount {
-            guard let member = swim.nextMemberToPing() else {
+            guard let member = swim.nextPeerToPing() else {
                 XCTFail("Could not fetch member to ping")
                 return
             }
@@ -903,7 +903,7 @@ final class SWIMInstanceTests: XCTestCase {
         let swim = SWIM.Instance(settings: .init(), myself: otherPeer)
 
         XCTAssertTrue(swim.isMember(otherPeer))
-        XCTAssertNil(swim.nextMemberToPing())
+        XCTAssertNil(swim.nextPeerToPing())
     }
 
     func test_addMember_shouldReplaceMemberIfDifferentUID() {
@@ -1267,6 +1267,26 @@ final class SWIMInstanceTests: XCTestCase {
         default:
             XCTFail("Expected confirmingDead a node to be `.applied`, got: \(directive)")
         }
+    }
+
+    func test_confirmDead_shouldRemovePeerFromMembersToPing() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        _ = swim.addMember(self.second, status: .alive(incarnation: 10))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 10))
+
+        let secondMember = swim.member(for: self.secondNode)!
+
+        _ = swim.confirmDead(peer: self.second)
+        XCTAssertFalse(swim.membersToPing.contains(secondMember))
+
+        XCTAssertNotEqual(swim.nextPeerToPing()?.node, self.second.node)
+        XCTAssertNotEqual(swim.nextPeerToPing()?.node, self.second.node)
+        XCTAssertNotEqual(swim.nextPeerToPing()?.node, self.second.node)
+        XCTAssertNotEqual(swim.nextPeerToPing()?.node, self.second.node)
+        XCTAssertNotEqual(swim.nextPeerToPing()?.node, self.second.node)
     }
 
     // ==== ----------------------------------------------------------------------------------------------------------------
