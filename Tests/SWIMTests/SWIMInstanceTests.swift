@@ -906,6 +906,16 @@ final class SWIMInstanceTests: XCTestCase {
         XCTAssertNil(swim.nextPeerToPing())
     }
 
+    func test_addMember_shouldNotAddPeerWithoutUID() {
+        let swim = SWIM.Instance(settings: .init(), myself: self.myself)
+
+        let other = TestPeer(node: .init(protocol: "test", host: "127.0.0.1", port: 111, uid: nil))
+        let directives = swim.addMember(other, status: .alive(incarnation: 0))
+        XCTAssertEqual(directives.count, 0)
+        XCTAssertFalse(swim.isMember(other))
+        XCTAssertNil(swim.nextPeerToPing())
+    }
+
     func test_addMember_shouldReplaceMemberIfDifferentUID() {
         let swim = SWIM.Instance(settings: .init(), myself: self.myself)
         _ = swim.addMember(self.second, status: .alive(incarnation: 0))
