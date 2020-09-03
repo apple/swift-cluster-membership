@@ -393,14 +393,27 @@ extension SWIM {
             }
         )
 
-        /// Take care about peers with UID and without (!), some shells may not be quite good about this.
+        /// Note that peers without UID (in their `Node`) will NOT be added to the membership.
+        ///
+        /// This is because a cluster member must be a _specific_ peer instance, and not some arbitrary "some peer on that host/port",
+        /// which a Node without UID represents. The only reason we allow for peers and nodes without UID, is to simplify making
+        /// initial contact with a node - i.e. one can construct a peer to "there should be a peer on this host/port" to send an initial ping,
+        /// however in reply a peer in gossip must ALWAYS include it's unique identifier in the node - such that we know it from
+        /// any new instance of a process on the same host/port pair.
         internal func addMember(_ peer: SWIMPeer, status: SWIM.Status) -> [AddMemberDirective] {
             var directives: [AddMemberDirective] = []
 
+            // Guard 1) protect against adding already known dead members
             if self.hasTombstone(peer.node) {
                 // We saw this member already and even confirmed it dead, it shall never be added again
                 self.log.debug("Attempt to re-add already confirmed dead peer \(peer), ignoring it.")
                 directives.append(.memberAlreadyKnownDead(Member(peer: peer, status: .dead, protocolPeriod: 0)))
+                return directives
+            }
+
+            // Guard 2) protect against adding non UID members
+            guard peer.node.uid != nil else {
+                self.log.warning("Ignoring attempt to add peer representing node without UID: \(peer)")
                 return directives
             }
 
