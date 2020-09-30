@@ -590,7 +590,9 @@ extension SWIM {
             self._members[peer.node] = member
 
             if status.isDead {
-                self._members.removeValue(forKey: peer.node)
+                if let _ = self._members.removeValue(forKey: peer.node) {
+                    self.metrics.membersTotalDead.increment()
+                }
                 self.removeFromMembersToPing(member)
                 if let uid = member.node.uid {
                     let deadline = self.protocolPeriod + self.settings.tombstoneTimeToLiveInTicks

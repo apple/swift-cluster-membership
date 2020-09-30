@@ -19,17 +19,17 @@ extension SWIM {
         // ==== --------------------------------------------------------------------------------------------------------
         // MARK: Membership
 
-        /// Number of members (total)
-        public let members: Gauge
-
         /// Number of members (alive)
         public let membersAlive: Gauge
         /// Number of members (suspect)
         public let membersSuspect: Gauge
         /// Number of members (unreachable)
         public let membersUnreachable: Gauge
-        /// Number of members (dead)
-        public let membersDead: Gauge
+        /// Number of members (dead) is not reported, because "dead" is considered "removed" from the cluster
+        // -- no metric --
+
+        /// Total number of nodes *ever* declared noticed as dead by this member
+        public let membersTotalDead: Counter
 
         // ==== --------------------------------------------------------------------------------------------------------
         // MARK: Probe metrics
@@ -64,25 +64,21 @@ extension SWIM {
         public let messageBytesOutbound: Recorder
 
         public init(settings: SWIM.Settings) {
-            self.members = Gauge(
-                label: settings.metrics.makeLabel("members"),
-                dimensions: [("status", "all")]
-            )
             self.membersAlive = Gauge(
                 label: settings.metrics.makeLabel("members"),
                 dimensions: [("status", "alive")]
             )
             self.membersSuspect = Gauge(
                 label: settings.metrics.makeLabel("members"),
-                dimensions: [("status", "dead")]
+                dimensions: [("status", "suspect")]
             )
             self.membersUnreachable = Gauge(
                 label: settings.metrics.makeLabel("members"),
                 dimensions: [("status", "unreachable")]
             )
-            self.membersDead = Gauge(
+            self.membersTotalDead = Counter(
                 label: settings.metrics.makeLabel("members"),
-                dimensions: [("status", "dead")]
+                dimensions: [("status", "totalDead")]
             )
 
             self.roundTripTime = Timer(label: settings.metrics.makeLabel("responseRoundTrip", "ping"))
@@ -144,7 +140,6 @@ extension SWIM.Metrics {
         var alives = 0
         var suspects = 0
         var unreachables = 0
-        var deads = 0
         for member in members {
             switch member.status {
             case .alive:
@@ -154,12 +149,11 @@ extension SWIM.Metrics {
             case .unreachable:
                 unreachables += 1
             case .dead:
-                deads += 1
+                () // dead is reported as a removal when they're removed and tombstoned, not as a gauge
             }
         }
         self.membersAlive.record(alives)
         self.membersSuspect.record(suspects)
         self.membersUnreachable.record(unreachables)
-        self.membersDead.record(deads)
     }
 }

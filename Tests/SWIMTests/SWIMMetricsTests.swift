@@ -14,6 +14,7 @@
 
 import ClusterMembership
 @testable import CoreMetrics
+import Dispatch
 import Metrics
 @testable import SWIM
 import XCTest
@@ -63,51 +64,118 @@ final class SWIMMetricsTests: XCTestCase {
     let unreachable = [("status", "unreachable")]
     let dead = [("status", "dead")]
 
-    enum DowningMode {
-        case unreachable
-        case dead
-    }
+    func test_members_becoming_suspect() {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
 
-    func test_members_becoming_dead() {
-        self.shared_members(mode: .dead)
-    }
-
-    func test_members_becoming_dead() {
-        self.shared_members(mode: .dead)
-    }
-
-    func shared_members(mode: DowningMode) {
-        let swim = SWIM.Instance(settings: .init(), myself: self.myself)
-
-        self.expectMembership(swim, alive: 1, unreachable: 0, dead: 0)
+        self.expectMembership(swim, alive: 1, unreachable: 0, totalDead: 0)
 
         _ = swim.addMember(self.second, status: .alive(incarnation: 0))
-        self.expectMembership(swim, alive: 2, unreachable: 0, dead: 0)
+        self.expectMembership(swim, alive: 2, unreachable: 0, totalDead: 0)
 
         _ = swim.addMember(self.third, status: .alive(incarnation: 0))
-        self.expectMembership(swim, alive: 3, unreachable: 0, dead: 0)
+        self.expectMembership(swim, alive: 3, unreachable: 0, totalDead: 0)
 
         _ = swim.addMember(self.fourth, status: .alive(incarnation: 0))
         _ = swim.onPeriodicPingTick()
-        self.expectMembership(swim, alive: 4, unreachable: 0, dead: 0)
+        self.expectMembership(swim, alive: 4, unreachable: 0, totalDead: 0)
 
         for _ in 0 ..< 10 {
             _ = swim.onPingResponse(
-                response: .timeout(target: second, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
+                response: .timeout(target: self.second, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
+                pingRequestOrigin: nil,
+                pingRequestSequenceNumber: nil
+            )
+            _ = swim.onPingRequestResponse(.nack(target: self.third, sequenceNumber: 0), pinged: self.second)
+        }
+        expectMembership(swim, suspect: 1)
+
+        for _ in 0 ..< 10 {
+            _ = swim.onPingResponse(
+                response: .timeout(target: self.third, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
                 pingRequestOrigin: nil,
                 pingRequestSequenceNumber: nil
             )
         }
-        self.expectMembership(swim, alive: 3, unreachable: 0, dead: 1)
+        expectMembership(swim, suspect: 2)
+    }
+
+    enum DowningMode {
+        case unreachableFirst
+        case deadImmediately
+    }
+
+    func test_members_becoming_dead() {
+        self.shared_members(mode: .deadImmediately)
+    }
+
+    func test_members_becoming_unreachable() {
+        self.shared_members(mode: .unreachableFirst)
+    }
+
+    func shared_members(mode: DowningMode) {
+        var settings = SWIM.Settings()
+        switch mode {
+        case .unreachableFirst:
+            settings.unreachability = .enabled
+        case .deadImmediately:
+            settings.unreachability = .disabled
+        }
+        var mockTime = DispatchTime.now()
+        settings.timeSourceNow = { mockTime }
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        self.expectMembership(swim, alive: 1, unreachable: 0, totalDead: 0)
+
+        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
+        self.expectMembership(swim, alive: 2, unreachable: 0, totalDead: 0)
+
+        _ = swim.addMember(self.third, status: .alive(incarnation: 0))
+        self.expectMembership(swim, alive: 3, unreachable: 0, totalDead: 0)
+
+        _ = swim.addMember(self.fourth, status: .alive(incarnation: 0))
+        _ = swim.onPeriodicPingTick()
+        self.expectMembership(swim, alive: 4, unreachable: 0, totalDead: 0)
+
+        let totalMembers = 4
 
         for _ in 0 ..< 10 {
             _ = swim.onPingResponse(
-                response: .timeout(target: second, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
+                response: .timeout(target: self.second, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
                 pingRequestOrigin: nil,
                 pingRequestSequenceNumber: nil
             )
+            mockTime = mockTime + DispatchTimeInterval.seconds(120)
+            _ = swim.onPeriodicPingTick()
         }
-        self.expectMembership(swim, alive: 3, unreachable: 0, dead: 2)
+        let (expectedUnreachables1, expectedDeads1): (Int, Int)
+        switch mode {
+        case .unreachableFirst: (expectedUnreachables1, expectedDeads1) = (1, 0)
+        case .deadImmediately: (expectedUnreachables1, expectedDeads1) = (0, 1)
+        }
+        self.expectMembership(swim, alive: totalMembers - expectedDeads1 - expectedUnreachables1, unreachable: expectedUnreachables1, totalDead: expectedDeads1)
+
+        for _ in 0 ..< 10 {
+            _ = swim.onPingResponse(
+                response: .timeout(target: self.third, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
+                pingRequestOrigin: nil,
+                pingRequestSequenceNumber: nil
+            )
+            mockTime = mockTime + DispatchTimeInterval.seconds(120)
+            _ = swim.onPeriodicPingTick()
+        }
+        let (expectedUnreachables2, expectedDeads2): (Int, Int)
+        switch mode {
+        case .unreachableFirst: (expectedUnreachables2, expectedDeads2) = (2, 0)
+        case .deadImmediately: (expectedUnreachables2, expectedDeads2) = (0, 2)
+        }
+        self.expectMembership(swim, alive: totalMembers - expectedDeads2 - expectedUnreachables2, unreachable: expectedUnreachables2, totalDead: expectedDeads2)
+
+        if mode == .unreachableFirst {
+            _ = swim.confirmDead(peer: self.second)
+            self.expectMembership(swim, alive: totalMembers - expectedDeads2 - expectedUnreachables2, unreachable: expectedUnreachables2 - 1, totalDead: expectedDeads2 + 1)
+        }
     }
 }
 
@@ -115,10 +183,59 @@ final class SWIMMetricsTests: XCTestCase {
 // MARK: Assertions
 
 extension SWIMMetricsTests {
-    private func expectMembership(_ swim: SWIM.Instance, alive: Double, unreachable: Double, dead: Double, file: StaticString = #file, line: UInt = #line) {
+    private func expectMembership(_ swim: SWIM.Instance, suspect: Int, file: StaticString = #file, line: UInt = #line) {
         let m: SWIM.Metrics = swim.metrics
-        try XCTAssertEqual(self.testMetrics.expectRecorder(m.membersAlive).lastValue, alive, file: file, line: line)
-        try XCTAssertEqual(self.testMetrics.expectRecorder(m.membersUnreachable).lastValue, unreachable, file: file, line: line)
-        try XCTAssertEqual(self.testMetrics.expectRecorder(m.membersDead).lastValue, dead, file: file, line: line)
+
+        let gotSuspect: Double? = try! self.testMetrics.expectRecorder(m.membersSuspect).lastValue
+        XCTAssertEqual(
+            gotSuspect,
+            Double(suspect),
+            """
+            Expected \(suspect) [alive] members, was: \(String(reflecting: gotSuspect)); Members:
+            \(swim.members.map(\.description).joined(separator: "\n"))
+            """,
+            file: file,
+            line: line
+        )
+    }
+
+    private func expectMembership(_ swim: SWIM.Instance, alive: Int, unreachable: Int, totalDead: Int, file: StaticString = #file, line: UInt = #line) {
+        let m: SWIM.Metrics = swim.metrics
+
+        let gotAlive: Double? = try! self.testMetrics.expectRecorder(m.membersAlive).lastValue
+        XCTAssertEqual(
+            gotAlive,
+            Double(alive),
+            """
+            Expected \(alive) [alive] members, was: \(String(reflecting: gotAlive)); Members:
+            \(swim.members.map(\.description).joined(separator: "\n"))
+            """,
+            file: file,
+            line: line
+        )
+
+        let gotUnreachable: Double? = try! self.testMetrics.expectRecorder(m.membersUnreachable).lastValue
+        XCTAssertEqual(
+            gotUnreachable,
+            Double(unreachable),
+            """
+            Expected \(unreachable) [unreachable] members, was: \(String(reflecting: gotUnreachable)); Members:
+            \(swim.members.map(\.description).joined(separator: "\n")))
+            """,
+            file: file,
+            line: line
+        )
+
+        let gotTotalDead: Int64? = try! self.testMetrics.expectCounter(m.membersTotalDead).totalValue ?? 0
+        XCTAssertEqual(
+            gotTotalDead,
+            Int64(totalDead),
+            """
+            Expected \(totalDead) [dead] members, was: \(String(reflecting: gotTotalDead)); Members:
+            \(swim.members.map(\.description).joined(separator: "\n"))
+            """,
+            file: file,
+            line: line
+        )
     }
 }

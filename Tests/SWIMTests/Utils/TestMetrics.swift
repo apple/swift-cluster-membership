@@ -111,7 +111,10 @@ extension TestMetrics.FullKey: Hashable {
 // MARK: Assertions
 
 extension TestMetrics {
-    public func expectCounter(metric: Counter) throws -> TestCounter {
+    // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: Counter
+
+    public func expectCounter(_ metric: Counter) throws -> TestCounter {
         metric.handler as! TestCounter
     }
 
@@ -130,13 +133,19 @@ extension TestMetrics {
         return testCounter
     }
 
+    // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: Gauge
+
     public func expectGauge(_ metric: Gauge) throws -> TestRecorder {
-        return try self.expectRecorder(metric)
+        try self.expectRecorder(metric)
     }
 
     public func expectGauge(_ label: String, _ dimensions: [(String, String)] = []) throws -> TestRecorder {
-        return try self.expectRecorder(label, dimensions)
+        try self.expectRecorder(label, dimensions)
     }
+
+    // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: Recorder
 
     public func expectRecorder(_ metric: Recorder) throws -> TestRecorder {
         metric.handler as! TestRecorder
@@ -152,6 +161,9 @@ extension TestMetrics {
 
         return testRecorder
     }
+
+    // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: Timer
 
     public func expectTimer(_ metric: Timer) throws -> TestTimer {
         metric.handler as! TestTimer
@@ -216,6 +228,12 @@ final class TestCounter: TestMetric, CounterHandler, Equatable {
     var lastValue: Int64? {
         self.lock.withLock {
             values.last?.1
+        }
+    }
+
+    var totalValue: Int64? {
+        self.lock.withLock {
+            values.map { $0.1 }.reduce(0, +)
         }
     }
 
