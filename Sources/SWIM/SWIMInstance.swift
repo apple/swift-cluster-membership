@@ -237,6 +237,7 @@ extension SWIM {
         /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
+        /// Struct containing all metrics a SWIM Instance (and implementation Shell) should emit.
         public let metrics: SWIM.Metrics
 
         /// Node which this SWIM.Instance is representing in the cluster.
@@ -349,9 +350,6 @@ extension SWIM {
         }
 
         private func nextIncarnation() {
-            defer {
-                self.metrics.incarnation.record(self._incarnation)
-            }
             self._incarnation += 1
         }
 

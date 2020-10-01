@@ -108,31 +108,27 @@ extension SWIM {
                 )
 
                 self.messageInboundCount = Counter(
-                    label: settings.metrics.makeLabel("message"),
+                    label: settings.metrics.makeLabel("message", "count"),
                     dimensions: [
-                        ("type", "count"),
                         ("direction", "in"),
                     ]
                 )
                 self.messageInboundBytes = Recorder(
-                    label: settings.metrics.makeLabel("message"),
+                    label: settings.metrics.makeLabel("message", "bytes"),
                     dimensions: [
-                        ("type", "bytes"),
                         ("direction", "in"),
                     ]
                 )
 
                 self.messageOutboundCount = Counter(
-                    label: settings.metrics.makeLabel("message"),
+                    label: settings.metrics.makeLabel("message", "count"),
                     dimensions: [
-                        ("type", "count"),
                         ("direction", "out"),
                     ]
                 )
                 self.messageOutboundBytes = Recorder(
-                    label: settings.metrics.makeLabel("message"),
+                    label: settings.metrics.makeLabel("message", "bytes"),
                     dimensions: [
-                        ("type", "bytes"),
                         ("direction", "out"),
                     ]
                 )
@@ -153,8 +149,8 @@ extension SWIM {
                 dimensions: [("status", "unreachable")]
             )
             self.membersTotalDead = Counter(
-                label: settings.metrics.makeLabel("members"),
-                dimensions: [("status", "totalDead")]
+                label: settings.metrics.makeLabel("members", "total"),
+                dimensions: [("status", "dead")]
             )
             self.removedDeadMemberTombstones = Gauge(
                 label: settings.metrics.makeLabel("removedMemberTombstones")

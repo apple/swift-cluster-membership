@@ -40,18 +40,23 @@ struct SWIMNIOSampleCluster: ParsableCommand {
 
     mutating func run() throws {
         LoggingSystem.bootstrap(_SWIMPrettyMetadataLogHandler.init)
-
-        let prom = PrometheusClient()
-        MetricsSystem.bootstrap(prom)
-
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
-        group.next().scheduleRepeatedTask(initialDelay: .seconds(1), delay: .seconds(1)) { _ in
-            // let string: String = prom.collect()
-            // print("")
-            // print("")
-            // print(string)
-        }
+        // Uncomment this if you'd like to see metrics displayed in the command line periodically;
+        // This bootstraps and uses the Prometheus metrics backend to report metrics periodically by printing them to the stdout (console).
+        //
+        // Note though that this will be a bit noisy, since logs are also emitted to the stdout by default, however it's a nice way
+        // to learn and explore what the metrics are and how they behave when toying around with a local cluster.
+//        let prom = PrometheusClient()
+//        MetricsSystem.bootstrap(prom)
+//
+//        group.next().scheduleRepeatedTask(initialDelay: .seconds(1), delay: .seconds(10)) { _ in
+//             prom.collect { (string: String) in
+//                 print("")
+//                 print("")
+//                 print(string)
+//             }
+//        }
         
         let lifecycle = ServiceLifecycle()
         lifecycle.registerShutdown(

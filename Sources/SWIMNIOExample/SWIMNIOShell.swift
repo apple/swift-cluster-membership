@@ -453,7 +453,6 @@ public final class SWIMNIOShell {
                 self.sendPing(to: target, payload: payload, pingRequestOrigin: nil, pingRequestSequenceNumber: nil, timeout: timeout, sequenceNumber: sequenceNumber)
 
             case .scheduleNextTick(let delay):
-                self.log.trace("Schedule next tick in: \(delay.prettyDescription)")
                 self.nextPeriodicTickCancellable = self.schedule(delay: delay) {
                     self.handlePeriodicProtocolPeriodTick()
                 }
