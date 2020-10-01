@@ -17,6 +17,7 @@ import ClusterMembership
 import Dispatch
 import Metrics
 @testable import SWIM
+import SWIMTestKit
 import XCTest
 
 final class SWIMMetricsTests: XCTestCase {
@@ -175,7 +176,29 @@ final class SWIMMetricsTests: XCTestCase {
         if mode == .unreachableFirst {
             _ = swim.confirmDead(peer: self.second)
             self.expectMembership(swim, alive: totalMembers - expectedDeads2 - expectedUnreachables2, unreachable: expectedUnreachables2 - 1, totalDead: expectedDeads2 + 1)
+
+            let gotRemovedDeadTombstones = try! self.testMetrics.expectRecorder(swim.metrics.removedDeadMemberTombstones).lastValue!
+            XCTAssertEqual(gotRemovedDeadTombstones, Double(expectedDeads2 + 1))
         }
+    }
+
+    func test_lha_adjustment() {
+        let settings = SWIM.Settings()
+        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+
+        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.third, status: .alive(incarnation: 0))
+
+        XCTAssertEqual(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue, Double(0))
+
+        swim.adjustLHMultiplier(.failedProbe)
+        XCTAssertEqual(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue, Double(1))
+
+        swim.adjustLHMultiplier(.failedProbe)
+        XCTAssertEqual(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue, Double(2))
+
+        swim.adjustLHMultiplier(.successfulProbe)
+        XCTAssertEqual(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue, Double(1))
     }
 }
 
@@ -226,7 +249,7 @@ extension SWIMMetricsTests {
             line: line
         )
 
-        let gotTotalDead: Int64? = try! self.testMetrics.expectCounter(m.membersTotalDead).totalValue ?? 0
+        let gotTotalDead: Int64? = try! self.testMetrics.expectCounter(m.membersTotalDead).totalValue
         XCTAssertEqual(
             gotTotalDead,
             Int64(totalDead),

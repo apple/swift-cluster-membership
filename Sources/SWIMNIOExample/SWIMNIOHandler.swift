@@ -37,6 +37,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
 
     // initialized in channelActive
     var shell: SWIMNIOShell!
+    var metrics: SWIM.Metrics.ShellMetrics?
 
     var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void]
 
@@ -66,6 +67,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                 }
             }
         )
+        self.metrics = self.shell.swim.metrics.shell
 
         self.log.trace("Channel active", metadata: [
             "nio/localAddress": "\(context.channel.localAddress?.description ?? "unknown")",
@@ -166,7 +168,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                     self.log.trace("Received response, key: \(callbackKey); Invoking callback...", metadata: [
                         "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
-                    self.shell.swim.metrics.roundTripTime.recordNanoseconds(storedKey.nanosecondsSinceCallbackStored().nanoseconds)
+                    self.metrics?.pingResponseTime.recordNanoseconds(storedKey.nanosecondsSinceCallbackStored().nanoseconds)
                     callback(.success(message))
                 } else {
                     self.log.trace("No callback for \(callbackKey); It may have been removed due to a timeout already.", metadata: [
@@ -205,8 +207,8 @@ extension SWIMNIOHandler {
             throw MissingDataError("No data to read")
         }
 
-        self.shell?.swim.metrics.messageCountInbound.increment()
-        self.shell?.swim.metrics.messageBytesInbound.record(bytes.readableBytes)
+        self.metrics?.messageInboundCount.increment()
+        self.metrics?.messageInboundBytes.record(data.count)
 
         let decoder = SWIMNIODefaultDecoder()
         decoder.userInfo[.channelUserInfoKey] = channel
@@ -217,8 +219,8 @@ extension SWIMNIOHandler {
         let encoder = SWIMNIODefaultEncoder()
         let data = try encoder.encode(message)
 
-        self.shell?.swim.metrics.messageCountOutbound.increment()
-        self.shell?.swim.metrics.messageBytesOutbound.record(data.count)
+        self.metrics?.messageOutboundCount.increment()
+        self.metrics?.messageOutboundBytes.record(data.count)
 
         let buffer = data.withUnsafeBytes { bytes -> ByteBuffer in
             var buffer = allocator.buffer(capacity: data.count)

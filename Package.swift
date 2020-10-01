@@ -68,12 +68,28 @@ var targets: [PackageDescription.Target] = [
 
     .testTarget(
         name: "SWIMTests",
-        dependencies: ["SWIM"]
+        dependencies: [
+            "SWIM",
+            "SWIMTestKit",
+        ]
     ),
 
     .testTarget(
         name: "SWIMNIOExampleTests",
-        dependencies: ["SWIMNIOExample"]
+        dependencies: [
+            "SWIMNIOExample",
+            "SWIMTestKit",
+        ]
+    ),
+
+    // NOT FOR PUBLIC CONSUMPTION.
+    .testTarget(
+        name: "SWIMTestKit",
+        dependencies: [
+            .product(name: "NIO", package: "swift-nio"),
+            .product(name: "Logging", package: "swift-log"),
+            .product(name: "Metrics", package: "swift-metrics"),
+        ]
     ),
 
     // ==== ------------------------------------------------------------------------------------------------------------

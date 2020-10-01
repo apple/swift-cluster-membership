@@ -19,6 +19,7 @@ import Logging
 import NIO
 import SWIM
 @testable import SWIMNIOExample
+import SWIMTestKit
 import XCTest
 
 // ==== ----------------------------------------------------------------------------------------------------------------

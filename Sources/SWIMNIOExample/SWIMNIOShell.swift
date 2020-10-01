@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import struct Dispatch.DispatchTime
 import enum Dispatch.DispatchTimeInterval
 import Logging
 import NIO
@@ -380,17 +381,21 @@ public final class SWIMNIOShell {
         let firstSuccessPromise = self.eventLoop.makePromise(of: SWIM.PingResponse.self)
         let pingTimeout = directive.timeout
         let target = directive.target
+        let startedSendingPingRequestsSentAt: DispatchTime = .now()
         for pingRequest in directive.requestDetails {
             let peerToPingRequestThrough = pingRequest.peerToPingRequestThrough
             let payload = pingRequest.payload
             let sequenceNumber = pingRequest.sequenceNumber
 
             self.log.trace("Sending ping request for [\(target)] to [\(peerToPingRequestThrough.node)] with payload: \(payload)")
-
             self.tracelog(.send(to: peerToPingRequestThrough), message: "pingRequest(target: \(target), replyTo: \(self.peer), payload: \(payload), sequenceNumber: \(sequenceNumber))")
+
+            let pingRequestSentAt: DispatchTime = .now()
             peerToPingRequestThrough.pingRequest(target: target, payload: payload, from: self.peer, timeout: pingTimeout, sequenceNumber: sequenceNumber) { result in
                 switch result {
                 case .success(let response):
+                    // we only record successes
+                    self.swim.metrics.shell.pingRequestResponseTimeAll.recordInterval(since: pingRequestSentAt)
                     self.receiveEveryPingRequestResponse(result: response, pingedPeer: target)
 
                     if case .ack = response {
@@ -399,6 +404,7 @@ public final class SWIMNIOShell {
                         // While this has a slight timing implication on time timeout of the pings -- the node that is last
                         // in the list that we ping, has slightly less time to fulfil the "total ping timeout"; as we set a total timeout on the entire `firstSuccess`.
                         // In practice those timeouts will be relatively large (seconds) and the few millis here should not have a large impact on correctness.
+                        self.swim.metrics.shell.pingRequestResponseTimeFirst.recordInterval(since: startedSendingPingRequestsSentAt)
                         firstSuccessPromise.succeed(response)
                     }
                 case .failure(let error):
@@ -415,10 +421,11 @@ public final class SWIMNIOShell {
         }
 
         // guaranteed to be on "our" EL
-        firstSuccessPromise.futureResult.whenComplete {
-            switch $0 {
+        firstSuccessPromise.futureResult.whenComplete { result in
+            switch result {
             case .success(let response):
                 self.receivePingRequestResponse(result: response, pingedPeer: target)
+
             case .failure(let error):
                 self.log.debug("Failed to pingRequest via \(directive.requestDetails.count) peers", metadata: ["pingRequest/target": "\(target)", "error": "\(error)"])
                 self.receivePingRequestResponse(result: .timeout(target: target, pingRequestOrigin: nil, timeout: pingTimeout, sequenceNumber: 0), pingedPeer: target) // sequence number does not matter
