@@ -37,6 +37,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
 
     // initialized in channelActive
     var shell: SWIMNIOShell!
+    var metrics: SWIM.Metrics.ShellMetrics?
 
     var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void]
 
@@ -66,6 +67,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                 }
             }
         )
+        self.metrics = self.shell.swim.metrics.shell
 
         self.log.trace("Channel active", metadata: [
             "nio/localAddress": "\(context.channel.localAddress?.description ?? "unknown")",
@@ -159,14 +161,17 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                 #else
                 let callbackKey = PendingResponseCallbackIdentifier(peerAddress: remoteAddress, sequenceNumber: message.sequenceNumber)
                 #endif
-                if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
+
+                if let index = self.pendingReplyCallbacks.index(forKey: callbackKey) {
+                    let (storedKey, callback) = self.pendingReplyCallbacks.remove(at: index)
                     // TODO: UIDs of nodes matter
                     self.log.trace("Received response, key: \(callbackKey); Invoking callback...", metadata: [
                         "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
+                    self.metrics?.pingResponseTime.recordNanoseconds(storedKey.nanosecondsSinceCallbackStored().nanoseconds)
                     callback(.success(message))
                 } else {
-                    self.log.trace("No callback for \(callbackKey)... It may have been removed due to a timeout already.", metadata: [
+                    self.log.trace("No callback for \(callbackKey); It may have been removed due to a timeout already.", metadata: [
                         "pending callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
                     ])
                 }
@@ -202,6 +207,9 @@ extension SWIMNIOHandler {
             throw MissingDataError("No data to read")
         }
 
+        self.metrics?.messageInboundCount.increment()
+        self.metrics?.messageInboundBytes.record(data.count)
+
         let decoder = SWIMNIODefaultDecoder()
         decoder.userInfo[.channelUserInfoKey] = channel
         return try decoder.decode(SWIM.Message.self, from: data)
@@ -210,6 +218,9 @@ extension SWIMNIOHandler {
     private func serialize(message: SWIM.Message, using allocator: ByteBufferAllocator) throws -> ByteBuffer {
         let encoder = SWIMNIODefaultEncoder()
         let data = try encoder.encode(message)
+
+        self.metrics?.messageOutboundCount.increment()
+        self.metrics?.messageOutboundBytes.record(data.count)
 
         let buffer = data.withUnsafeBytes { bytes -> ByteBuffer in
             var buffer = allocator.buffer(capacity: data.count)
@@ -272,9 +283,13 @@ struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
         PendingResponseCallbackIdentifier(\
         peerAddress: \(peerAddress), \
         sequenceNumber: \(sequenceNumber), \
-        storedAt: \(self.storedAt) (\(DispatchTimeInterval.nanoseconds(Int(DispatchTime.now().uptimeNanoseconds - storedAt.uptimeNanoseconds)).prettyDescription) ago)\
+        storedAt: \(self.storedAt) (\(nanosecondsSinceCallbackStored().prettyDescription) ago)\
         )
         """
+    }
+
+    func nanosecondsSinceCallbackStored(now: DispatchTime = .now()) -> DispatchTimeInterval {
+        DispatchTimeInterval.nanoseconds(Int(now.uptimeNanoseconds - storedAt.uptimeNanoseconds))
     }
 }
 

@@ -16,6 +16,7 @@ import ClusterMembership
 import NIO
 import SWIM
 @testable import SWIMNIOExample
+import SWIMTestKit
 import XCTest
 
 // TODO: those tests could be done on embedded event loops probably

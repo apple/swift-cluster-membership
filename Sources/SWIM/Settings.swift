@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2018-2019 Apple Inc. and the Swift Cluster Membership project authors
+// Copyright (c) 2020 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -50,6 +50,9 @@ extension SWIM {
 
         /// Settings of the Lifeguard extensions to the SWIM protocol.
         public var lifeguard: SWIMLifeguardSettings = .init()
+
+        /// Settings for metrics to be emitted by the SWIM.Instance automatically.
+        public var metrics: SWIMMetricsSettings = .init()
 
         /// Configures the node of this SWIM instance explicitly, including allowing setting it's UID.
         ///
@@ -322,5 +325,37 @@ public struct SWIMLifeguardSettings {
         willSet {
             precondition(newValue > 0, "`settings.cluster.swim.maxIndependentSuspicions` MUST BE > 0")
         }
+    }
+}
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: SWIM Metrics Settings
+
+/// Configure label names and other details about metrics reported by the `SWIM.Instance`.
+public struct SWIMMetricsSettings {
+    public init() {}
+
+    /// Configure the segments separator for use when creating labels;
+    /// Some systems like graphite like "." as the separator, yet others may not treat this as legal character.
+    ///
+    /// Typical alternative values are "/" or "_", though consult your metrics backend before changing this setting.
+    public var segmentSeparator: String = "."
+
+    /// Prefix all metrics with this segment.
+    ///
+    /// If set, this is used as the first part of a label name, followed by `labelPrefix`.
+    public var systemName: String?
+
+    /// Label string prefixed before all emitted metrics names in their labels.
+    ///
+    /// - SeeAlso: `systemName`, if set, is prefixed before `labelPrefix` when creating label names.
+    public var labelPrefix: String? = "swim"
+
+    func makeLabel(_ segments: String...) -> String {
+        let systemNamePart: String = self.systemName.map { "\($0)\(self.segmentSeparator)" } ?? ""
+        let systemMetricsPrefixPart: String = self.labelPrefix.map { "\($0)\(self.segmentSeparator)" } ?? ""
+        let joinedSegments = segments.joined(separator: self.segmentSeparator)
+
+        return "\(systemNamePart)\(systemMetricsPrefixPart)\(joinedSegments)"
     }
 }

@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2018-2019 Apple Inc. and the Swift Cluster Membership project authors
+// Copyright (c) 2020 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -237,6 +237,9 @@ extension SWIM {
         /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
+        /// Struct containing all metrics a SWIM Instance (and implementation Shell) should emit.
+        public let metrics: SWIM.Metrics
+
         /// Node which this SWIM.Instance is representing in the cluster.
         public var node: ClusterMembership.Node {
             self.peer.node
@@ -261,7 +264,11 @@ extension SWIM {
         private let peer: SWIMPeer
 
         /// Main members storage, map to values to obtain current members.
-        internal var _members: [ClusterMembership.Node: SWIM.Member]
+        internal var _members: [ClusterMembership.Node: SWIM.Member] {
+            didSet {
+                self.metrics.updateMembership(self.members)
+            }
+        }
 
         /// List of members maintained in random yet stable order, see `addMember` for details.
         internal var membersToPing: [SWIM.Member]
@@ -272,7 +279,11 @@ extension SWIM {
         }
 
         /// Tombstones are needed to avoid accidentally re-adding a member that we confirmed as dead already.
-        internal var removedDeadMemberTombstones: Set<MemberTombstone> = []
+        internal var removedDeadMemberTombstones: Set<MemberTombstone> = [] {
+            didSet {
+                self.metrics.removedDeadMemberTombstones.record(self.removedDeadMemberTombstones.count)
+            }
+        }
 
         private var _sequenceNumber: SWIM.SequenceNumber = 0
         /// Sequence numbers are used to identify messages and pair them up into request/replies.
@@ -297,6 +308,7 @@ extension SWIM {
         public var localHealthMultiplier = 0 {
             didSet {
                 assert(self.localHealthMultiplier >= 0, "localHealthMultiplier MUST NOT be < 0, but was: \(self.localHealthMultiplier)")
+                self.metrics.localHealthMultiplier.record(self.localHealthMultiplier)
             }
         }
 
@@ -331,7 +343,15 @@ extension SWIM {
             self._incarnation
         }
 
-        private var _incarnation: SWIM.Incarnation = 0
+        private var _incarnation: SWIM.Incarnation = 0 {
+            didSet {
+                self.metrics.incarnation.record(self._incarnation)
+            }
+        }
+
+        private func nextIncarnation() {
+            self._incarnation += 1
+        }
 
         /// Creates a new SWIM algorithm instance.
         public init(settings: SWIM.Settings, myself: SWIMPeer) {
@@ -339,7 +359,12 @@ extension SWIM {
             self.peer = myself
             self._members = [:]
             self.membersToPing = []
+            self.metrics = SWIM.Metrics(settings: settings)
             _ = self.addMember(myself, status: .alive(incarnation: 0))
+
+            self.metrics.incarnation.record(self.incarnation)
+            self.metrics.localHealthMultiplier.record(self.localHealthMultiplier)
+            self.metrics.updateMembership(self.members)
         }
 
         func makeSuspicion(incarnation: SWIM.Incarnation) -> SWIM.Status {
@@ -576,7 +601,9 @@ extension SWIM {
             self._members[peer.node] = member
 
             if status.isDead {
-                self._members.removeValue(forKey: peer.node)
+                if let _ = self._members.removeValue(forKey: peer.node) {
+                    self.metrics.membersTotalDead.increment()
+                }
                 self.removeFromMembersToPing(member)
                 if let uid = member.node.uid {
                     let deadline = self.protocolPeriod + self.settings.tombstoneTimeToLiveInTicks
@@ -981,7 +1008,7 @@ extension SWIM.Instance {
             }
         }
 
-        // metrics.recordSWIM.Members(self.swim.allMembers) // FIXME metrics
+        self.metrics.updateMembership(self.members)
         return directives
     }
 
@@ -1054,6 +1081,8 @@ extension SWIM.Instance {
         pingRequestSequenceNumber: SWIM.SequenceNumber?,
         sequenceNumber: SWIM.SequenceNumber
     ) -> [PingResponseDirective] {
+        self.metrics.successfulPingProbes.increment()
+
         var directives: [PingResponseDirective] = []
         // We're proxying an ack payload from ping target back to ping source.
         // If ping target was a suspect, there'll be a refutation in a payload
@@ -1091,6 +1120,9 @@ extension SWIM.Instance {
         pingRequestOrigin: SWIMPingOriginPeer?,
         sequenceNumber: SWIM.SequenceNumber
     ) -> [PingResponseDirective] {
+        // yes, a nack is "successful" -- we did get a reply from the peer we contacted after all
+        self.metrics.successfulPingProbes.increment()
+
         // Important:
         // We do _nothing_ here, however we actually handle nacks implicitly in today's SWIMNIO implementation...
         // This works because the arrival of the nack means we removed the callback from the handler,
@@ -1098,7 +1130,7 @@ extension SWIM.Instance {
         //
         // we should solve this more nicely, so any implementation benefits from this;
         // FIXME: .nack handling discussion https://github.com/apple/swift-cluster-membership/issues/52
-        []
+        return []
     }
 
     func onPingResponseTimeout(
@@ -1107,6 +1139,8 @@ extension SWIM.Instance {
         pingRequestOrigin: SWIMPingRequestOriginPeer?,
         pingRequestSequenceNumber: SWIM.SequenceNumber?
     ) -> [PingResponseDirective] {
+        self.metrics.failedPingProbes.increment()
+
         var directives: [PingResponseDirective] = []
         if let pingRequestOrigin = pingRequestOrigin,
             let pingRequestSequenceNumber = pingRequestSequenceNumber {
@@ -1383,9 +1417,13 @@ extension SWIM.Instance {
         switch result {
         case .timeout:
             // Failed pingRequestResponse indicates a missed nack, we should adjust LHMultiplier
+            self.metrics.failedPingRequestProbes.increment()
             self.adjustLHMultiplier(.probeWithMissedNack)
-        default:
-            () // Successful pingRequestResponse should be handled only once (and thus in `onPingRequestResponse` only)
+        case .ack, .nack:
+            // Successful pingRequestResponse should be handled only once (and thus in `onPingRequestResponse` only),
+            // however we can nicely handle all responses here for purposes of metrics (and NOT adjust them in the onPingRequestResponse
+            // since that would lead to double-counting successes)
+            self.metrics.successfulPingRequestProbes.increment()
         }
 
         return [] // just so happens that we never actually perform any actions here (so far, keeping the return type for future compatibility)
@@ -1458,7 +1496,7 @@ extension SWIM.Instance {
             // the incremented incarnation
             if suspectedInIncarnation == self.incarnation {
                 self.adjustLHMultiplier(.refutingSuspectMessageAboutSelf)
-                self._incarnation += 1
+                self.nextIncarnation()
                 // refute the suspicion, we clearly are still alive
                 self.addToGossip(member: self.member)
                 return .applied(change: nil)
@@ -1480,7 +1518,7 @@ extension SWIM.Instance {
                 // someone suspected us,
                 // so we need to increment our incarnation number to spread our alive status with the incremented incarnation
                 if unreachableInIncarnation == self.incarnation {
-                    self._incarnation += 1
+                    self.nextIncarnation()
                     return .ignored
                 } else if unreachableInIncarnation > self.incarnation {
                     self.log.warning("""
