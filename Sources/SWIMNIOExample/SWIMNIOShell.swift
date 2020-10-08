@@ -404,7 +404,6 @@ public final class SWIMNIOShell {
                         // While this has a slight timing implication on time timeout of the pings -- the node that is last
                         // in the list that we ping, has slightly less time to fulfil the "total ping timeout"; as we set a total timeout on the entire `firstSuccess`.
                         // In practice those timeouts will be relatively large (seconds) and the few millis here should not have a large impact on correctness.
-                        self.swim.metrics.shell.pingRequestResponseTimeFirst.recordInterval(since: startedSendingPingRequestsSentAt)
                         firstSuccessPromise.succeed(response)
                     }
                 case .failure(let error):
@@ -424,6 +423,7 @@ public final class SWIMNIOShell {
         firstSuccessPromise.futureResult.whenComplete { result in
             switch result {
             case .success(let response):
+                self.swim.metrics.shell.pingRequestResponseTimeFirst.recordInterval(since: startedSendingPingRequestsSentAt)
                 self.receivePingRequestResponse(result: response, pingedPeer: target)
 
             case .failure(let error):
