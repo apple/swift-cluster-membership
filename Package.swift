@@ -67,6 +67,13 @@ var targets: [PackageDescription.Target] = [
     // MARK: Tests
 
     .testTarget(
+        name: "ClusterMembershipTests",
+        dependencies: [
+            "ClusterMembership",
+        ]
+    ),
+
+    .testTarget(
         name: "SWIMTests",
         dependencies: [
             "SWIM",
