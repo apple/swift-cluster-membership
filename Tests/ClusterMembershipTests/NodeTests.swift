@@ -28,6 +28,10 @@ final class NodeTests: XCTestCase {
 
     func testCompareDifferentHost() throws {
         XCTAssertLessThan(firstNode, thirdNode)
+        XCTAssertGreaterThan(thirdNode, firstNode)
+        XCTAssertNotEqual(firstNode, thirdNode)
+        XCTAssertLessThan(secondNode, thirdNode)
+        XCTAssertGreaterThan(thirdNode, secondNode)
     }
 
     func testSort() throws {
