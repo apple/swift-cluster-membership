@@ -76,7 +76,7 @@ extension Node {
             }
         } else {
             // "silly" but good enough comparison, we just need a predictable order, does not really matter what it is
-            return "\(lhs.protocol)\(lhs.host)" < "\(lhs.protocol)\(lhs.host)"
+            return "\(lhs.protocol)\(lhs.host)" < "\(rhs.protocol)\(rhs.host)"
         }
     }
 }
