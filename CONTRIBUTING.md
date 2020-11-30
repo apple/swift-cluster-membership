@@ -58,7 +58,7 @@ A good Swift Cluster Membership patch is:
 4. Adheres to our code formatting conventions and [style guide](STYLE_GUIDE.md).
 5. Accompanied by a great commit message, using our commit message template.
 
-In order to check if all formatting and other rules are in-line with what the project expects, you should run the **`scripts/sanity.sh`** script before submitting your pull request. It will check formatting and other rules and fail it they are not in accordance to the project's rules, e.g. fixing all the formatting along the way.
+You should run the **`scripts/sanity.sh`** script before submitting your pull request. It will check formatting and other rules and fail if they are not in accordance to the project's rules, e.g. fixing all the formatting along the way.
 
 Once the sanity script passes, you are ready to submit your pull request!
 
