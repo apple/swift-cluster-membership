@@ -17,11 +17,10 @@ RUN apt-get update && apt-get install -y wget
 RUN apt-get update && apt-get install -y lsof dnsutils netcat-openbsd net-tools curl jq # used by integration tests
 
 # ruby and jazzy for docs generation
-RUN apt-get update && apt-get install -y ruby ruby-dev libsqlite3-dev
-RUN gem install jazzy --no-ri --no-rdoc
-RUN gem install asciidoctor -v 1.5.8 --no-ri --no-rdoc
-RUN gem install asciidoctor-pdf --pre --no-ri --no-rdoc
-RUN gem install asciidoctor-diagram -v 1.5.8 --no-ri --no-rdoc
+RUN apt-get update && apt-get install -y ruby ruby-dev libsqlite3-dev build-essential
+# jazzy no longer works on older version of ubuntu as ruby is too old.
+RUN if [ "${ubuntu_version}" = "focal" ] ; then echo "gem: --no-document" > ~/.gemrc ; fi
+RUN if [ "${ubuntu_version}" = "focal" ] ; then gem install jazzy ; fi
 
 # tools
 RUN mkdir -p $HOME/.tools

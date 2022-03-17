@@ -1,0 +1,31 @@
+version: "3"
+
+services:
+
+  runtime-setup:
+    image: swift-cluster-membership:20.04-5.4
+    build:
+      args:
+        ubuntu_version: "focal"
+        swift_version: "5.4"
+
+  unit-tests:
+    image: swift-cluster-membership:20.04-5.4
+
+  unit-tests-until-failure:
+    image: swift-cluster-membership:20.04-5.4
+
+  integration-tests:
+    image: swift-cluster-membership:20.04-5.4
+
+  test:
+    image: swift-cluster-membership:20.04-5.4
+
+  bench:
+    image: swift-cluster-membership:20.04-5.4
+
+  shell:
+    image: swift-cluster-membership:20.04-5.4
+
+  sample-crash:
+    image: swift-cluster-membership:20.04-5.4
