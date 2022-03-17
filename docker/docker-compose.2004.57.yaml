@@ -1,0 +1,30 @@
+version: "3"
+
+services:
+
+  runtime-setup:
+    image: swift-cluster-membership:20.04-5.7
+    build:
+      args:
+        base_image: "swiftlang/swift:nightly-main-focal"
+
+  unit-tests:
+    image: swift-cluster-membership:20.04-5.7
+
+  unit-tests-until-failure:
+    image: swift-cluster-membership:20.04-5.7
+
+  integration-tests:
+    image: swift-cluster-membership:20.04-5.7
+
+  test:
+    image: swift-cluster-membership:20.04-5.7
+
+  bench:
+    image: swift-cluster-membership:20.04-5.7
+
+  shell:
+    image: swift-cluster-membership:20.04-5.7
+
+  sample-crash:
+    image: swift-cluster-membership:20.04-5.7
