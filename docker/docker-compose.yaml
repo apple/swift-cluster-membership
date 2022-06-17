@@ -42,7 +42,8 @@ services:
 
   test:
     <<: *common
-    command: /bin/bash -cl "WARNINGS_AS_ERRORS=yes swift test --enable-test-discovery -Xswiftc -DTESTS_LEAKS && ./scripts/integration_tests.sh"
+    command: /bin/bash -cl "swift test --enable-test-discovery -Xswiftc -DTESTS_LEAKS && ./scripts/integration_tests.sh"
+#    command: /bin/bash -cl "WARNINGS_AS_ERRORS=yes swift test --enable-test-discovery -Xswiftc -DTESTS_LEAKS && ./scripts/integration_tests.sh"
 
   # util
 
