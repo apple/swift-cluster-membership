@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2020 Apple Inc. and the Swift Cluster Membership project authors
+// Copyright (c) 2020-2022 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -106,20 +106,20 @@ extension SWIM.Message: Codable {
 }
 
 extension CodingUserInfoKey {
-    static let channelUserInfoKey: CodingUserInfoKey = CodingUserInfoKey(rawValue: "nio_peer_channel")!
+    static let channelUserInfoKey = CodingUserInfoKey(rawValue: "nio_peer_channel")!
 }
 
 extension SWIM.NIOPeer: Codable {
-    public init(from decoder: Decoder) throws {
+    public convenience init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        self.node = try container.decode(Node.self)
+        let node = try container.decode(Node.self)
         guard let channel = decoder.userInfo[.channelUserInfoKey] as? Channel else {
             fatalError("Expected channelUserInfoKey to be present in userInfo, unable to decode SWIM.NIOPeer!")
         }
-        self.channel = channel
+        self.init(node: node, channel: channel)
     }
 
-    public func encode(to encoder: Encoder) throws {
+    public nonisolated func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(self.node)
     }
@@ -176,8 +176,7 @@ extension ClusterMembership.Node: Codable {
         atIndex = repr.index(after: atIndex)
 
         let name: String?
-        if let nameEndIndex = repr[atIndex...].firstIndex(of: "@"),
-            nameEndIndex < repr.endIndex {
+        if let nameEndIndex = repr[atIndex...].firstIndex(of: "@"), nameEndIndex < repr.endIndex {
             name = String(repr[atIndex ..< nameEndIndex])
             atIndex = repr.index(after: nameEndIndex)
         } else {

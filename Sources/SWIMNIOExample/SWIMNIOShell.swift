@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2020 Apple Inc. and the Swift Cluster Membership project authors
+// Copyright (c) 2020-2022 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -179,7 +179,9 @@ public final class SWIMNIOShell {
 
             case .sendAck(let pingOrigin, let pingedTarget, let incarnation, let payload, let sequenceNumber):
                 self.tracelog(.reply(to: pingOrigin), message: "\(directive)")
-                pingOrigin.peer(self.channel).ack(acknowledging: sequenceNumber, target: pingedTarget, incarnation: incarnation, payload: payload)
+                Task {
+                    await pingOrigin.peer(self.channel).ack(acknowledging: sequenceNumber, target: pingedTarget, incarnation: incarnation, payload: payload)
+                }
             }
         }
     }
@@ -215,14 +217,16 @@ public final class SWIMNIOShell {
                 self.handleGossipPayloadProcessedDirective(gossipDirective)
 
             case .sendPing(let target, let payload, let pingRequestOriginPeer, let pingRequestSequenceNumber, let timeout, let sequenceNumber):
-                self.sendPing(
-                    to: target,
-                    payload: payload,
-                    pingRequestOrigin: pingRequestOriginPeer,
-                    pingRequestSequenceNumber: pingRequestSequenceNumber,
-                    timeout: timeout,
-                    sequenceNumber: sequenceNumber
-                )
+                Task {
+                    await self.sendPing(
+                        to: target,
+                        payload: payload,
+                        pingRequestOrigin: pingRequestOriginPeer,
+                        pingRequestSequenceNumber: pingRequestSequenceNumber,
+                        timeout: timeout,
+                        sequenceNumber: sequenceNumber
+                    )
+                }
             }
         }
     }
@@ -254,13 +258,19 @@ public final class SWIMNIOShell {
                 self.handleGossipPayloadProcessedDirective(gossipDirective)
 
             case .sendAck(let pingRequestOrigin, let acknowledging, let target, let incarnation, let payload):
-                pingRequestOrigin.ack(acknowledging: acknowledging, target: target, incarnation: incarnation, payload: payload)
+                Task {
+                    try await pingRequestOrigin.ack(acknowledging: acknowledging, target: target, incarnation: incarnation, payload: payload)
+                }
 
             case .sendNack(let pingRequestOrigin, let acknowledging, let target):
-                pingRequestOrigin.nack(acknowledging: acknowledging, target: target)
+                Task {
+                    try await pingRequestOrigin.nack(acknowledging: acknowledging, target: target)
+                }
 
             case .sendPingRequests(let pingRequestDirective):
-                self.sendPingRequests(pingRequestDirective)
+                Task {
+                    await self.sendPingRequests(pingRequestDirective)
+                }
             }
         }
     }
@@ -341,7 +351,7 @@ public final class SWIMNIOShell {
         pingRequestSequenceNumber: SWIM.SequenceNumber?,
         timeout: DispatchTimeInterval,
         sequenceNumber: SWIM.SequenceNumber
-    ) {
+    ) async {
         self.log.trace("Sending ping", metadata: self.swim.metadata([
             "swim/target": "\(target)",
             "swim/gossip/payload": "\(payload)",
@@ -349,32 +359,31 @@ public final class SWIMNIOShell {
         ]))
 
         self.tracelog(.send(to: target), message: "ping(replyTo: \(self.peer), payload: \(payload), sequenceNr: \(sequenceNumber))")
-        target.ping(payload: payload, from: self.peer, timeout: timeout, sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
-            switch result {
-            case .success(let response):
-                self.receivePingResponse(
-                    response: response,
-                    pingRequestOriginPeer: pingRequestOrigin,
-                    pingRequestSequenceNumber: pingRequestSequenceNumber
-                )
-            case .failure(let error as SWIMNIOTimeoutError):
-                self.receivePingResponse(
-                    response: .timeout(target: target, pingRequestOrigin: pingRequestOrigin, timeout: error.timeout, sequenceNumber: sequenceNumber),
-                    pingRequestOriginPeer: pingRequestOrigin,
-                    pingRequestSequenceNumber: pingRequestSequenceNumber
-                )
-            case .failure(let error):
-                self.log.debug("Failed to ping", metadata: ["ping/target": "\(target)", "error": "\(error)"])
-                self.receivePingResponse(
-                    response: .timeout(target: target, pingRequestOrigin: pingRequestOrigin, timeout: timeout, sequenceNumber: sequenceNumber),
-                    pingRequestOriginPeer: pingRequestOrigin,
-                    pingRequestSequenceNumber: pingRequestSequenceNumber
-                )
-            }
+
+        do {
+            let response = try await target.ping(payload: payload, from: self.peer, timeout: timeout, sequenceNumber: sequenceNumber)
+            self.receivePingResponse(
+                response: response,
+                pingRequestOriginPeer: pingRequestOrigin,
+                pingRequestSequenceNumber: pingRequestSequenceNumber
+            )
+        } catch let error as SWIMNIOTimeoutError {
+            self.receivePingResponse(
+                response: .timeout(target: target, pingRequestOrigin: pingRequestOrigin, timeout: error.timeout, sequenceNumber: sequenceNumber),
+                pingRequestOriginPeer: pingRequestOrigin,
+                pingRequestSequenceNumber: pingRequestSequenceNumber
+            )
+        } catch {
+            self.log.debug("Failed to ping", metadata: ["ping/target": "\(target)", "error": "\(error)"])
+            self.receivePingResponse(
+                response: .timeout(target: target, pingRequestOrigin: pingRequestOrigin, timeout: timeout, sequenceNumber: sequenceNumber),
+                pingRequestOriginPeer: pingRequestOrigin,
+                pingRequestSequenceNumber: pingRequestSequenceNumber
+            )
         }
     }
 
-    func sendPingRequests(_ directive: SWIM.Instance.SendPingRequestDirective) {
+    func sendPingRequests(_ directive: SWIM.Instance.SendPingRequestDirective) async {
         // We are only interested in successful pings, as a single success tells us the node is
         // still alive. Therefore we propagate only the first success, but no failures.
         // The failure case is handled through the timeout of the whole operation.
@@ -382,39 +391,48 @@ public final class SWIMNIOShell {
         let pingTimeout = directive.timeout
         let target = directive.target
         let startedSendingPingRequestsSentAt: DispatchTime = .now()
-        for pingRequest in directive.requestDetails {
-            let peerToPingRequestThrough = pingRequest.peerToPingRequestThrough
-            let payload = pingRequest.payload
-            let sequenceNumber = pingRequest.sequenceNumber
 
-            self.log.trace("Sending ping request for [\(target)] to [\(peerToPingRequestThrough.node)] with payload: \(payload)")
-            self.tracelog(.send(to: peerToPingRequestThrough), message: "pingRequest(target: \(target), replyTo: \(self.peer), payload: \(payload), sequenceNumber: \(sequenceNumber))")
+        await withTaskGroup(of: Void.self) { group in
+            for pingRequest in directive.requestDetails {
+                group.addTask {
+                    let peerToPingRequestThrough = pingRequest.peerToPingRequestThrough
+                    let payload = pingRequest.payload
+                    let sequenceNumber = pingRequest.sequenceNumber
 
-            let pingRequestSentAt: DispatchTime = .now()
-            peerToPingRequestThrough.pingRequest(target: target, payload: payload, from: self.peer, timeout: pingTimeout, sequenceNumber: sequenceNumber) { result in
-                switch result {
-                case .success(let response):
-                    // we only record successes
-                    self.swim.metrics.shell.pingRequestResponseTimeAll.recordInterval(since: pingRequestSentAt)
-                    self.receiveEveryPingRequestResponse(result: response, pingedPeer: target)
+                    self.log.trace("Sending ping request for [\(target)] to [\(peerToPingRequestThrough.node)] with payload: \(payload)")
+                    self.tracelog(.send(to: peerToPingRequestThrough), message: "pingRequest(target: \(target), replyTo: \(self.peer), payload: \(payload), sequenceNumber: \(sequenceNumber))")
 
-                    if case .ack = response {
-                        // We only cascade successful ping responses (i.e. `ack`s);
-                        //
-                        // While this has a slight timing implication on time timeout of the pings -- the node that is last
-                        // in the list that we ping, has slightly less time to fulfil the "total ping timeout"; as we set a total timeout on the entire `firstSuccess`.
-                        // In practice those timeouts will be relatively large (seconds) and the few millis here should not have a large impact on correctness.
-                        firstSuccessPromise.succeed(response)
+                    let pingRequestSentAt: DispatchTime = .now()
+                    do {
+                        let response = try await peerToPingRequestThrough.pingRequest(
+                            target: target,
+                            payload: payload,
+                            from: self.peer,
+                            timeout: pingTimeout, sequenceNumber: sequenceNumber
+                        )
+
+                        // we only record successes
+                        self.swim.metrics.shell.pingRequestResponseTimeAll.recordInterval(since: pingRequestSentAt)
+                        self.receiveEveryPingRequestResponse(result: response, pingedPeer: target)
+
+                        if case .ack = response {
+                            // We only cascade successful ping responses (i.e. `ack`s);
+                            //
+                            // While this has a slight timing implication on time timeout of the pings -- the node that is last
+                            // in the list that we ping, has slightly less time to fulfil the "total ping timeout"; as we set a total timeout on the entire `firstSuccess`.
+                            // In practice those timeouts will be relatively large (seconds) and the few millis here should not have a large impact on correctness.
+                            firstSuccessPromise.succeed(response)
+                        }
+                    } catch {
+                        self.receiveEveryPingRequestResponse(result: .timeout(target: target, pingRequestOrigin: self.myself, timeout: pingTimeout, sequenceNumber: sequenceNumber), pingedPeer: target)
+                        // these are generally harmless thus we do not want to log them on higher levels
+                        self.log.trace("Failed pingRequest", metadata: [
+                            "swim/target": "\(target)",
+                            "swim/payload": "\(payload)",
+                            "swim/pingTimeout": "\(pingTimeout)",
+                            "error": "\(error)",
+                        ])
                     }
-                case .failure(let error):
-                    self.receiveEveryPingRequestResponse(result: .timeout(target: target, pingRequestOrigin: self.myself, timeout: pingTimeout, sequenceNumber: sequenceNumber), pingedPeer: target)
-                    // these are generally harmless thus we do not want to log them on higher levels
-                    self.log.trace("Failed pingRequest", metadata: [
-                        "swim/target": "\(target)",
-                        "swim/payload": "\(payload)",
-                        "swim/pingTimeout": "\(pingTimeout)",
-                        "error": "\(error)",
-                    ])
                 }
             }
         }
@@ -450,7 +468,9 @@ public final class SWIMNIOShell {
 
             case .sendPing(let target, let payload, let timeout, let sequenceNumber):
                 self.log.trace("Periodic ping random member, among: \(self.swim.otherMemberCount)", metadata: self.swim.metadata)
-                self.sendPing(to: target, payload: payload, pingRequestOrigin: nil, pingRequestSequenceNumber: nil, timeout: timeout, sequenceNumber: sequenceNumber)
+                Task {
+                    await self.sendPing(to: target, payload: payload, pingRequestOrigin: nil, pingRequestSequenceNumber: nil, timeout: timeout, sequenceNumber: sequenceNumber)
+                }
 
             case .scheduleNextTick(let delay):
                 self.nextPeriodicTickCancellable = self.schedule(delay: delay) {
@@ -481,11 +501,11 @@ public final class SWIMNIOShell {
 
         let sequenceNumber = self.swim.nextSequenceNumber()
         self.tracelog(.send(to: targetPeer), message: "ping(replyTo: \(self.peer), payload: .none, sequenceNr: \(sequenceNumber))")
-        targetPeer.ping(payload: self.swim.makeGossipPayload(to: nil), from: self.peer, timeout: .seconds(1), sequenceNumber: sequenceNumber) { (result: Result<SWIM.PingResponse, Error>) in
-            switch result {
-            case .success(let response):
+        Task {
+            do {
+                let response = try await targetPeer.ping(payload: self.swim.makeGossipPayload(to: nil), from: self.peer, timeout: .seconds(1), sequenceNumber: sequenceNumber)
                 self.receivePingResponse(response: response, pingRequestOriginPeer: nil, pingRequestSequenceNumber: nil)
-            case .failure(let error):
+            } catch {
                 self.log.debug("Failed to initial ping, will try again", metadata: ["ping/target": "\(node)", "error": "\(error)"])
                 // TODO: implement via re-trying a few times and then giving up https://github.com/apple/swift-cluster-membership/issues/32
                 self.eventLoop.scheduleTask(in: .seconds(5)) {

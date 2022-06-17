@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2018-2019 Apple Inc. and the Swift Cluster Membership project authors
+// Copyright (c) 2018-2022 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -17,6 +17,7 @@ import struct Foundation.Date
 import class Foundation.NSLock
 import Logging
 import NIO
+import NIOCore
 import SWIM
 @testable import SWIMNIOExample
 import SWIMTestKit
@@ -105,9 +106,8 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
 
         let channel = EmbeddedChannel(loop: self.loop)
         channel.isWritable = true
-        let peer = SWIM.NIOPeer(node: node, channel: channel)
         let shell = SWIMNIOShell(
-            node: peer.node,
+            node: node,
             settings: settings,
             channel: channel,
             onMemberStatusChange: { _ in () } // TODO: store events so we can inspect them?
@@ -152,24 +152,26 @@ class BaseClusteredXCTestCase: XCTestCase {
         // just use defaults
     }
 
-    open override func setUp() {
+    override open func setUp() {
         super.setUp()
+
+        self.addTeardownBlock {
+            for shell in self._shells {
+                do {
+                    try await shell.myself.channel.close()
+                } catch {
+                    () // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
+                }
+            }
+        }
     }
 
-    open override func tearDown() {
+    override open func tearDown() {
         super.tearDown()
 
         let testsFailed = self.testRun?.totalFailureCount ?? 0 > 0
         if self.captureLogs, self.alwaysPrintCaptureLogs || testsFailed {
             self.printAllCapturedLogs()
-        }
-
-        self._shells.forEach { shell in
-            do {
-                try shell.myself.channel.close().wait()
-            } catch {
-                () // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
-            }
         }
 
         self._nodes = []

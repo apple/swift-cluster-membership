@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2018-2019 Apple Inc. and the Swift Cluster Membership project authors
+// Copyright (c) 2018-2022 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -19,7 +19,7 @@ import XCTest
 final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOriginPeer, CustomStringConvertible {
     var node: Node
 
-    let lock: NSLock = NSLock()
+    let lock = NSLock()
     var messages: [TestPeer.Message] = []
 
     enum Message {
@@ -28,7 +28,7 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
             origin: SWIMPingOriginPeer,
             timeout: DispatchTimeInterval,
             sequenceNumber: SWIM.SequenceNumber,
-            onResponse: (Result<SWIM.PingResponse, Error>) -> Void
+            continuation: CheckedContinuation<SWIM.PingResponse, Error>
         )
         case pingReq(
             target: SWIMAddressablePeer,
@@ -36,7 +36,7 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
             origin: SWIMPingRequestOriginPeer,
             timeout: DispatchTimeInterval,
             sequenceNumber: SWIM.SequenceNumber,
-            onResponse: (Result<SWIM.PingResponse, Error>) -> Void
+            continuation: CheckedContinuation<SWIM.PingResponse, Error>
         )
         case ack(
             target: SWIMPeer,
@@ -58,13 +58,14 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
         payload: SWIM.GossipPayload,
         from pingOrigin: SWIMPingOriginPeer,
         timeout: DispatchTimeInterval,
-        sequenceNumber: SWIM.SequenceNumber,
-        onResponse: @escaping (Result<SWIM.PingResponse, Error>) -> Void
-    ) {
+        sequenceNumber: SWIM.SequenceNumber
+    ) async throws -> SWIM.PingResponse {
         self.lock.lock()
         defer { self.lock.unlock() }
 
-        self.messages.append(.ping(payload: payload, origin: pingOrigin, timeout: timeout, sequenceNumber: sequenceNumber, onResponse: onResponse))
+        return try await withCheckedThrowingContinuation { continuation in
+            self.messages.append(.ping(payload: payload, origin: pingOrigin, timeout: timeout, sequenceNumber: sequenceNumber, continuation: continuation))
+        }
     }
 
     func pingRequest(
@@ -72,13 +73,14 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
         payload: SWIM.GossipPayload,
         from origin: SWIMPingRequestOriginPeer,
         timeout: DispatchTimeInterval,
-        sequenceNumber: SWIM.SequenceNumber,
-        onResponse: @escaping (Result<SWIM.PingResponse, Error>) -> Void
-    ) {
+        sequenceNumber: SWIM.SequenceNumber
+    ) async throws -> SWIM.PingResponse {
         self.lock.lock()
         defer { self.lock.unlock() }
 
-        self.messages.append(.pingReq(target: target, payload: payload, origin: origin, timeout: timeout, sequenceNumber: sequenceNumber, onResponse: onResponse))
+        return try await withCheckedThrowingContinuation { continuation in
+            self.messages.append(.pingReq(target: target, payload: payload, origin: origin, timeout: timeout, sequenceNumber: sequenceNumber, continuation: continuation))
+        }
     }
 
     func ack(

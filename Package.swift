@@ -1,4 +1,4 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.5
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import class Foundation.ProcessInfo
@@ -102,7 +102,7 @@ var targets: [PackageDescription.Target] = [
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Integration Tests - `it_` prefixed
 
-    .target(
+    .executableTarget(
         name: "it_Clustered_swim_suspension_reachability",
         dependencies: [
             "SWIM",
@@ -116,8 +116,8 @@ var targets: [PackageDescription.Target] = [
 ]
 
 var dependencies: [Package.Dependency] = [
-    .package(url: "https://github.com/apple/swift-nio.git",        from: "2.19.0"),
-    .package(url: "https://github.com/apple/swift-nio-ssl.git",    from: "2.8.0"),
+    .package(url: "https://github.com/apple/swift-nio.git", from: "2.19.0"),
+    .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.8.0"),
     .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.5.1"),
 
     // ~~~ SSWG APIs ~~~
@@ -144,6 +144,12 @@ let products: [PackageDescription.Product] = [
 
 var package = Package(
     name: "swift-cluster-membership",
+    platforms: [
+        .macOS(.v10_15),
+        .iOS(.v13),
+        .tvOS(.v13),
+        .watchOS(.v6),
+    ],
     products: products,
 
     dependencies: dependencies,
