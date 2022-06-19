@@ -47,7 +47,7 @@ public extension SWIM {
                     switch reply {
                     case .success(.response(.nack(_, _))):
                         continuation.resume(throwing: SWIMNIOIllegalMessageTypeError("Unexpected .nack reply to .ping message! Was: \(reply)"))
-                        
+
                     case .success(.response(let pingResponse)):
                         assert(sequenceNumber == pingResponse.sequenceNumber, "callback invoked with not matching sequence number! Submitted with \(sequenceNumber) but invoked with \(pingResponse.sequenceNumber)!")
                         continuation.resume(returning: pingResponse)
