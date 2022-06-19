@@ -45,6 +45,9 @@ public extension SWIM {
                 let message = SWIM.Message.ping(replyTo: originPeer, payload: payload, sequenceNumber: sequenceNumber)
                 let command = SWIMNIOWriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
                     switch reply {
+                    case .success(.response(.nack(_, _))):
+                        continuation.resume(throwing: SWIMNIOIllegalMessageTypeError("Unexpected .nack reply to .ping message! Was: \(reply)"))
+                        
                     case .success(.response(let pingResponse)):
                         assert(sequenceNumber == pingResponse.sequenceNumber, "callback invoked with not matching sequence number! Submitted with \(sequenceNumber) but invoked with \(pingResponse.sequenceNumber)!")
                         continuation.resume(returning: pingResponse)
