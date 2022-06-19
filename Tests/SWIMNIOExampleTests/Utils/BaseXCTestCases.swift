@@ -152,7 +152,7 @@ class BaseClusteredXCTestCase: XCTestCase {
         // just use defaults
     }
 
-    override open func setUp() {
+    open override func setUp() {
         super.setUp()
 
         self.addTeardownBlock {
@@ -166,7 +166,7 @@ class BaseClusteredXCTestCase: XCTestCase {
         }
     }
 
-    override open func tearDown() {
+    open override func tearDown() {
         super.tearDown()
 
         let testsFailed = self.testRun?.totalFailureCount ?? 0 > 0
