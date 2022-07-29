@@ -13,8 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import struct Dispatch.DispatchTime
-import enum Dispatch.DispatchTimeInterval
 
 extension SWIM {
     /// Emitted whenever a membership change happens.

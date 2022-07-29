@@ -89,14 +89,14 @@ extension SWIM.Message: Codable {
 
         case .response(.ack(let target, let incarnation, let payload, let sequenceNumber)):
             try container.encode(DiscriminatorKeys.response_ack, forKey: ._case)
-            try container.encode(target.node, forKey: .target)
+            try container.encode(target.swimNode, forKey: .target)
             try container.encode(incarnation, forKey: .incarnation)
             try container.encode(payload, forKey: .payload)
             try container.encode(sequenceNumber, forKey: .sequenceNumber)
 
         case .response(.nack(let target, let sequenceNumber)):
             try container.encode(DiscriminatorKeys.response_nack, forKey: ._case)
-            try container.encode(target.node, forKey: .target)
+            try container.encode(target.swimNode, forKey: .target)
             try container.encode(sequenceNumber, forKey: .sequenceNumber)
 
         case .response(let other):

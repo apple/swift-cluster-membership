@@ -19,7 +19,6 @@ import Darwin
 import Glibc
 #endif
 import struct Dispatch.DispatchTime
-import enum Dispatch.DispatchTimeInterval
 import Logging
 
 /// ## Scalable Weakly-consistent Infection-style Process Group Membership Protocol
@@ -241,8 +240,13 @@ extension SWIM {
         public let metrics: SWIM.Metrics
 
         /// Node which this SWIM.Instance is representing in the cluster.
-        public var node: ClusterMembership.Node {
+        public var swimNode: ClusterMembership.Node {
             self.peer.node
+        }
+
+        // Convenience overload for internal use so we don't have to repeat "swim" all the time.
+        internal var node: ClusterMembership.Node {
+            self.swimNode
         }
 
         private var log: Logger {
@@ -251,7 +255,7 @@ extension SWIM {
 
         /// The `SWIM.Member` representing this instance, also referred to as "myself".
         public var member: SWIM.Member {
-            if let storedMyself = self.member(for: self.node),
+            if let storedMyself = self.member(for: self.swimNode),
                 !storedMyself.status.isAlive {
                 return storedMyself // it is something special, like .dead
             } else {
@@ -319,7 +323,7 @@ extension SWIM {
         ///
         /// - SeeAlso: `localHealthMultiplier` for more detailed documentation.
         /// - SeeAlso: Lifeguard IV.A. Local Health Multiplier (LHM)
-        var dynamicLHMProtocolInterval: DispatchTimeInterval {
+        var dynamicLHMProtocolInterval: Duration {
             .nanoseconds(Int(self.settings.probeInterval.nanoseconds * Int64(1 + self.localHealthMultiplier)))
         }
 
@@ -330,7 +334,7 @@ extension SWIM {
         ///
         /// - SeeAlso: `localHealthMultiplier` for more detailed documentation.
         /// - SeeAlso: Lifeguard IV.A. Local Health Multiplier (LHM)
-        var dynamicLHMPingTimeout: DispatchTimeInterval {
+        var dynamicLHMPingTimeout: Duration {
             .nanoseconds(Int(self.settings.pingTimeout.nanoseconds * Int64(1 + self.localHealthMultiplier)))
         }
 
@@ -691,7 +695,7 @@ extension SWIM {
         /// - `K` is the number of independent suspicions required to be received before setting the suspicion timeout to `Min`.
         ///   We default `K` to `3`.
         /// - `C` is the number of independent suspicions about that member received since the local suspicion was raised.
-        public func suspicionTimeout(suspectedByCount: Int) -> DispatchTimeInterval {
+        public func suspicionTimeout(suspectedByCount: Int) -> Duration {
             let minTimeout = self.settings.lifeguard.suspicionTimeoutMin.nanoseconds
             let maxTimeout = self.settings.lifeguard.suspicionTimeoutMax.nanoseconds
 
@@ -966,9 +970,9 @@ extension SWIM.Instance {
         /// The membership has changed, e.g. a member was declared unreachable or dead and an event may need to be emitted.
         case membershipChanged(SWIM.MemberStatusChangedEvent)
         /// Send a ping to the requested `target` peer using the provided timeout and sequenceNumber.
-        case sendPing(target: SWIMPeer, payload: SWIM.GossipPayload, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
+        case sendPing(target: SWIMPeer, payload: SWIM.GossipPayload, timeout: Duration, sequenceNumber: SWIM.SequenceNumber)
         /// Schedule the next timer `onPeriodicPingTick` invocation in `delay` time.
-        case scheduleNextTick(delay: DispatchTimeInterval)
+        case scheduleNextTick(delay: Duration)
     }
 
     /// Check all suspects if any of them have been suspect for long enough that we should promote them to unreachable or dead.
@@ -1135,7 +1139,7 @@ extension SWIM.Instance {
 
     func onPingResponseTimeout(
         target: SWIMPeer,
-        timeout: DispatchTimeInterval,
+        timeout: Duration,
         pingRequestOrigin: SWIMPingRequestOriginPeer?,
         pingRequestSequenceNumber: SWIM.SequenceNumber?
     ) -> [PingResponseDirective] {
@@ -1260,7 +1264,7 @@ extension SWIM.Instance {
         /// Target that the should be probed by the `requestDetails.memberToPingRequestThrough` peers.
         public let target: SWIMPeer
         /// Timeout to be used for all the ping requests about to be sent.
-        public let timeout: DispatchTimeInterval
+        public let timeout: Duration
         /// Describes the details how each ping request should be performed.
         public let requestDetails: [PingRequestDetail]
 
@@ -1311,7 +1315,7 @@ extension SWIM.Instance {
         // Indirect ping timeout should always be shorter than pingRequest timeout.
         // Setting it to a fraction of initial ping timeout as suggested in the original paper.
         // - SeeAlso: Local Health Multiplier (LHM)
-        let indirectPingTimeout = DispatchTimeInterval.nanoseconds(
+        let indirectPingTimeout = Duration.nanoseconds(
             Int(Double(self.settings.pingTimeout.nanoseconds) * self.settings.lifeguard.indirectPingTimeoutMultiplier)
         )
 
@@ -1350,7 +1354,7 @@ extension SWIM.Instance {
             payload: SWIM.GossipPayload,
             pingRequestOrigin: SWIMPingRequestOriginPeer,
             pingRequestSequenceNumber: SWIM.SequenceNumber,
-            timeout: DispatchTimeInterval,
+            timeout: Duration,
             pingSequenceNumber: SWIM.SequenceNumber
         )
     }
