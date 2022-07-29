@@ -13,13 +13,17 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import struct Dispatch.DispatchTime
-import enum Dispatch.DispatchTimeInterval
 
 /// Any peer in the cluster, can be used used to identify a peer using its unique node that it represents.
 public protocol SWIMAddressablePeer {
     /// Node that this peer is representing.
-    nonisolated var node: ClusterMembership.Node { get }
+    nonisolated var swimNode: ClusterMembership.Node { get }
+}
+
+extension SWIMAddressablePeer {
+  internal var node: ClusterMembership.Node {
+    self.swimNode
+  }
 }
 
 /// SWIM A peer which originated a `ping`, should be replied to with an `ack`.
@@ -78,7 +82,7 @@ public protocol SWIMPeer: SWIMAddressablePeer {
     func ping(
         payload: SWIM.GossipPayload,
         from origin: SWIMPingOriginPeer,
-        timeout: DispatchTimeInterval,
+        timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
     ) async throws -> SWIM.PingResponse
 
@@ -102,7 +106,7 @@ public protocol SWIMPeer: SWIMAddressablePeer {
         target: SWIMPeer,
         payload: SWIM.GossipPayload,
         from origin: SWIMPingRequestOriginPeer,
-        timeout: DispatchTimeInterval,
+        timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
     ) async throws -> SWIM.PingResponse
 }

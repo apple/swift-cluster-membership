@@ -50,13 +50,13 @@ extension SWIMNIOShell {
         var description: String {
             switch self {
             case .send(let to):
-                return "SEND(to:\(to.node))"
+                return "SEND(to:\(to.swimNode))"
             case .receive(nil):
                 return "RECV"
             case .receive(let .some(pinged)):
-                return "RECV(pinged:\(pinged.node))"
+                return "RECV(pinged:\(pinged.swimNode))"
             case .reply(let to):
-                return "REPL(to:\(to.node))"
+                return "REPL(to:\(to.swimNode))"
             }
         }
     }

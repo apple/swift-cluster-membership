@@ -12,8 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import NIO
-import SWIM
 
 extension Swift.Duration {
     typealias Value = Int64
@@ -43,10 +41,6 @@ extension Swift.Duration {
 
     var isEffectivelyInfinite: Bool {
         self.nanoseconds == .max
-    }
-
-    var toNIO: NIO.TimeAmount {
-        .nanoseconds(self.nanoseconds)
     }
 
     /// Represents number of nanoseconds within given time unit
@@ -87,73 +81,6 @@ extension Swift.Duration {
     }
 }
 
-protocol PrettyTimeAmountDescription {
-    var nanoseconds: Int64 { get }
-    var isEffectivelyInfinite: Bool { get }
-
-    var prettyDescription: String { get }
-    func prettyDescription(precision: Int) -> String
-}
-
-extension PrettyTimeAmountDescription {
-    public var prettyDescription: String {
-        self.prettyDescription()
-    }
-
-    public func prettyDescription(precision: Int = 2) -> String {
-        assert(precision > 0, "precision MUST BE > 0")
-        if self.isEffectivelyInfinite {
-            return "∞ (infinite)"
-        }
-
-        var res = ""
-        var remainingNanos = self.nanoseconds
-
-        if remainingNanos < 0 {
-            res += "-"
-            remainingNanos = remainingNanos * -1
-        }
-
-        var i = 0
-        while i < precision {
-            let unit = self.chooseUnit(remainingNanos)
-
-            let rounded = Int(remainingNanos / unit.rawValue)
-            if rounded > 0 {
-                res += i > 0 ? " " : ""
-                res += "\(rounded)\(unit.abbreviated)"
-
-                remainingNanos = remainingNanos - unit.timeAmount(rounded).nanoseconds
-                i += 1
-            } else {
-                break
-            }
-        }
-
-        return res
-    }
-
-    private func chooseUnit(_ ns: Int64) -> PrettyTimeUnit {
-        // @formatter:off
-        if ns / PrettyTimeUnit.days.rawValue > 0 {
-            return PrettyTimeUnit.days
-        } else if ns / PrettyTimeUnit.hours.rawValue > 0 {
-            return PrettyTimeUnit.hours
-        } else if ns / PrettyTimeUnit.minutes.rawValue > 0 {
-            return PrettyTimeUnit.minutes
-        } else if ns / PrettyTimeUnit.seconds.rawValue > 0 {
-            return PrettyTimeUnit.seconds
-        } else if ns / PrettyTimeUnit.milliseconds.rawValue > 0 {
-            return PrettyTimeUnit.milliseconds
-        } else if ns / PrettyTimeUnit.microseconds.rawValue > 0 {
-            return PrettyTimeUnit.microseconds
-        } else {
-            return PrettyTimeUnit.nanoseconds
-        }
-        // @formatter:on
-    }
-}
-
 /// Represents number of nanoseconds within given time unit
 enum PrettyTimeUnit: Int64 {
     // @formatter:off
@@ -176,23 +103,5 @@ enum PrettyTimeUnit: Int64 {
         case .hours: return "h"
         case .days: return "d"
         }
-    }
-
-    func timeAmount(_ amount: Int) -> TimeAmount {
-        switch self {
-        case .nanoseconds: return .nanoseconds(Int64(amount))
-        case .microseconds: return .microseconds(Int64(amount))
-        case .milliseconds: return .milliseconds(Int64(amount))
-        case .seconds: return .seconds(Int64(amount))
-        case .minutes: return .minutes(Int64(amount))
-        case .hours: return .hours(Int64(amount))
-        case .days: return .hours(Int64(amount) * 24)
-        }
-    }
-}
-
-extension NIO.TimeAmount: PrettyTimeAmountDescription {
-    var isEffectivelyInfinite: Bool {
-        self.nanoseconds == .max
     }
 }

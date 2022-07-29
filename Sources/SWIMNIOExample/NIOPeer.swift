@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import Dispatch
 import Logging
 import NIO
 import NIOConcurrencyHelpers
@@ -22,19 +21,22 @@ import SWIM
 public extension SWIM {
     /// SWIMPeer designed to deliver messages over UDP in collaboration with the SWIMNIOHandler.
     actor NIOPeer: SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOriginPeer, CustomStringConvertible {
-        public let node: Node
+        public let swimNode: ClusterMembership.Node
+        internal nonisolated var node: ClusterMembership.Node {
+            self.swimNode
+        }
 
         internal let channel: Channel
 
         public init(node: Node, channel: Channel) {
-            self.node = node
+            self.swimNode = node
             self.channel = channel
         }
 
         public func ping(
             payload: GossipPayload,
             from origin: SWIMPingOriginPeer,
-            timeout: DispatchTimeInterval,
+            timeout: Swift.Duration,
             sequenceNumber: SWIM.SequenceNumber
         ) async throws -> PingResponse {
             guard let originPeer = origin as? SWIM.NIOPeer else {
@@ -43,7 +45,7 @@ public extension SWIM {
 
             return try await withCheckedThrowingContinuation { continuation in
                 let message = SWIM.Message.ping(replyTo: originPeer, payload: payload, sequenceNumber: sequenceNumber)
-                let command = SWIMNIOWriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
+                let command = SWIMNIOWriteCommand(message: message, to: self.swimNode, replyTimeout: timeout.toNIO, replyCallback: { reply in
                     switch reply {
                     case .success(.response(.nack(_, _))):
                         continuation.resume(throwing: SWIMNIOIllegalMessageTypeError("Unexpected .nack reply to .ping message! Was: \(reply)"))
@@ -68,7 +70,7 @@ public extension SWIM {
             target: SWIMPeer,
             payload: GossipPayload,
             from origin: SWIMPingRequestOriginPeer,
-            timeout: DispatchTimeInterval,
+            timeout: Duration,
             sequenceNumber: SWIM.SequenceNumber
         ) async throws -> PingResponse {
             guard let targetPeer = target as? SWIM.NIOPeer else {
@@ -137,7 +139,7 @@ extension SWIM.NIOPeer: Hashable {
 }
 
 public struct SWIMNIOTimeoutError: Error, CustomStringConvertible {
-    let timeout: DispatchTimeInterval
+    let timeout: Duration
     let message: String
 
     init(timeout: NIO.TimeAmount, message: String) {
@@ -145,13 +147,13 @@ public struct SWIMNIOTimeoutError: Error, CustomStringConvertible {
         self.message = message
     }
 
-    init(timeout: DispatchTimeInterval, message: String) {
+    init(timeout: Duration, message: String) {
         self.timeout = timeout
         self.message = message
     }
 
     public var description: String {
-        "SWIMNIOTimeoutError(timeout: \(self.timeout.prettyDescription), \(self.message))"
+        "SWIMNIOTimeoutError(timeout: \(self.timeout), \(self.message))"
     }
 }
 

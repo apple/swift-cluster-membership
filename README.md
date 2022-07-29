@@ -61,9 +61,8 @@ public protocol SWIMPeer: SWIMAddressablePeer {
         payload: SWIM.GossipPayload,
         from origin: SWIMPingOriginPeer,
         timeout: DispatchTimeInterval,
-        sequenceNumber: SWIM.SequenceNumber,
-        onResponse: @escaping (Result<SWIM.PingResponse, Error>) -> Void
-    )
+        sequenceNumber: SWIM.SequenceNumber
+    ) async throws -> SWIM.PingResponse
     
     // ... 
 }
@@ -73,7 +72,7 @@ Which usually means wrapping some connection, channel, or other identity with th
 
 Then, on the receiving end of a peer, one has to implement receiving those messages and invoke all the corresponding `on<SomeMessage>(...)` callbacks defined on the `SWIM.Instance` (grouped under [SWIMProtocol](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/SWIMInstance.swift#L24-L85)).
 
-A piece of the SWIMProtocol is liste below to give you an idea about it:
+A piece of the SWIMProtocol is listed below to give you an idea about it:
 
 
 ```swift

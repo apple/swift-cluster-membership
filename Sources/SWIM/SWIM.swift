@@ -14,7 +14,6 @@
 
 import ClusterMembership
 import struct Dispatch.DispatchTime
-import enum Dispatch.DispatchTimeInterval
 
 extension SWIM {
     /// Incarnation numbers serve as sequence number and used to determine which observation
@@ -82,7 +81,7 @@ extension SWIM {
         ///     In case of "cancelled" operations or similar semantics it is allowed to use a placeholder value here.
         ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
         ///     It is used on the ping origin to co-relate the reply with its handling code.
-        case timeout(target: SWIMPeer, pingRequestOrigin: SWIMPingRequestOriginPeer?, timeout: DispatchTimeInterval, sequenceNumber: SWIM.SequenceNumber)
+        case timeout(target: SWIMPeer, pingRequestOrigin: SWIMPingRequestOriginPeer?, timeout: Duration, sequenceNumber: SWIM.SequenceNumber)
 
         /// Sequence number of the initial request this is a response to.
         /// Used to pair up responses to the requests which initially caused them.

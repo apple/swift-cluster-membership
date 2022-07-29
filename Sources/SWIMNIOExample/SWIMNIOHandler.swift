@@ -14,7 +14,6 @@
 
 import ClusterMembership
 import struct Dispatch.DispatchTime
-import enum Dispatch.DispatchTimeInterval
 import Logging
 import NIO
 import NIOFoundationCompat
@@ -283,13 +282,13 @@ struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
         PendingResponseCallbackIdentifier(\
         peerAddress: \(peerAddress), \
         sequenceNumber: \(sequenceNumber), \
-        storedAt: \(self.storedAt) (\(nanosecondsSinceCallbackStored().prettyDescription) ago)\
+        storedAt: \(self.storedAt) (\(nanosecondsSinceCallbackStored()) ago)\
         )
         """
     }
 
-    func nanosecondsSinceCallbackStored(now: DispatchTime = .now()) -> DispatchTimeInterval {
-        DispatchTimeInterval.nanoseconds(Int(now.uptimeNanoseconds - storedAt.uptimeNanoseconds))
+    func nanosecondsSinceCallbackStored(now: DispatchTime = .now()) -> Duration {
+        Duration.nanoseconds(Int(now.uptimeNanoseconds - storedAt.uptimeNanoseconds))
     }
 }
 

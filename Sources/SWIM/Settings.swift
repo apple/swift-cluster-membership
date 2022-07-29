@@ -14,7 +14,6 @@
 
 import ClusterMembership
 import struct Dispatch.DispatchTime
-import enum Dispatch.DispatchTimeInterval
 import Logging
 
 #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
@@ -111,7 +110,7 @@ extension SWIM {
         /// This property sets only a base value of probe interval, which will later be multiplied by `SWIM.Instance.localHealthMultiplier`.
         /// - SeeAlso: `maxLocalHealthMultiplier`
         /// Every `interval` a `fan-out` number of gossip messages will be sent.
-        public var probeInterval: DispatchTimeInterval = .seconds(1)
+        public var probeInterval: Duration = .seconds(1)
 
         /// Time amount after which a sent ping without ack response is considered timed-out.
         /// This drives how a node becomes a suspect, by missing such ping/ack rounds.
@@ -124,7 +123,7 @@ extension SWIM {
         /// - Note: Ping timeouts generally should be set as a multiple of the RTT (round-trip-time) expected in the deployment environment.
         ///
         /// - SeeAlso: `SWIMLifeguardSettings.maxLocalHealthMultiplier` which affects the "effective" ping timeouts used in runtime.
-        public var pingTimeout: DispatchTimeInterval = .milliseconds(300)
+        public var pingTimeout: Duration = .milliseconds(300)
 
         /// Optional SWIM Protocol Extension: `SWIM.MemberStatus.unreachable`
         ///
@@ -174,7 +173,7 @@ extension SWIM {
         /// Doing this will require some control over SWIM's notion of time.
         ///
         /// This property allows to override the `.now()` function for mocking purposes.
-        var timeSourceNow: () -> DispatchTime = { () -> DispatchTime in
+        internal var timeSourceNow: () -> DispatchTime = { () -> DispatchTime in
             DispatchTime.now()
         }
 
@@ -276,7 +275,7 @@ public struct SWIMLifeguardSettings {
     /// it will be marked `.dead` in SWIM, and `.down` in the high-level membership.
     ///
     /// - SeeAlso: [Lifeguard IV.B. Local Health Aware Suspicion (LHA-Suspicion)](https://arxiv.org/pdf/1707.00788.pdf)
-    public var suspicionTimeoutMax: DispatchTimeInterval = .seconds(10) {
+    public var suspicionTimeoutMax: Duration = .seconds(10) {
         willSet {
             precondition(newValue.nanoseconds >= self.suspicionTimeoutMin.nanoseconds, "`suspicionTimeoutMax` MUST BE >= `suspicionTimeoutMin`")
         }
@@ -312,7 +311,7 @@ public struct SWIMLifeguardSettings {
     /// it will be marked `.dead` in swim, and `.down` in the high-level membership.
     ///
     /// - SeeAlso: [Lifeguard IV.B. Local Health Aware Suspicion (LHA-Suspicion)](https://arxiv.org/pdf/1707.00788.pdf)
-    public var suspicionTimeoutMin: DispatchTimeInterval = .seconds(3) {
+    public var suspicionTimeoutMin: Duration = .seconds(3) {
         willSet {
             precondition(newValue.nanoseconds <= self.suspicionTimeoutMax.nanoseconds, "`suspicionTimeoutMin` MUST BE <= `suspicionTimeoutMax`")
         }

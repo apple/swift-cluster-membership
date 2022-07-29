@@ -14,7 +14,6 @@
 
 import ClusterMembership
 import struct Dispatch.DispatchTime
-import enum Dispatch.DispatchTimeInterval
 import Logging
 import NIO
 import SWIM
@@ -108,7 +107,7 @@ public final class SWIMNIOShell {
 
     /// Start a *single* timer, to run the passed task after given delay.
     @discardableResult
-    private func schedule(delay: DispatchTimeInterval, _ task: @escaping () -> Void) -> SWIMCancellable {
+    private func schedule(delay: Duration, _ task: @escaping () -> Void) -> SWIMCancellable {
         self.eventLoop.assertInEventLoop()
 
         let scheduled: Scheduled<Void> = self.eventLoop.scheduleTask(in: delay.toNIO) { () in task() }
@@ -166,7 +165,7 @@ public final class SWIMNIOShell {
         }
 
         self.log.trace("Received ping@\(sequenceNumber)", metadata: self.swim.metadata([
-            "swim/ping/pingOrigin": "\(pingOrigin.node)",
+            "swim/ping/pingOrigin": "\(pingOrigin.swimNode)",
             "swim/ping/payload": "\(payload)",
             "swim/ping/seqNr": "\(sequenceNumber)",
         ]))
@@ -311,7 +310,7 @@ public final class SWIMNIOShell {
                 self.handleGossipPayloadProcessedDirective(gossipDirective)
 
             case .alive(let previousStatus):
-                self.log.debug("Member [\(pingedPeer.node)] marked as alive")
+                self.log.debug("Member [\(pingedPeer.swimNode)] marked as alive")
 
                 if previousStatus.isUnreachable, let member = swim.member(for: pingedPeer) {
                     let event = SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: member) // FIXME: make SWIM emit an option of the event
@@ -349,7 +348,7 @@ public final class SWIMNIOShell {
         payload: SWIM.GossipPayload,
         pingRequestOrigin: SWIMPingRequestOriginPeer?,
         pingRequestSequenceNumber: SWIM.SequenceNumber?,
-        timeout: DispatchTimeInterval,
+        timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
     ) async {
         self.log.trace("Sending ping", metadata: self.swim.metadata([
@@ -399,7 +398,7 @@ public final class SWIMNIOShell {
                     let payload = pingRequest.payload
                     let sequenceNumber = pingRequest.sequenceNumber
 
-                    self.log.trace("Sending ping request for [\(target)] to [\(peerToPingRequestThrough.node)] with payload: \(payload)")
+                    self.log.trace("Sending ping request for [\(target)] to [\(peerToPingRequestThrough.swimNode)] with payload: \(payload)")
                     self.tracelog(.send(to: peerToPingRequestThrough), message: "pingRequest(target: \(target), replyTo: \(self.peer), payload: \(payload), sequenceNumber: \(sequenceNumber))")
 
                     let pingRequestSentAt: DispatchTime = .now()
@@ -605,7 +604,7 @@ extension SWIMAddressablePeer {
     /// and simply wrapped in `NIO.AddressedEnvelope`, thus we can easily take any addressable and
     /// convert it into a real NIO peer by simply providing the channel we're running on.
     func peer(_ channel: Channel) -> SWIM.NIOPeer {
-        self.node.peer(on: channel)
+        self.swimNode.peer(on: channel)
     }
 }
 
