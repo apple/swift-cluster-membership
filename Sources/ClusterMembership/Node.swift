@@ -24,7 +24,7 @@ public struct Node: Hashable, Comparable, CustomStringConvertible {
     public var host: String
     public var port: Int
 
-    public var uid: UInt64?
+    public internal(set) var uid: UInt64?
 
     public init(protocol: String, host: String, port: Int, uid: UInt64?) {
         self.protocol = `protocol`

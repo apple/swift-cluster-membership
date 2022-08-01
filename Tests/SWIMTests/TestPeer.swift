@@ -17,49 +17,49 @@ import ClusterMembership
 import XCTest
 
 final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOriginPeer, CustomStringConvertible {
-    var node: Node
+    var swimNode: Node
 
     let lock = NSLock()
     var messages: [TestPeer.Message] = []
 
     enum Message {
         case ping(
-            payload: SWIM.GossipPayload,
-            origin: SWIMPingOriginPeer,
-            timeout: DispatchTimeInterval,
+            payload: SWIM.GossipPayload<TestPeer>,
+            origin: TestPeer,
+            timeout: Duration,
             sequenceNumber: SWIM.SequenceNumber,
-            continuation: CheckedContinuation<SWIM.PingResponse, Error>
+            continuation: CheckedContinuation<SWIM.PingResponse<TestPeer, TestPeer>, Error>
         )
         case pingReq(
-            target: SWIMAddressablePeer,
-            payload: SWIM.GossipPayload,
-            origin: SWIMPingRequestOriginPeer,
-            timeout: DispatchTimeInterval,
+            target: TestPeer,
+            payload: SWIM.GossipPayload<TestPeer>,
+            origin: TestPeer,
+            timeout: Duration,
             sequenceNumber: SWIM.SequenceNumber,
-            continuation: CheckedContinuation<SWIM.PingResponse, Error>
+            continuation: CheckedContinuation<SWIM.PingResponse<TestPeer, TestPeer>, Error>
         )
         case ack(
-            target: SWIMPeer,
+            target: TestPeer,
             incarnation: SWIM.Incarnation,
-            payload: SWIM.GossipPayload,
+            payload: SWIM.GossipPayload<TestPeer>,
             sequenceNumber: SWIM.SequenceNumber
         )
         case nack(
-            target: SWIMPeer,
+            target: TestPeer,
             sequenceNumber: SWIM.SequenceNumber
         )
     }
 
     init(node: Node) {
-        self.node = node
+        self.swimNode = node
     }
 
     func ping(
-        payload: SWIM.GossipPayload,
-        from pingOrigin: SWIMPingOriginPeer,
-        timeout: DispatchTimeInterval,
+        payload: SWIM.GossipPayload<TestPeer>,
+        from pingOrigin: TestPeer,
+        timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
-    ) async throws -> SWIM.PingResponse {
+    ) async throws -> SWIM.PingResponse<TestPeer, TestPeer> {
         self.lock.lock()
         defer { self.lock.unlock() }
 
@@ -69,12 +69,12 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
     }
 
     func pingRequest(
-        target: SWIMPeer,
-        payload: SWIM.GossipPayload,
-        from origin: SWIMPingRequestOriginPeer,
-        timeout: DispatchTimeInterval,
+        target: TestPeer,
+        payload: SWIM.GossipPayload<TestPeer>,
+        from origin: TestPeer,
+        timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
-    ) async throws -> SWIM.PingResponse {
+    ) async throws -> SWIM.PingResponse<TestPeer, TestPeer> {
         self.lock.lock()
         defer { self.lock.unlock() }
 
@@ -85,9 +85,9 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
 
     func ack(
         acknowledging sequenceNumber: SWIM.SequenceNumber,
-        target: SWIMPeer,
+        target: TestPeer,
         incarnation: SWIM.Incarnation,
-        payload: SWIM.GossipPayload
+        payload: SWIM.GossipPayload<TestPeer>
     ) {
         self.lock.lock()
         defer { self.lock.unlock() }
@@ -97,7 +97,7 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
 
     func nack(
         acknowledging sequenceNumber: SWIM.SequenceNumber,
-        target: SWIMPeer
+        target: TestPeer
     ) {
         self.lock.lock()
         defer { self.lock.unlock() }
@@ -123,6 +123,6 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
     }
 
     var description: String {
-        "TestPeer(\(self.node))"
+        "TestPeer(\(self.swimNode))"
     }
 }
