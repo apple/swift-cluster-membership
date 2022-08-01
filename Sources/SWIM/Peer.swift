@@ -29,7 +29,6 @@ extension SWIMAddressablePeer {
 /// SWIM A peer which originated a `ping`, should be replied to with an `ack`.
 public protocol SWIMPingOriginPeer: SWIMAddressablePeer {
     associatedtype Peer: SWIMPeer
-    associatedtype AckTarget: SWIMPeer
 
     /// Acknowledge a `ping`.
     ///
@@ -42,7 +41,7 @@ public protocol SWIMPingOriginPeer: SWIMAddressablePeer {
     ///     It is already trimmed to be no larger than configured in `SWIM.Settings`.
     func ack(
         acknowledging sequenceNumber: SWIM.SequenceNumber,
-        target: AckTarget,
+        target: Peer,
         incarnation: SWIM.Incarnation,
         payload: SWIM.GossipPayload<Peer>
     ) async throws

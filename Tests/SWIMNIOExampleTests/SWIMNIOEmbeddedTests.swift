@@ -272,7 +272,7 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
     private func sendPing(
         origin: SWIMNIOShell,
         target: SWIMNIOShell,
-        payload: SWIM.GossipPayload,
+        payload: SWIM.GossipPayload<SWIM.NIOPeer>,
         pingRequestOrigin: SWIM.NIOPeer?,
         pingRequestSequenceNumber: SWIM.SequenceNumber?,
         sequenceNumber: SWIM.SequenceNumber
@@ -289,7 +289,7 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
         }
     }
 
-    private func pingAndResponse(origin: SWIMNIOShell, target: SWIMNIOShell, payload: SWIM.GossipPayload = .none, sequenceNumber: SWIM.SequenceNumber) async {
+    private func pingAndResponse(origin: SWIMNIOShell, target: SWIMNIOShell, payload: SWIM.GossipPayload<SWIM.NIOPeer> = .none, sequenceNumber: SWIM.SequenceNumber) async {
         self.sendPing(origin: origin, target: target, payload: .none, pingRequestOrigin: nil, pingRequestSequenceNumber: nil, sequenceNumber: sequenceNumber)
 
         let targetEmbeddedChannel = target.channel as! EmbeddedChannel
@@ -316,7 +316,7 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
     private func timeoutPings(
         _ first: SWIMNIOShell,
         _ second: SWIMNIOShell,
-        pingRequestOrigin: SWIMPingRequestOriginPeer? = nil,
+        pingRequestOrigin: SWIM.NIOPeer? = nil,
         pingRequestSequenceNumber: SWIM.SequenceNumber? = nil
     ) async -> (Bool, Bool) {
         if pingRequestOrigin != nil && pingRequestSequenceNumber == nil ||
@@ -375,7 +375,7 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
 }
 
 private struct UnfulfilledNIOPeerCallbacks {
-    typealias ReplyCallback = ((Result<SWIM.Message, Error>) -> Void)
+    typealias ReplyCallback = (Result<SWIM.Message, Error>) -> Void
 
     var first: [ReplyCallback] = []
     var second: [ReplyCallback] = []

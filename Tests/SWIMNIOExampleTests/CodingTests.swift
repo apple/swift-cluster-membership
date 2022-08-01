@@ -66,7 +66,7 @@ final class CodingTests: XCTestCase {
     }
 
     func test_serializationOf_pingReq() throws {
-        let payloadNone: SWIM.GossipPayload = .none
+        let payloadNone: SWIM.GossipPayload<SWIM.NIOPeer> = .none
         try self.shared_serializationRoundtrip(SWIM.Message.pingRequest(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadNone, sequenceNumber: 111))
 
         let payloadSome: SWIM.GossipPayload = .membership([
@@ -97,7 +97,7 @@ struct ContainsPeer: Codable {
 
 // This is a workaround until Swift 5.2.5 is available with the "top level string value encoding" support.
 struct ContainsMember: Codable {
-    let member: SWIM.Member
+    let member: SWIM.Member<SWIM.NIOPeer>
 }
 
 // This is a workaround until Swift 5.2.5 is available with the "top level string value encoding" support.

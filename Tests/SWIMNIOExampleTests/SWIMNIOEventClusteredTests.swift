@@ -118,9 +118,9 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
 extension ProbeEventHandler {
     @discardableResult
     func expectEvent(
-        _ expected: SWIM.MemberStatusChangedEvent? = nil,
+        _ expected: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>? = nil,
         file: StaticString = (#file), line: UInt = #line
-    ) throws -> SWIM.MemberStatusChangedEvent {
+    ) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
         let got = try self.expectEvent()
 
         if let expected = expected {
@@ -132,10 +132,10 @@ extension ProbeEventHandler {
 }
 
 final class ProbeEventHandler: ChannelInboundHandler {
-    typealias InboundIn = SWIM.MemberStatusChangedEvent
+    typealias InboundIn = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
 
-    var events: [SWIM.MemberStatusChangedEvent] = []
-    var waitingPromise: EventLoopPromise<SWIM.MemberStatusChangedEvent>?
+    var events: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>] = []
+    var waitingPromise: EventLoopPromise<SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>>?
     var loop: EventLoop
 
     init(loop: EventLoop) {
@@ -153,8 +153,8 @@ final class ProbeEventHandler: ChannelInboundHandler {
         }
     }
 
-    func expectEvent(file: StaticString = #file, line: UInt = #line) throws -> SWIM.MemberStatusChangedEvent {
-        let p = self.loop.makePromise(of: SWIM.MemberStatusChangedEvent.self, file: file, line: line)
+    func expectEvent(file: StaticString = #file, line: UInt = #line) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
+        let p = self.loop.makePromise(of: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>.self, file: file, line: line)
         self.loop.execute {
             assert(self.waitingPromise == nil, "Already waiting on an event")
             if !self.events.isEmpty {

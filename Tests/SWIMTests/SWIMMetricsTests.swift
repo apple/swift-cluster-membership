@@ -68,7 +68,7 @@ final class SWIMMetricsTests: XCTestCase {
     func test_members_becoming_suspect() {
         var settings = SWIM.Settings()
         settings.unreachability = .enabled
-        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+        let swim = SWIM.Instance<TestPeer, TestPeer, TestPeer>(settings: settings, myself: self.myself)
 
         self.expectMembership(swim, alive: 1, unreachable: 0, totalDead: 0)
 
@@ -125,7 +125,7 @@ final class SWIMMetricsTests: XCTestCase {
         }
         var mockTime = DispatchTime.now()
         settings.timeSourceNow = { mockTime }
-        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+        let swim = SWIM.Instance<TestPeer, TestPeer, TestPeer>(settings: settings, myself: self.myself)
 
         self.expectMembership(swim, alive: 1, unreachable: 0, totalDead: 0)
 
@@ -184,7 +184,7 @@ final class SWIMMetricsTests: XCTestCase {
 
     func test_lha_adjustment() {
         let settings = SWIM.Settings()
-        let swim = SWIM.Instance(settings: settings, myself: self.myself)
+        let swim = SWIM.Instance<TestPeer, TestPeer, TestPeer>(settings: settings, myself: self.myself)
 
         _ = swim.addMember(self.second, status: .alive(incarnation: 0))
         _ = swim.addMember(self.third, status: .alive(incarnation: 0))
@@ -206,7 +206,7 @@ final class SWIMMetricsTests: XCTestCase {
 // MARK: Assertions
 
 extension SWIMMetricsTests {
-    private func expectMembership(_ swim: SWIM.Instance, suspect: Int, file: StaticString = #file, line: UInt = #line) {
+    private func expectMembership(_ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>, suspect: Int, file: StaticString = #file, line: UInt = #line) {
         let m: SWIM.Metrics = swim.metrics
 
         let gotSuspect: Double? = try! self.testMetrics.expectRecorder(m.membersSuspect).lastValue
@@ -222,7 +222,7 @@ extension SWIMMetricsTests {
         )
     }
 
-    private func expectMembership(_ swim: SWIM.Instance, alive: Int, unreachable: Int, totalDead: Int, file: StaticString = #file, line: UInt = #line) {
+    private func expectMembership(_ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>, alive: Int, unreachable: Int, totalDead: Int, file: StaticString = #file, line: UInt = #line) {
         let m: SWIM.Metrics = swim.metrics
 
         let gotAlive: Double? = try! self.testMetrics.expectRecorder(m.membersAlive).lastValue
