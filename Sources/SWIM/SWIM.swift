@@ -25,7 +25,7 @@ extension SWIM {
     public typealias SequenceNumber = UInt32
 
     /// Typealias for the underlying membership representation.
-    public typealias Membership = Dictionary<Node, SWIM.Member>.Values
+    public typealias Membership<Peer: SWIMPeer> = Dictionary<Node, SWIM.Member<Peer>>.Values
 }
 
 extension SWIM {
@@ -33,7 +33,7 @@ extension SWIM {
     ///
     /// The ack may be delivered directly in a request-response fashion between the probing and pinged members,
     /// or indirectly, as a result of a `pingRequest` message.
-    public enum PingResponse {
+    public enum PingResponse<Peer: SWIMPeer, PingRequestOrigin: SWIMPingRequestOriginPeer> {
         /// - parameters:
         ///   - target: the target of the ping;
         ///     On the remote "pinged" node which is about to send an ack back to the ping origin this should be filled with the `myself` peer.
@@ -41,7 +41,7 @@ extension SWIM {
         ///   - payload: additional gossip data to be carried with the message.
         ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
         ///     It is used on the ping origin to co-relate the reply with its handling code.
-        case ack(target: SWIMPeer, incarnation: Incarnation, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
+        case ack(target: Peer, incarnation: Incarnation, payload: GossipPayload<Peer>, sequenceNumber: SWIM.SequenceNumber)
 
         /// A `.nack` MAY ONLY be sent by an *intermediary* member which was received a `pingRequest` to perform a `ping` of some `target` member.
         /// It SHOULD NOT be sent by a peer that received a `.ping` directly.
@@ -62,7 +62,7 @@ extension SWIM {
         ///   - payload: The gossip payload to be carried in this message.
         ///
         /// - SeeAlso: Lifeguard IV.A. Local Health Aware Probe
-        case nack(target: SWIMPeer, sequenceNumber: SWIM.SequenceNumber)
+        case nack(target: Peer, sequenceNumber: SWIM.SequenceNumber)
 
         /// This is a "pseudo-message", in the sense that it is not transported over the wire, but should be triggered
         /// and fired into an implementation Shell when a ping has timed out.
@@ -81,7 +81,7 @@ extension SWIM {
         ///     In case of "cancelled" operations or similar semantics it is allowed to use a placeholder value here.
         ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
         ///     It is used on the ping origin to co-relate the reply with its handling code.
-        case timeout(target: SWIMPeer, pingRequestOrigin: SWIMPingRequestOriginPeer?, timeout: Duration, sequenceNumber: SWIM.SequenceNumber)
+        case timeout(target: Peer, pingRequestOrigin: PingRequestOrigin?, timeout: Duration, sequenceNumber: SWIM.SequenceNumber)
 
         /// Sequence number of the initial request this is a response to.
         /// Used to pair up responses to the requests which initially caused them.
@@ -107,23 +107,23 @@ extension SWIM {
     /// A piece of "gossip" about a specific member of the cluster.
     ///
     /// A gossip will only be spread a limited number of times, as configured by `settings.gossip.gossipedEnoughTimes(_:members:)`.
-    public struct Gossip: Equatable {
+    public struct Gossip<Peer: SWIMPeer>: Equatable {
         /// The specific member (including status) that this gossip is about.
         ///
         /// A change in member status implies a new gossip must be created and the count for the rumor mongering must be reset.
-        public let member: SWIM.Member
+        public let member: SWIM.Member<Peer>
         /// The number of times this specific gossip message was gossiped to another peer.
         public internal(set) var numberOfTimesGossiped: Int
     }
 
     /// A `GossipPayload` is used to spread gossips about members.
-    public enum GossipPayload {
+    public enum GossipPayload<Peer: SWIMPeer> {
         /// Explicit case to signal "no gossip payload"
         ///
         /// Effectively equivalent to an empty `.membership([])` case.
         case none
         /// Gossip information about a few select members.
-        case membership([SWIM.Member])
+        case membership([SWIM.Member<Peer>])
     }
 }
 

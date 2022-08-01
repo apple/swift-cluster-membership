@@ -22,11 +22,11 @@ extension SWIM {
     /// A `SWIM.Member` represents an active participant of the cluster.
     ///
     /// It associates a specific `SWIMAddressablePeer` with its `SWIM.Status` and a number of other SWIM specific state information.
-    public struct Member {
+    public struct Member<Peer: SWIMPeer> {
         /// Peer reference, used to send messages to this cluster member.
         ///
         /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
-        public var peer: SWIMPeer
+        public var peer: Peer
 
         /// `Node` of the member's `peer`.
         public var node: ClusterMembership.Node {
@@ -46,7 +46,7 @@ extension SWIM {
         public let localSuspicionStartedAt: DispatchTime? // could be "status updated at"?
 
         /// Create a new member.
-        public init(peer: SWIMPeer, status: SWIM.Status, protocolPeriod: UInt64, suspicionStartedAt: DispatchTime? = nil) {
+        public init(peer: Peer, status: SWIM.Status, protocolPeriod: UInt64, suspicionStartedAt: DispatchTime? = nil) {
             self.peer = peer
             self.status = status
             self.protocolPeriod = protocolPeriod
@@ -85,7 +85,7 @@ extension SWIM {
 
 /// Manual Hashable conformance since we omit `suspicionStartedAt` from identity
 extension SWIM.Member: Hashable, Equatable {
-    public static func == (lhs: SWIM.Member, rhs: SWIM.Member) -> Bool {
+    public static func == (lhs: SWIM.Member<Peer>, rhs: SWIM.Member<Peer>) -> Bool {
         lhs.peer.node == rhs.peer.node &&
             lhs.protocolPeriod == rhs.protocolPeriod &&
             lhs.status == rhs.status

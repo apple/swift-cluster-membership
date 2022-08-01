@@ -45,21 +45,21 @@ extension SWIM.Message: Codable {
         switch try container.decode(DiscriminatorKeys.self, forKey: ._case) {
         case .ping:
             let replyTo = try container.decode(SWIM.NIOPeer.self, forKey: .replyTo)
-            let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
+            let payload = try container.decode(SWIM.GossipPayload<SWIM.NIOPeer>.self, forKey: .payload)
             let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
             self = .ping(replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
 
         case .pingRequest:
             let target = try container.decode(SWIM.NIOPeer.self, forKey: .target)
             let replyTo = try container.decode(SWIM.NIOPeer.self, forKey: .replyTo)
-            let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
+            let payload = try container.decode(SWIM.GossipPayload<SWIM.NIOPeer>.self, forKey: .payload)
             let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
             self = .pingRequest(target: target, replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
 
         case .response_ack:
             let target = try container.decode(SWIM.NIOPeer.self, forKey: .target)
             let incarnation = try container.decode(SWIM.Incarnation.self, forKey: .incarnation)
-            let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
+            let payload = try container.decode(SWIM.GossipPayload<SWIM.NIOPeer>.self, forKey: .payload)
             let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
             self = .response(.ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
 
@@ -110,7 +110,7 @@ extension CodingUserInfoKey {
 }
 
 extension SWIM.NIOPeer: Codable {
-    public convenience init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let node = try container.decode(Node.self)
         guard let channel = decoder.userInfo[.channelUserInfoKey] as? Channel else {
@@ -137,7 +137,7 @@ extension SWIM.Member: Codable {
         let peer = try container.decode(SWIM.NIOPeer.self, forKey: .node)
         let status = try container.decode(SWIM.Status.self, forKey: .status)
         let protocolPeriod = try container.decode(UInt64.self, forKey: .protocolPeriod)
-        self.init(peer: peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: nil)
+        self.init(peer: peer as! Peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: nil) // as!-safe, since we only have members of a NIO implementation, so Peer will be NIOPeer
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -231,11 +231,11 @@ extension ClusterMembership.Node: Codable {
 extension SWIM.GossipPayload: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        let members = try container.decode([SWIM.Member].self)
+        let members: [SWIM.Member<SWIM.NIOPeer>] = try container.decode([SWIM.Member<SWIM.NIOPeer>].self)
         if members.isEmpty {
             self = .none
         } else {
-            self = .membership(members)
+            self = .membership(members as! [SWIM.Member<Peer>]) // as! safe, since we always have Peer == NIOPeer
         }
     }
 
@@ -244,7 +244,7 @@ extension SWIM.GossipPayload: Codable {
 
         switch self {
         case .none:
-            let empty: [SWIM.Member] = []
+            let empty: [SWIM.Member<SWIM.NIOPeer>] = []
             try container.encode(empty)
 
         case .membership(let members):

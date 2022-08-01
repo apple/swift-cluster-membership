@@ -25,7 +25,7 @@ import SWIM
 /// data into the channel which this handler converts into outbound `AddressedEnvelope<ByteBuffer>` elements.
 public final class SWIMNIOHandler: ChannelDuplexHandler {
     public typealias InboundIn = AddressedEnvelope<ByteBuffer>
-    public typealias InboundOut = SWIM.MemberStatusChangedEvent
+    public typealias InboundOut = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
     public typealias OutboundIn = SWIMNIOWriteCommand
     public typealias OutboundOut = AddressedEnvelope<ByteBuffer>
 
@@ -62,7 +62,8 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
             channel: context.channel,
             onMemberStatusChange: { change in
                 context.eventLoop.execute {
-                    context.fireChannelRead(self.wrapInboundOut(change))
+                    let wrapped = self.wrapInboundOut(change)
+                    context.fireChannelRead(wrapped)
                 }
             }
         )
