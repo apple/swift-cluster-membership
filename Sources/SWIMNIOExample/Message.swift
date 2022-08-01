@@ -19,12 +19,12 @@ import SWIM
 
 extension SWIM {
     public enum Message {
-        case ping(replyTo: NIOPeer, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
+        case ping(replyTo: NIOPeer, payload: GossipPayload<NIOPeer>, sequenceNumber: SWIM.SequenceNumber)
 
         /// "Ping Request" requests a SWIM probe.
-        case pingRequest(target: NIOPeer, replyTo: NIOPeer, payload: GossipPayload, sequenceNumber: SWIM.SequenceNumber)
+        case pingRequest(target: NIOPeer, replyTo: NIOPeer, payload: GossipPayload<NIOPeer>, sequenceNumber: SWIM.SequenceNumber)
 
-        case response(PingResponse)
+        case response(PingResponse<NIOPeer, NIOPeer>)
 
         var messageCaseDescription: String {
             switch self {

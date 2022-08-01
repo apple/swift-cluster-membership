@@ -58,7 +58,7 @@ extension SWIM {
         /// Depending on runtime, setting this value explicitly may not be necessary,
         /// as the node can be inferred from the host/port the specific shell is bound to.
         ///
-        /// If neither, the node could be inferred, or is set explicitly, a fatal crash should be caused by the SWIM shell implementaiton.
+        /// If neither, the node could be inferred, or is set explicitly, a fatal crash should be caused by the SWIM shell implementation.
         public var node: Node?
 
         /// Number of indirect probes that will be issued once a direct ping probe has failed to reply in time with an ack.
@@ -137,7 +137,7 @@ extension SWIM {
         ///
         /// The `.unreachable` state therefore from a protocol perspective, is equivalent to a `.suspect` member status.
         ///
-        /// Unless you _know_ you need unreachability, do not enable this mode, as it requires additional actions to be taken,
+        /// Unless you _know_ you need un-reachability, do not enable this mode, as it requires additional actions to be taken,
         /// to confirm a node as dead, complicating the failure detection and node pruning.
         ///
         /// By default this option is disabled, and the SWIM implementation behaves same as documented in the papers,
@@ -154,8 +154,8 @@ extension SWIM {
             ///     in it promoting an incoming `.unreachable` status to `.dead` and continue spreading this information.
             ///
             ///     This can defeat the purpose of unreachability, as it can be used to wait to announce the final `.dead`,
-            ///     move after consulting an external participant, and with a node unaware of unreachability this would short circut
-            /// this "wait for decision".
+            ///     move after consulting an external participant, and with a node unaware of unreachability
+            ///     this would short-circut this "wait for decision".
             case disabled
             /// Enables the `.unreachable` status extension.
             /// Most deployments will not need to utilize this mode.
@@ -210,7 +210,7 @@ public struct SWIMGossipSettings {
     ///
     /// - SeeAlso: SWIM 4.1. Infection-Style Dissemination Component
     /// - SeeAlso: SWIM 5. Performance Evaluation of a Prototype
-    public func gossipedEnoughTimes(_ gossip: SWIM.Gossip, members n: Int) -> Bool {
+    public func gossipedEnoughTimes(_ gossip: SWIM.Gossip<some SWIMPeer>, members n: Int) -> Bool {
         precondition(n >= 1, "number of members MUST be >= 1")
         guard n > 1 else {
             // no need to gossip ever in a single node cluster
@@ -220,7 +220,7 @@ public struct SWIMGossipSettings {
         return gossip.numberOfTimesGossiped > Int(maxTimesDouble)
     }
 
-    internal func needsToBeGossipedMoreTimes(_ gossip: SWIM.Gossip, members n: Int) -> Bool {
+    internal func needsToBeGossipedMoreTimes(_ gossip: SWIM.Gossip<some SWIMPeer>, members n: Int) -> Bool {
         !self.gossipedEnoughTimes(gossip, members: n)
     }
 

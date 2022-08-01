@@ -187,7 +187,7 @@ extension SWIM {
 
 extension SWIM.Metrics {
     /// Update member metrics metrics based on SWIM's membership.
-    public func updateMembership(_ members: SWIM.Membership) {
+    public func updateMembership(_ members: SWIM.Membership<some SWIMPeer>) {
         var alives = 0
         var suspects = 0
         var unreachables = 0

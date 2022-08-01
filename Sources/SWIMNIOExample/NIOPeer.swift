@@ -34,17 +34,13 @@ public extension SWIM {
         }
 
         public func ping(
-            payload: GossipPayload,
-            from origin: SWIMPingOriginPeer,
+            payload: GossipPayload<SWIM.NIOPeer>,
+            from origin: SWIM.NIOPeer,
             timeout: Swift.Duration,
             sequenceNumber: SWIM.SequenceNumber
-        ) async throws -> PingResponse {
-            guard let originPeer = origin as? SWIM.NIOPeer else {
-                fatalError("Peers MUST be of type SWIM.NIOPeer, yet was: \(origin)")
-            }
-
-            return try await withCheckedThrowingContinuation { continuation in
-                let message = SWIM.Message.ping(replyTo: originPeer, payload: payload, sequenceNumber: sequenceNumber)
+        ) async throws -> PingResponse<SWIM.NIOPeer, SWIM.NIOPeer> {
+            try await withCheckedThrowingContinuation { continuation in
+                let message = SWIM.Message.ping(replyTo: origin, payload: payload, sequenceNumber: sequenceNumber)
                 let command = SWIMNIOWriteCommand(message: message, to: self.swimNode, replyTimeout: timeout.toNIO, replyCallback: { reply in
                     switch reply {
                     case .success(.response(.nack(_, _))):
@@ -58,7 +54,8 @@ public extension SWIM {
                         continuation.resume(throwing: error)
 
                     case .success(let other):
-                        continuation.resume(throwing: SWIMNIOIllegalMessageTypeError("Unexpected message, got: [\(other)]:\(reflecting: type(of: other)) while expected \(PingResponse.self)"))
+                        continuation.resume(throwing:
+                        SWIMNIOIllegalMessageTypeError("Unexpected message, got: [\(other)]:\(reflecting: type(of: other)) while expected \(PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)"))
                     }
                 })
 
@@ -67,21 +64,14 @@ public extension SWIM {
         }
 
         public func pingRequest(
-            target: SWIMPeer,
-            payload: GossipPayload,
-            from origin: SWIMPingRequestOriginPeer,
+            target: SWIM.NIOPeer,
+            payload: GossipPayload<SWIM.NIOPeer>,
+            from origin: SWIM.NIOPeer,
             timeout: Duration,
             sequenceNumber: SWIM.SequenceNumber
-        ) async throws -> PingResponse {
-            guard let targetPeer = target as? SWIM.NIOPeer else {
-                fatalError("Peers MUST be of type SWIM.NIOPeer, yet was: \(target)")
-            }
-            guard let originPeer = origin as? SWIM.NIOPeer else {
-                fatalError("Peers MUST be of type SWIM.NIOPeer, yet was: \(origin)")
-            }
-
-            return try await withCheckedThrowingContinuation { continuation in
-                let message = SWIM.Message.pingRequest(target: targetPeer, replyTo: originPeer, payload: payload, sequenceNumber: sequenceNumber)
+        ) async throws -> PingResponse<SWIM.NIOPeer, SWIM.NIOPeer> {
+            try await withCheckedThrowingContinuation { continuation in
+                let message = SWIM.Message.pingRequest(target: target, replyTo: origin, payload: payload, sequenceNumber: sequenceNumber)
                 let command = SWIMNIOWriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
                     switch reply {
                     case .success(.response(let pingResponse)):
@@ -92,7 +82,7 @@ public extension SWIM {
                         continuation.resume(throwing: error)
 
                     case .success(let other):
-                        continuation.resume(throwing: SWIMNIOIllegalMessageTypeError("Unexpected message, got: \(other) while expected \(PingResponse.self)"))
+                        continuation.resume(throwing: SWIMNIOIllegalMessageTypeError("Unexpected message, got: \(other) while expected \(PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)"))
                     }
                 })
 
@@ -102,9 +92,9 @@ public extension SWIM {
 
         public func ack(
             acknowledging sequenceNumber: SWIM.SequenceNumber,
-            target: SWIMPeer,
+            target: SWIM.NIOPeer,
             incarnation: Incarnation,
-            payload: GossipPayload
+            payload: GossipPayload<SWIM.NIOPeer>
         ) {
             let message = SWIM.Message.response(.ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
             let command = SWIMNIOWriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)
@@ -114,7 +104,7 @@ public extension SWIM {
 
         public func nack(
             acknowledging sequenceNumber: SWIM.SequenceNumber,
-            target: SWIMPeer
+            target: SWIM.NIOPeer
         ) {
             let message = SWIM.Message.response(.nack(target: target, sequenceNumber: sequenceNumber))
             let command = SWIMNIOWriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)

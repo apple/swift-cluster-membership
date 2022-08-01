@@ -28,6 +28,9 @@ extension SWIMAddressablePeer {
 
 /// SWIM A peer which originated a `ping`, should be replied to with an `ack`.
 public protocol SWIMPingOriginPeer: SWIMAddressablePeer {
+    associatedtype Peer: SWIMPeer
+    associatedtype AckTarget: SWIMPeer
+
     /// Acknowledge a `ping`.
     ///
     /// - parameters:
@@ -39,14 +42,16 @@ public protocol SWIMPingOriginPeer: SWIMAddressablePeer {
     ///     It is already trimmed to be no larger than configured in `SWIM.Settings`.
     func ack(
         acknowledging sequenceNumber: SWIM.SequenceNumber,
-        target: SWIMPeer,
+        target: AckTarget,
         incarnation: SWIM.Incarnation,
-        payload: SWIM.GossipPayload
+        payload: SWIM.GossipPayload<Peer>
     ) async throws
 }
 
 /// A SWIM peer which originated a `pingRequest` and thus can receive either an `ack` or `nack` from the intermediary.
 public protocol SWIMPingRequestOriginPeer: SWIMPingOriginPeer {
+    associatedtype NackTarget: SWIMPeer
+
     /// "Negative acknowledge" a ping.
     ///
     /// This message may ONLY be send in an indirect-ping scenario from the "middle" peer.
@@ -59,12 +64,16 @@ public protocol SWIMPingRequestOriginPeer: SWIMPingOriginPeer {
     ///   - target: the target peer which was attempted to be pinged but we didn't get an ack from it yet and are sending a nack back eagerly
     func nack(
         acknowledging sequenceNumber: SWIM.SequenceNumber,
-        target: SWIMPeer
+        target: NackTarget
     ) async throws
 }
 
 /// SWIM peer which can be initiated contact with, by sending ping or ping request messages.
 public protocol SWIMPeer: SWIMAddressablePeer {
+    associatedtype Peer: SWIMPeer
+    associatedtype PingOrigin: SWIMPingOriginPeer
+    associatedtype PingRequestOrigin: SWIMPingRequestOriginPeer
+
     /// Perform a probe of this peer by sending a `ping` message.
     ///
     /// We expect the reply to be an `ack`.
@@ -80,11 +89,11 @@ public protocol SWIMPeer: SWIMAddressablePeer {
     ///
     /// - Throws if the ping fails or if the reply is `nack`.
     func ping(
-        payload: SWIM.GossipPayload,
-        from origin: SWIMPingOriginPeer,
+        payload: SWIM.GossipPayload<Peer>,
+        from origin: PingOrigin,
         timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
-    ) async throws -> SWIM.PingResponse
+    ) async throws -> SWIM.PingResponse<Peer, PingRequestOrigin>
 
     /// Send a ping request to this peer, asking it to perform an "indirect ping" of the target on our behalf.
     ///
@@ -103,10 +112,10 @@ public protocol SWIMPeer: SWIMAddressablePeer {
     /// - Returns the corresponding reply (`ack`, `nack`) or `timeout` event for this ping request occurs.
     /// - Throws if the ping request fails
     func pingRequest(
-        target: SWIMPeer,
-        payload: SWIM.GossipPayload,
-        from origin: SWIMPingRequestOriginPeer,
+        target: Peer,
+        payload: SWIM.GossipPayload<Peer>,
+        from origin: PingOrigin,
         timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
-    ) async throws -> SWIM.PingResponse
+    ) async throws -> SWIM.PingResponse<Peer, PingRequestOrigin>
 }
