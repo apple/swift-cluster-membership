@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-@preconcurrency import struct Dispatch.DispatchTime
+import struct Dispatch.DispatchTime
 import enum Dispatch.DispatchTimeInterval
 import NIO
 @testable import SWIM

@@ -33,7 +33,7 @@ extension SWIM {
     ///
     /// The ack may be delivered directly in a request-response fashion between the probing and pinged members,
     /// or indirectly, as a result of a `pingRequest` message.
-    public enum PingResponse<Peer: SWIMPeer, PingRequestOrigin: SWIMPingRequestOriginPeer> {
+    public enum PingResponse<Peer: SWIMPeer, PingRequestOrigin: SWIMPingRequestOriginPeer>: Sendable {
         /// - parameters:
         ///   - target: the target of the ping;
         ///     On the remote "pinged" node which is about to send an ack back to the ping origin this should be filled with the `myself` peer.
