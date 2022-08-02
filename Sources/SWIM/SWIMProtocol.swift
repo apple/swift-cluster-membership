@@ -56,14 +56,14 @@ import Logging
 ///
 /// - Preservation of `.unreachable` information
 ///   - The original paper does not keep in memory information about dead peers,
-///     it only gossips the information that a member is now dead, but does not keep tombstones for later reference
+///     it only gossips the information that a member is now dead, but does not keep tombstones for later reference.
 ///
 /// Implementations of extensions documented in the Lifeguard paper (linked below):
 ///
 /// - Local Health Aware Probe - which replaces the static timeouts in probing with a dynamic one, taking into account
 ///   recent communication failures of our member with others.
 /// - Local Health Aware Suspicion - which improves the way `.suspect` states and their timeouts are handled,
-///   effectively relying on more information about unreachability; See: `suspicionTimeout`
+///   effectively relying on more information about unreachability. See: `suspicionTimeout`.
 /// - Buddy System - enables members to directly and immediately notify suspect peers about them being suspected,
 ///   such that they have more time and a chance to refute these suspicions more quickly, rather than relying on completely
 ///   random gossip for that suspicion information to reach such suspect peer.
@@ -78,7 +78,7 @@ import Logging
 /// communicating with the peer directly, for example when initially connecting to the cluster,
 /// or because some other peer shared information about it with us.
 /// To avoid moving a peer "back" into alive or suspect state because of older statuses that get replicated,
-/// we need to be able put them into temporal order. For this reason each peer has an incarnation number assigned to it.
+/// we need to be able to put them into temporal order. For this reason each peer has an incarnation number assigned to it.
 ///
 /// This number is monotonically increasing and can only be incremented by the respective peer itself and only if it is
 /// suspected by another peer in its current incarnation.
@@ -105,8 +105,8 @@ import Logging
 /// receives gossip about itself, it has to react accordingly.
 ///
 /// If it is suspected by another peer in its current incarnation, it has to increment its incarnation in response.
-/// If it has been marked as dead, it SHOULD to shut itself down (i.e. terminate the entire node / service), to avoid "zombie"
-/// nodes staying around even through they are already ejected from the cluster.
+/// If it has been marked as dead, it SHOULD shut itself down (i.e. terminate the entire node / service), to avoid "zombie"
+/// nodes staying around even though they are already ejected from the cluster.
 ///
 /// ### SWIM Protocol Logic Implementation
 ///
@@ -129,7 +129,7 @@ public protocol SWIMProtocol {
 
     /// MUST be invoked periodically, in intervals of `self.swim.dynamicLHMProtocolInterval`.
     ///
-    /// MUST NOT be scheduled using a "repeated" task/timer", as the interval is dynamic and may change as the algorithm proceeds.
+    /// MUST NOT be scheduled using a "repeated" task/timer, as the interval is dynamic and may change as the algorithm proceeds.
     /// Implementations should schedule each next tick by handling the returned directive's `scheduleNextTick` case,
     /// which includes the appropriate delay to use for the next protocol tick.
     ///
@@ -138,7 +138,7 @@ public protocol SWIMProtocol {
     /// - decisions are made to `.ping` a random peer for fault detection,
     /// - and some internal house keeping is performed.
     ///
-    /// Note: This means that effectively all decisions are made in interval sof protocol periods.
+    /// Note: This means that effectively all decisions are made in interval of protocol periods.
     /// It would be possible to have a secondary periodic or more ad-hoc interval to speed up
     /// some operations, however this is currently not implemented and the protocol follows the fairly
     /// standard mode of simply carrying payloads in periodic ping messages.
@@ -192,7 +192,7 @@ public protocol SWIMProtocol {
         pingRequestSequenceNumber: SWIM.SequenceNumber?
     ) -> [Instance.PingResponseDirective]
 
-    /// MUST be invoked be exactly in one of the two following situations:
+    /// MUST be invoked exactly in one of the two following situations:
     /// - the *first successful response* from any number of `ping` messages that this peer has performed on behalf of a `pingRequestOrigin`,
     /// - just one single time with a `timeout` if *none* of the pings successfully returned an `ack`.
     ///
@@ -224,7 +224,7 @@ public protocol SWIMProtocol {
     /// a higher level system may take additional action and then determine when to actually confirm it dead.
     /// Systems can implement additional split-brain prevention mechanisms on those layers for example.
     ///
-    /// Once a node is determined dead by such higher level system, it may invoked `swim.confirmDead(peer: theDefinitelyDeadPeer`,
+    /// Once a node is determined dead by such higher level system, it may invoke `swim.confirmDead(peer: theDefinitelyDeadPeer`,
     /// to mark the node as dead, with all of its consequences.
     ///
     /// - Parameter peer: the peer which should be confirmed dead.
