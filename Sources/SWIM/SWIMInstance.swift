@@ -31,7 +31,7 @@ extension SWIM {
         Peer: SWIMPeer,
         PingOrigin: SWIMPingOriginPeer,
         PingRequestOrigin: SWIMPingRequestOriginPeer
-    >: SWIMProtocol { // TODO: could this be a struct?
+    >: SWIMProtocol {
         /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
