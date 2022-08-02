@@ -117,7 +117,7 @@ extension SWIM {
     }
 
     /// A `GossipPayload` is used to spread gossips about members.
-    public enum GossipPayload<Peer: SWIMPeer> {
+    public enum GossipPayload<Peer: SWIMPeer>: Sendable {
         /// Explicit case to signal "no gossip payload"
         ///
         /// Effectively equivalent to an empty `.membership([])` case.
