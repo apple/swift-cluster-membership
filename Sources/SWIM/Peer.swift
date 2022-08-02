@@ -15,7 +15,7 @@
 import ClusterMembership
 
 /// Any peer in the cluster, can be used used to identify a peer using its unique node that it represents.
-public protocol SWIMAddressablePeer {
+public protocol SWIMAddressablePeer: Sendable {
     /// Node that this peer is representing.
     nonisolated var swimNode: ClusterMembership.Node { get }
 }

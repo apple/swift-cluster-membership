@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import struct Dispatch.DispatchTime
+@preconcurrency import struct Dispatch.DispatchTime
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Member
@@ -22,7 +22,7 @@ extension SWIM {
     /// A `SWIM.Member` represents an active participant of the cluster.
     ///
     /// It associates a specific `SWIMAddressablePeer` with its `SWIM.Status` and a number of other SWIM specific state information.
-    public struct Member<Peer: SWIMPeer> {
+    public struct Member<Peer: SWIMPeer>: Sendable {
         /// Peer reference, used to send messages to this cluster member.
         ///
         /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
