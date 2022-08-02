@@ -55,7 +55,7 @@ public extension SWIM {
 
                     case .success(let other):
                         continuation.resume(throwing:
-                        SWIMNIOIllegalMessageTypeError("Unexpected message, got: [\(other)]:\(reflecting: type(of: other)) while expected \(PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)"))
+                            SWIMNIOIllegalMessageTypeError("Unexpected message, got: [\(other)]:\(reflecting: type(of: other)) while expected \(PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)"))
                     }
                 })
 

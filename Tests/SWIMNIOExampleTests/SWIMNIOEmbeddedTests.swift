@@ -294,7 +294,6 @@ final class SWIMNIOEmbeddedTests: EmbeddedClusteredXCTestCase {
 
         let targetEmbeddedChannel = target.channel as! EmbeddedChannel
 
-        // FIXME: is this correct?
         // origin invokes ping on target's channel, so it's target that writes and receives the command
         guard let pingCommand = try! await targetEmbeddedChannel.readOutboundWriteCommand() else {
             return XCTFail("Expected \(target) to receive ping from \(origin)")

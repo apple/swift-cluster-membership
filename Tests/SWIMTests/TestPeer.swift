@@ -13,9 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import Dispatch
 @testable import SWIM
 import XCTest
-import Dispatch
 
 final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOriginPeer, CustomStringConvertible {
     var swimNode: Node
