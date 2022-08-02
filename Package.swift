@@ -60,6 +60,7 @@ var targets: [PackageDescription.Target] = [
         name: "ClusterMembershipDocumentationTests",
         dependencies: [
             "SWIM",
+            .product(name: "Backtrace", package: "swift-backtrace"),
         ]
     ),
 
@@ -70,6 +71,7 @@ var targets: [PackageDescription.Target] = [
         name: "ClusterMembershipTests",
         dependencies: [
             "ClusterMembership",
+            .product(name: "Backtrace", package: "swift-backtrace"),
         ]
     ),
 
@@ -78,6 +80,7 @@ var targets: [PackageDescription.Target] = [
         dependencies: [
             "SWIM",
             "SWIMTestKit",
+            .product(name: "Backtrace", package: "swift-backtrace"),
         ]
     ),
 
@@ -86,6 +89,7 @@ var targets: [PackageDescription.Target] = [
         dependencies: [
             "SWIMNIOExample",
             "SWIMTestKit",
+            .product(name: "Backtrace", package: "swift-backtrace"),
         ]
     ),
 
@@ -96,6 +100,7 @@ var targets: [PackageDescription.Target] = [
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "Logging", package: "swift-log"),
             .product(name: "Metrics", package: "swift-metrics"),
+            .product(name: "Backtrace", package: "swift-backtrace"),
         ]
     ),
 
@@ -121,10 +126,10 @@ var dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.5.1"),
 
     // ~~~ SSWG APIs ~~~
-
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
-    // swift-metrics 1.x and 2.x are almost API compatible, so most clients should use
-    .package(url: "https://github.com/apple/swift-metrics.git", "1.0.0" ..< "3.0.0"),
+    .package(url: "https://github.com/apple/swift-metrics.git", "2.3.2" ..< "3.0.0"), // since latest
+
+    .package(url: "https://github.com/swift-server/swift-backtrace", from: "1.1.1"),
 ]
 
 let products: [PackageDescription.Product] = [
