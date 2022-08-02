@@ -60,7 +60,6 @@ var targets: [PackageDescription.Target] = [
         name: "ClusterMembershipDocumentationTests",
         dependencies: [
             "SWIM",
-            .product(name: "Backtrace", package: "swift-backtrace"),
         ]
     ),
 
@@ -71,7 +70,6 @@ var targets: [PackageDescription.Target] = [
         name: "ClusterMembershipTests",
         dependencies: [
             "ClusterMembership",
-            .product(name: "Backtrace", package: "swift-backtrace"),
         ]
     ),
 
@@ -80,7 +78,6 @@ var targets: [PackageDescription.Target] = [
         dependencies: [
             "SWIM",
             "SWIMTestKit",
-            .product(name: "Backtrace", package: "swift-backtrace"),
         ]
     ),
 
@@ -89,7 +86,6 @@ var targets: [PackageDescription.Target] = [
         dependencies: [
             "SWIMNIOExample",
             "SWIMTestKit",
-            .product(name: "Backtrace", package: "swift-backtrace"),
         ]
     ),
 
@@ -100,7 +96,6 @@ var targets: [PackageDescription.Target] = [
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "Logging", package: "swift-log"),
             .product(name: "Metrics", package: "swift-metrics"),
-            .product(name: "Backtrace", package: "swift-backtrace"),
         ]
     ),
 
@@ -128,8 +123,6 @@ var dependencies: [Package.Dependency] = [
     // ~~~ SSWG APIs ~~~
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
     .package(url: "https://github.com/apple/swift-metrics.git", "2.3.2" ..< "3.0.0"), // since latest
-
-    .package(url: "https://github.com/swift-server/swift-backtrace", from: "1.1.1"),
 ]
 
 let products: [PackageDescription.Product] = [
@@ -150,10 +143,10 @@ let products: [PackageDescription.Product] = [
 var package = Package(
     name: "swift-cluster-membership",
     platforms: [
-        .macOS(.v10_15),
-        .iOS(.v13),
-        .tvOS(.v13),
-        .watchOS(.v6),
+        .macOS(.v13),
+        .iOS(.v16),
+        .tvOS(.v16),
+        .watchOS(.v9),
     ],
     products: products,
 
