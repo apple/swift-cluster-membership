@@ -120,7 +120,7 @@ extension TestMetrics {
     // MARK: Counter
 
     public func expectCounter(_ metric: Counter) throws -> TestCounter {
-        metric.handler as! TestCounter
+        metric._handler as! TestCounter
     }
 
     public func expectCounter(_ label: String, _ dimensions: [(String, String)] = []) throws -> TestCounter {
@@ -153,7 +153,7 @@ extension TestMetrics {
     // MARK: Recorder
 
     public func expectRecorder(_ metric: Recorder) throws -> TestRecorder {
-        metric.handler as! TestRecorder
+        metric._handler as! TestRecorder
     }
 
     public func expectRecorder(_ label: String, _ dimensions: [(String, String)] = []) throws -> TestRecorder {
@@ -171,7 +171,7 @@ extension TestMetrics {
     // MARK: Timer
 
     public func expectTimer(_ metric: Timer) throws -> TestTimer {
-        metric.handler as! TestTimer
+        metric._handler as! TestTimer
     }
 
     public func expectTimer(_ label: String, _ dimensions: [(String, String)] = []) throws -> TestTimer {
