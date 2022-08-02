@@ -27,10 +27,11 @@ extension SWIM {
     /// **Please refer to `SWIM` for an in-depth discussion of the algorithm and extensions implemented in this package.**
     ///
     /// - SeeAlso: `SWIM` for a complete and in depth discussion of the protocol.
-    public struct Instance<Peer: SWIMPeer,
-                               PingOrigin: SWIMPingOriginPeer,
-                               PingRequestOrigin: SWIMPingRequestOriginPeer>: SWIMProtocol { // TODO: could this be a struct?
-
+    public struct Instance<
+        Peer: SWIMPeer,
+        PingOrigin: SWIMPingOriginPeer,
+        PingRequestOrigin: SWIMPingRequestOriginPeer
+    >: SWIMProtocol { // TODO: could this be a struct?
         /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
@@ -864,7 +865,7 @@ extension SWIM.Instance {
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: On Ping Response Handlers
 
-    mutating public func onPingResponse(response: SWIM.PingResponse<Peer, PingRequestOrigin>, pingRequestOrigin: PingRequestOrigin?, pingRequestSequenceNumber: SWIM.SequenceNumber?) -> [PingResponseDirective] {
+    public mutating func onPingResponse(response: SWIM.PingResponse<Peer, PingRequestOrigin>, pingRequestOrigin: PingRequestOrigin?, pingRequestSequenceNumber: SWIM.SequenceNumber?) -> [PingResponseDirective] {
         switch response {
         case .ack(let target, let incarnation, let payload, let sequenceNumber):
             return self.onPingAckResponse(target: target, incarnation: incarnation, payload: payload, pingRequestOrigin: pingRequestOrigin, pingRequestSequenceNumber: pingRequestSequenceNumber, sequenceNumber: sequenceNumber)

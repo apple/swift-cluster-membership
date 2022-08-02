@@ -21,9 +21,9 @@ public protocol SWIMAddressablePeer: Sendable {
 }
 
 extension SWIMAddressablePeer {
-  internal var node: ClusterMembership.Node {
-    self.swimNode
-  }
+    internal var node: ClusterMembership.Node {
+        self.swimNode
+    }
 }
 
 /// SWIM A peer which originated a `ping`, should be replied to with an `ack`.
