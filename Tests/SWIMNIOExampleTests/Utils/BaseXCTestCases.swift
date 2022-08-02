@@ -22,6 +22,7 @@ import SWIM
 @testable import SWIMNIOExample
 import SWIMTestKit
 import XCTest
+import Backtrace
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Real Networking Test Case
@@ -32,6 +33,10 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
 
     override func setUp() {
         super.setUp()
+
+        // We install backtrace in tests since we want to get good backtraces on CI,
+        // especially on errors that are hard to reproduce.
+        Backtrace.install()
 
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 8)
         self.loop = group.next()
