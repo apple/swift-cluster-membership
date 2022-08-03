@@ -191,5 +191,4 @@ extension NIO.TimeAmount: PrettyTimeAmountDescription {
     }
 }
 
-extension Swift.Duration: PrettyTimeAmountDescription {
-}
+extension Swift.Duration: PrettyTimeAmountDescription {}
