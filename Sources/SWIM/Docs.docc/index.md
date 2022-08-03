@@ -1,6 +1,8 @@
-# Swift Cluster Membership
+# ``SWIM``
 
-This library aims to help Swift make ground in a new space: clustered multi-node distributed systems. 
+This library aims to help Swift make ground in a new space: clustered multi-node distributed systems.
+
+## Overview
 
 With this library we provide reusable runtime agnostic membership protocol implementations which can be adopted in various clustering use-cases.
 
@@ -22,22 +24,22 @@ The [*Scalable Weakly-consistent Infection-style process group Membership*](http
 
 SWIM is a [gossip protocol](https://en.wikipedia.org/wiki/Gossip_protocol) in which peers periodically exchange bits of information about their observations of other nodes’ statuses, eventually spreading the information to all other members in a cluster. This category of distributed algorithms are very resilient against arbitrary message loss, network partitions and similar issues.
 
-At a high level, SWIM works like this: 
+At a high level, SWIM works like this:
 
 * A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a .ping message to that peer, expecting an [`.ack`](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/Protocols/SWIMPingOriginPeer.html#/s:4SWIM18SWIMPingOriginPeerP3ack13acknowledging6target11incarnation7payloadys6UInt32V_AA8SWIMPeer_ps6UInt64VA2AO13GossipPayloadOtF) to be sent back. See how `A` probes `B` initially in the diagram below.
     * The exchanged messages also carry a gossip `payload`, which is (partial) information about what other peers the sender of the message is aware of, along with their membership status (`.alive`, `.suspect`, etc.)
-* If it receives an `.ack`, the peer is considered still `.alive`. Otherwise, the target peer might have terminated/crashed or is unresponsive for other reasons. 
-    * In order to double check if the peer really is dead, the origin asks a few other peers about the state of the unresponsive peer by sending `.pingRequest` messages to a configured number of other peers, which then issue direct pings to that peer (probing peer E in the diagram below).
+* If it receives an `.ack`, the peer is considered still `.alive`. Otherwise, the target peer might have terminated/crashed or is unresponsive for other reasons.
+    * In order to double-check if the peer really is dead, the origin asks a few other peers about the state of the unresponsive peer by sending `.pingRequest` messages to a configured number of other peers, which then issue direct pings to that peer (probing peer E in the diagram below).
 * If those pings fail, due to lack of .acks resulting in the peer being marked as `.suspect`,
     * Our protocol implementation will also use additional `.nack` ("negative acknowledgement") messages in the situation to inform the ping request origin that the intermediary did receive those `.pingRequest` messages, however the target seems to not have responded. We use this information to adjust a Local Health Multiplier, which affects how timeouts are calculated. To learn more about this refer to the API docs and the Lifeguard paper.
 
-![SWIM: Messages Examples](Sources/SWIM/Docs.docc/images/ping_pingreq_cycle.svg)
+![SWIM: Messages Examples](ping_pingreq_cycle.png)
 
 The above mechanism, serves not only as a failure detection mechanism, but also as a gossip mechanism, which carries information about known members of the cluster. This way members eventually learn about the status of their peers, even without having them all listed upfront. It is worth pointing out however that this membership view is [weakly-consistent](https://en.wikipedia.org/wiki/Weak_consistency), which means there is no guarantee (or way to know, without additional information) if all members have the same exact view on the membership at any given point in time. However, it is an excellent building block for higher-level tools and systems to build their stronger guarantees on top.
 
 Once the failure detection mechanism detects an unresponsive node, it eventually is marked as  .dead resulting in its irrevocable removal from the cluster. Our implementation offers an optional extension, adding an .unreachable state to the possible states, however most users will not find it necessary and it is disabled by default. For details and rules rules about legal status transitions refer to [SWIM.Status](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/Status.swift#L18-L39) or the following diagram:
 
-![SWIM: Lifecycle Diagram](Sources/SWIM/Docs.docc/images/swim_lifecycle.svg)
+![SWIM: Lifecycle Diagram](swim_lifecycle.png)
 
 The way Swift Cluster Membership implements protocols, is by offering "`Instances`" of them. For example, the SWIM implementation is encapsulated in the runtime agnostic [`SWIM.Instance`](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/SWIMInstance.swift) which needs to be “driven” or “interpreted” by some glue code between a networking runtime and the instance itself. We call those glue pieces of an implementation "`Shell`s", and the library ships with a `SWIMNIOShell` implemented using [SwiftNIO](https://www.github.com/apple/swift-nio)’s `DatagramChannel` that performs all messaging asynchronously over [UDP](https://searchnetworking.techtarget.com/definition/UDP-User-Datagram-Protocol). Alternative implementations can use completely different transports, or piggy back SWIM messages on some other existing gossip system etc.
 
@@ -47,7 +49,7 @@ The SWIM instance also has built-in support for emitting metrics (using [swift-m
 
 The primary purpose of this library is to share the `SWIM.Instance` implementation across various implementations which need some form of in-process membership service. Implementing a custom runtime is documented in depth in the project’s README (https://github.com/apple/swift-cluster-membership/), so please have a look there if you are interested in implementing SWIM over some different transport.
 
-Implementing a new transport boils down a “fill in the blanks” exercise: 
+Implementing a new transport boils down a “fill in the blanks” exercise:
 
 First, one has to implement the Peer protocols (https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/Peer.swift) using one’s target transport:
 
@@ -68,9 +70,10 @@ public protocol SWIMPeer: SWIMAddressablePeer {
 }
 ```
 
-Which usually means wrapping some connection, channel, or other identity with the ability to send messages and invoke the appropriate callbacks when applicable. 
+Which usually means wrapping some connection, channel, or other identity with the ability to send messages and invoke the appropriate callbacks when applicable.
 
-Then, on the receiving end of a peer, one has to implement receiving those messages and invoke all the corresponding `on<SomeMessage>(...)` callbacks defined on the `SWIM.Instance` (grouped under [SWIMProtocol](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/SWIMInstance.swift#L24-L85)).
+Then, on the receiving end of a peer, one has to implement receiving those messages and invoke all the corresponding 
+`on<SomeMessage>(...)` callbacks defined on the ``SWIM/Instance`` (grouped under ``SWIMProtocol``.
 
 A piece of the SWIMProtocol is listed below to give you an idea about it:
 
@@ -133,66 +136,28 @@ self.swim.onPingRequest(
 }
 ```
 
-In general this allows for all the tricky "what to do when" to be encapsulated within the protocol instance, and a Shell only has to follow instructions implementing them. The actual implementations will often need to perform some more involved concurrency and networking thasks, like awaiting for a sequence of responses, and handling them in a specific way etc, however the general outline of the protocol is orchestrated by the instance's directives.
+In general this allows for all the tricky "what to do when" to be encapsulated within the protocol instance, and a Shell only has to follow instructions implementing them. The actual implementations will often need to perform some more involved concurrency and networking tasks, like awaiting a sequence of responses, and handling them in a specific way etc, however the general outline of the protocol is orchestrated by the instance's directives.
 
-For detailed documentation about each of the callbacks, when to invoke them, and how all this fits together, please refer to the [**API Documentation**](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/index.html).
+## Topics
 
-### Example: SWIMming with Swift NIO
+### SWIM logic implementation
 
-The repository contains an [end-to-end example](Samples/Sources/SWIMNIOSampleCluster) and an example implementation called [SWIMNIOExample](Sources/SWIMNIOExample) which makes use of the `SWIM.Instance` to enable a simple UDP based peer monitoring system. This allows peers to gossip and notify each other about node failures using the SWIM protocol by sending datagrams driven by SwiftNIO.
+- ``SWIM/Instance``
+- ``SWIM/Member``
 
-> 📘 The `SWIMNIOExample` implementation is offered only as an example, and has not been implemented with production use in mind, however with some amount of effort it could definitely do well for some use-cases. If you are interested in learning more about cluster membership algorithms, scalability benchmarking and using SwiftNIO itself, this is a great module to get your feet wet, and perhaps once the module is mature enough we could consider making it not only an example, but a reusable component for Swift NIO based clustered applications.
+### SWIM settings
 
-In it’s simplest form, combining the provided SWIM instance and NIO shell to build a simple server, one can embedd the provided handlers like shown below, in a typical NIO channel pipeline:
+- ``SWIMGossipSettings``
+- ``SWIMLifeguardSettings``
+- ``SWIMMetricsSettings``
 
-```swift
-let bootstrap = DatagramBootstrap(group: group)
-    .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-    .channelInitializer { channel in
-        channel.pipeline
-            // first install the SWIM handler, which contains the SWIMNIOShell:
-            .addHandler(SWIMNIOHandler(settings: settings)).flatMap {
-                // then install some user handler, it will receive SWIM events:
-                channel.pipeline.addHandler(SWIMNIOExampleHandler())
-        }
-    }
+### Protocols peer implementations must conform to 
 
-bootstrap.bind(host: host, port: port)
-```
+- ``SWIMPeer``
+- ``SWIMAddressablePeer`` 
+- ``SWIMPingOriginPeer`` 
+- ``SWIMPingRequestOriginPeer`` 
 
-The example handler can then receive and handle SWIM cluster membership change events:
+### Namespace
 
-```swift
-final class SWIMNIOExampleHandler: ChannelInboundHandler {
-    public typealias InboundIn = SWIM.MemberStatusChangedEvent
-    
-    let log = Logger(label: "SWIMNIOExampleHandler")
-    
-    public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let change: SWIM.MemberStatusChangedEvent = self.unwrapInboundIn(data)
-
-        self.log.info("Membership status changed: [\(change.member.node)] is now [\(change.status)]", metadata: [    
-            "swim/member": "\(change.member.node)",
-            "swim/member/status": "\(change.status)",
-        ])
-    }
-}
-```
-
-If you are interested in contributing and polishing up the SWIMNIO implementation please head over to the issues and pick up a task or propose an improvement yourself!
-
-## Additional Membership Protocol Implementations
-
-We are generally interested in fostering discussions and implementations of additional membership implementations using a similar "Instance" style.
-
-If you are interested in such algorithms, and have a favourite protocol that you'd like to see implemented, please do not hesitate to reach out heve via issues or the [Swift forums](https://forums.swift.org/c/server).
-
-## Contributing
-
-Experience reports, feedback, improvement ideas and contributions are greatly encouraged! 
-We look forward to hear from you.
-
-Please refer to [CONTRIBUTING](CONTRIBUTING.md) guide to learn about the process of submitting pull requests,
-and refer to the [HANDBOOK](HANDBOOK.md) for terminology and other useful tips for working with this library.
-
-
+- ``SWIM/SWIM``
