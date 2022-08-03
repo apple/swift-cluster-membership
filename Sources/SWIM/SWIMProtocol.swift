@@ -148,7 +148,7 @@ public protocol SWIMProtocol {
 
     /// MUST be invoked whenever a `ping` message is received.
     ///
-    /// A specific shell implementation must the returned directives by acting on them.
+    /// A specific shell implementation must act on the returned directives.
     /// The order of interpreting the events should be as returned by the onPing invocation.
     ///
     /// - parameters:
