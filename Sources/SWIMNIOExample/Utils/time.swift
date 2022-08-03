@@ -51,7 +51,6 @@ extension Swift.Duration {
 
     /// Represents number of nanoseconds within given time unit
     enum TimeUnit: Value {
-        // @formatter:off
         case days = 86_400_000_000_000
         case hours = 3_600_000_000_000
         case minutes = 60_000_000_000
@@ -59,7 +58,6 @@ extension Swift.Duration {
         case milliseconds = 1_000_000
         case microseconds = 1000
         case nanoseconds = 1
-        // @formatter:on
 
         var abbreviated: String {
             switch self {
@@ -96,11 +94,11 @@ protocol PrettyTimeAmountDescription {
 }
 
 extension PrettyTimeAmountDescription {
-    public var prettyDescription: String {
+    var prettyDescription: String {
         self.prettyDescription()
     }
 
-    public func prettyDescription(precision: Int = 2) -> String {
+    func prettyDescription(precision: Int = 2) -> String {
         assert(precision > 0, "precision MUST BE > 0")
         if self.isEffectivelyInfinite {
             return "∞ (infinite)"
@@ -134,7 +132,6 @@ extension PrettyTimeAmountDescription {
     }
 
     private func chooseUnit(_ ns: Int64) -> PrettyTimeUnit {
-        // @formatter:off
         if ns / PrettyTimeUnit.days.rawValue > 0 {
             return PrettyTimeUnit.days
         } else if ns / PrettyTimeUnit.hours.rawValue > 0 {
@@ -150,13 +147,11 @@ extension PrettyTimeAmountDescription {
         } else {
             return PrettyTimeUnit.nanoseconds
         }
-        // @formatter:on
     }
 }
 
 /// Represents number of nanoseconds within given time unit
 enum PrettyTimeUnit: Int64 {
-    // @formatter:off
     case days = 86_400_000_000_000
     case hours = 3_600_000_000_000
     case minutes = 60_000_000_000
@@ -164,7 +159,6 @@ enum PrettyTimeUnit: Int64 {
     case milliseconds = 1_000_000
     case microseconds = 1000
     case nanoseconds = 1
-    // @formatter:on
 
     var abbreviated: String {
         switch self {
@@ -195,4 +189,7 @@ extension NIO.TimeAmount: PrettyTimeAmountDescription {
     var isEffectivelyInfinite: Bool {
         self.nanoseconds == .max
     }
+}
+
+extension Swift.Duration: PrettyTimeAmountDescription {
 }

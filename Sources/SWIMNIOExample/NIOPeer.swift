@@ -143,7 +143,7 @@ public struct SWIMNIOTimeoutError: Error, CustomStringConvertible {
     }
 
     public var description: String {
-        "SWIMNIOTimeoutError(timeout: \(self.timeout), \(self.message))"
+        "SWIMNIOTimeoutError(timeout: \(self.timeout.prettyDescription), \(self.message))"
     }
 }
 

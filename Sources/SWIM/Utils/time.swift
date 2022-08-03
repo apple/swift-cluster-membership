@@ -44,7 +44,6 @@ extension Swift.Duration {
 
     /// Represents number of nanoseconds within given time unit
     enum TimeUnit: Value {
-        // @formatter:off
         case days = 86_400_000_000_000
         case hours = 3_600_000_000_000
         case minutes = 60_000_000_000
@@ -52,7 +51,6 @@ extension Swift.Duration {
         case milliseconds = 1_000_000
         case microseconds = 1000
         case nanoseconds = 1
-        // @formatter:on
 
         var abbreviated: String {
             switch self {
@@ -82,7 +80,6 @@ extension Swift.Duration {
 
 /// Represents number of nanoseconds within given time unit
 enum PrettyTimeUnit: Int64 {
-    // @formatter:off
     case days = 86_400_000_000_000
     case hours = 3_600_000_000_000
     case minutes = 60_000_000_000
@@ -90,7 +87,6 @@ enum PrettyTimeUnit: Int64 {
     case milliseconds = 1_000_000
     case microseconds = 1000
     case nanoseconds = 1
-    // @formatter:on
 
     var abbreviated: String {
         switch self {
