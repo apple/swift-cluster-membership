@@ -26,22 +26,22 @@ SWIM is a [gossip protocol](https://en.wikipedia.org/wiki/Gossip_protocol) in wh
 
 At a high level, SWIM works like this:
 
-* A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a .ping message to that peer, expecting an [`.ack`](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/Protocols/SWIMPingOriginPeer.html#/s:4SWIM18SWIMPingOriginPeerP3ack13acknowledging6target11incarnation7payloadys6UInt32V_AA8SWIMPeer_ps6UInt64VA2AO13GossipPayloadOtF) to be sent back. See how `A` probes `B` initially in the diagram below.
+* A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a `.ping` message to that peer, expecting an [`.ack`](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/Protocols/SWIMPingOriginPeer.html#/s:4SWIM18SWIMPingOriginPeerP3ack13acknowledging6target11incarnation7payloadys6UInt32V_AA8SWIMPeer_ps6UInt64VA2AO13GossipPayloadOtF) to be sent back. See how `A` probes `B` initially in the diagram below.
     * The exchanged messages also carry a gossip `payload`, which is (partial) information about what other peers the sender of the message is aware of, along with their membership status (`.alive`, `.suspect`, etc.)
 * If it receives an `.ack`, the peer is considered still `.alive`. Otherwise, the target peer might have terminated/crashed or is unresponsive for other reasons.
     * In order to double-check if the peer really is dead, the origin asks a few other peers about the state of the unresponsive peer by sending `.pingRequest` messages to a configured number of other peers, which then issue direct pings to that peer (probing peer E in the diagram below).
-* If those pings fail, due to lack of .acks resulting in the peer being marked as `.suspect`,
+* If those pings fail, due to lack of `.ack`s resulting in the peer being marked as `.suspect`,
     * Our protocol implementation will also use additional `.nack` ("negative acknowledgement") messages in the situation to inform the ping request origin that the intermediary did receive those `.pingRequest` messages, however the target seems to not have responded. We use this information to adjust a Local Health Multiplier, which affects how timeouts are calculated. To learn more about this refer to the API docs and the Lifeguard paper.
 
 ![SWIM: Messages Examples](ping_pingreq_cycle.png)
 
-The above mechanism, serves not only as a failure detection mechanism, but also as a gossip mechanism, which carries information about known members of the cluster. This way members eventually learn about the status of their peers, even without having them all listed upfront. It is worth pointing out however that this membership view is [weakly-consistent](https://en.wikipedia.org/wiki/Weak_consistency), which means there is no guarantee (or way to know, without additional information) if all members have the same exact view on the membership at any given point in time. However, it is an excellent building block for higher-level tools and systems to build their stronger guarantees on top.
+The above mechanism serves not only as a failure detection mechanism, but also as a gossip mechanism, which carries information about known members of the cluster. This way members eventually learn about the status of their peers, even without having them all listed upfront. It is worth pointing out however that this membership view is [weakly-consistent](https://en.wikipedia.org/wiki/Weak_consistency), which means there is no guarantee (or way to know, without additional information) if all members have the same exact view on the membership at any given point in time. However, it is an excellent building block for higher-level tools and systems to build their stronger guarantees on top.
 
-Once the failure detection mechanism detects an unresponsive node, it eventually is marked as  .dead resulting in its irrevocable removal from the cluster. Our implementation offers an optional extension, adding an .unreachable state to the possible states, however most users will not find it necessary and it is disabled by default. For details and rules rules about legal status transitions refer to [SWIM.Status](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/Status.swift#L18-L39) or the following diagram:
+Once the failure detection mechanism detects an unresponsive node, it eventually is marked as `.dead` resulting in its irrevocable removal from the cluster. Our implementation offers an optional extension, adding an `.unreachable` state to the possible states, however most users will not find it necessary and it is disabled by default. For details and rules about legal status transitions refer to [SWIM.Status](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/Status.swift#L18-L39) or the following diagram:
 
 ![SWIM: Lifecycle Diagram](swim_lifecycle.png)
 
-The way Swift Cluster Membership implements protocols, is by offering "`Instances`" of them. For example, the SWIM implementation is encapsulated in the runtime agnostic [`SWIM.Instance`](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/SWIMInstance.swift) which needs to be “driven” or “interpreted” by some glue code between a networking runtime and the instance itself. We call those glue pieces of an implementation "`Shell`s", and the library ships with a `SWIMNIOShell` implemented using [SwiftNIO](https://www.github.com/apple/swift-nio)’s `DatagramChannel` that performs all messaging asynchronously over [UDP](https://searchnetworking.techtarget.com/definition/UDP-User-Datagram-Protocol). Alternative implementations can use completely different transports, or piggy back SWIM messages on some other existing gossip system etc.
+The way Swift Cluster Membership implements protocols is by offering "`Instances`" of them. For example, the SWIM implementation is encapsulated in the runtime agnostic [`SWIM.Instance`](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/SWIMInstance.swift) which needs to be “driven” or “interpreted” by some glue code between a networking runtime and the instance itself. We call those glue pieces of an implementation "`Shell`s", and the library ships with a `SWIMNIOShell` implemented using [SwiftNIO](https://www.github.com/apple/swift-nio)’s `DatagramChannel` that performs all messaging asynchronously over [UDP](https://searchnetworking.techtarget.com/definition/UDP-User-Datagram-Protocol). Alternative implementations can use completely different transports, or piggy back SWIM messages on some other existing gossip system etc.
 
 The SWIM instance also has built-in support for emitting metrics (using [swift-metrics](https://github.com/apple/swift-metrics)) and can be configured to log details about internal details by passing a [swift-log](https://github.com/apple/swift-log) `Logger`.
 
@@ -73,9 +73,9 @@ public protocol SWIMPeer: SWIMAddressablePeer {
 Which usually means wrapping some connection, channel, or other identity with the ability to send messages and invoke the appropriate callbacks when applicable.
 
 Then, on the receiving end of a peer, one has to implement receiving those messages and invoke all the corresponding 
-`on<SomeMessage>(...)` callbacks defined on the ``SWIM/Instance`` (grouped under ``SWIMProtocol``.
+`on<SomeMessage>(...)` callbacks defined on the ``SWIM/Instance`` (grouped under ``SWIMProtocol``).
 
-A piece of the SWIMProtocol is listed below to give you an idea about it:
+A piece of the ``SWIMProtocol`` is listed below to give you an idea about it:
 
 
 ```swift
