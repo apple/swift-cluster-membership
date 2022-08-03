@@ -78,25 +78,3 @@ extension Swift.Duration {
     }
 }
 
-/// Represents number of nanoseconds within given time unit
-enum PrettyTimeUnit: Int64 {
-    case days = 86_400_000_000_000
-    case hours = 3_600_000_000_000
-    case minutes = 60_000_000_000
-    case seconds = 1_000_000_000
-    case milliseconds = 1_000_000
-    case microseconds = 1000
-    case nanoseconds = 1
-
-    var abbreviated: String {
-        switch self {
-        case .nanoseconds: return "ns"
-        case .microseconds: return "μs"
-        case .milliseconds: return "ms"
-        case .seconds: return "s"
-        case .minutes: return "m"
-        case .hours: return "h"
-        case .days: return "d"
-        }
-    }
-}
