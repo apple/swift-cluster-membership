@@ -93,7 +93,7 @@ var targets: [PackageDescription.Target] = [
     .testTarget(
         name: "SWIMTestKit",
         dependencies: [
-//            "SWIM",
+            "SWIM",
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "Logging", package: "swift-log"),
             .product(name: "Metrics", package: "swift-metrics"),
