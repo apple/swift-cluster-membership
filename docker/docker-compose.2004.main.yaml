@@ -10,6 +10,8 @@ services:
 
   unit-tests:
     image: swift-cluster-membership:20.04-main
+    environment:
+      - EXPLICIT_TARGET_DEPENDENCY_IMPORT_CHECK=--explicit-target-dependency-import-check error
 
   unit-tests-until-failure:
     image: swift-cluster-membership:20.04-main
@@ -19,6 +21,8 @@ services:
 
   test:
     image: swift-cluster-membership:20.04-main
+    environment:
+      - EXPLICIT_TARGET_DEPENDENCY_IMPORT_CHECK=--explicit-target-dependency-import-check error
 
   bench:
     image: swift-cluster-membership:20.04-main
