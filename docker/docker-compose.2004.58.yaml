@@ -1,0 +1,30 @@
+version: "3"
+
+services:
+
+  runtime-setup:
+    image: swift-cluster-membership:20.04-5.8
+    build:
+      args:
+        base_image: "swiftlang/swift:nightly-5.8-focal"
+
+  unit-tests:
+    image: swift-cluster-membership:20.04-5.8
+
+  unit-tests-until-failure:
+    image: swift-cluster-membership:20.04-5.8
+
+  integration-tests:
+    image: swift-cluster-membership:20.04-5.8
+
+  test:
+    image: swift-cluster-membership:20.04-5.8
+
+  bench:
+    image: swift-cluster-membership:20.04-5.8
+
+  shell:
+    image: swift-cluster-membership:20.04-5.8
+
+  sample-crash:
+    image: swift-cluster-membership:20.04-5.8
