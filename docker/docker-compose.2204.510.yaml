@@ -1,0 +1,34 @@
+version: "3"
+
+services:
+
+  runtime-setup:
+    image: swift-cluster-membership:22.04-5.10
+    build:
+      args:
+        base_image: "swiftlang/swift:nightly-5.10-jammy"
+
+  unit-tests:
+    image: swift-cluster-membership:22.04-5.10
+    environment:
+      - EXPLICIT_TARGET_DEPENDENCY_IMPORT_CHECK=--explicit-target-dependency-import-check error
+
+  unit-tests-until-failure:
+    image: swift-cluster-membership:22.04-5.10
+
+  integration-tests:
+    image: swift-cluster-membership:22.04-5.10
+
+  test:
+    image: swift-cluster-membership:22.04-5.10
+    environment:
+      - EXPLICIT_TARGET_DEPENDENCY_IMPORT_CHECK=--explicit-target-dependency-import-check error
+
+  bench:
+    image: swift-cluster-membership:22.04-5.10
+
+  shell:
+    image: swift-cluster-membership:22.04-5.10
+
+  sample-crash:
+    image: swift-cluster-membership:22.04-5.10
