@@ -18,7 +18,7 @@ import NIO
 import SWIM
 
 extension SWIM {
-    public enum Message: Codable {
+    public enum Message: Sendable, Codable {
         case ping(replyTo: NIOPeer, payload: GossipPayload<NIOPeer>?, sequenceNumber: SWIM.SequenceNumber)
 
         /// "Ping Request" requests a SWIM probe.
@@ -68,7 +68,7 @@ extension SWIM {
         }
     }
 
-    public enum LocalMessage: Codable {
+    public enum LocalMessage: Sendable, Codable {
         /// Sent by `ClusterShell` when wanting to join a cluster node by `Node`.
         ///
         /// Requests SWIM to monitor a node, which also causes an association to this node to be requested

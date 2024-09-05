@@ -1,4 +1,4 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import class Foundation.ProcessInfo
@@ -12,9 +12,12 @@ if ProcessInfo.processInfo.environment["WARNINGS_AS_ERRORS"] != nil {
     print("WARNINGS_AS_ERRORS enabled, passing `-warnings-as-errors`")
     globalSwiftSettings = [
         SwiftSetting.unsafeFlags(["-warnings-as-errors"]),
+        .swiftLanguageMode(.v6)
     ]
 } else {
-    globalSwiftSettings = []
+    globalSwiftSettings = [
+        .swiftLanguageMode(.v6)
+    ]
 }
 
 var targets: [PackageDescription.Target] = [
@@ -22,9 +25,7 @@ var targets: [PackageDescription.Target] = [
     // MARK: SWIM
 
     .target(
-        name: "ClusterMembership",
-        dependencies: [
-        ]
+        name: "ClusterMembership"
     ),
 
     .target(
@@ -147,10 +148,10 @@ let products: [PackageDescription.Product] = [
 var package = Package(
     name: "swift-cluster-membership",
     platforms: [
-        .macOS(.v14),
-        .iOS(.v17),
-        .tvOS(.v17),
-        .watchOS(.v10),
+        .macOS(.v15),
+        .iOS(.v18),
+        .tvOS(.v18),
+        .watchOS(.v11),
     ],
     products: products,
 

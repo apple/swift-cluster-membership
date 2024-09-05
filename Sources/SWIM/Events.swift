@@ -19,7 +19,7 @@ extension SWIM {
     ///
     /// Use `isReachabilityChange` to detect whether the is a change from an alive to unreachable/dead state or not,
     /// and is worth emitting to user-code or not.
-    public struct MemberStatusChangedEvent<Peer: SWIMPeer>: Equatable {
+    public struct MemberStatusChangedEvent<Peer: SWIMPeer>: Sendable, Equatable {
         /// The member that this change event is about.
         public let member: SWIM.Member<Peer>
 

@@ -115,19 +115,16 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             settings.swim.initialContactPoints = [fourth.shell.node]
         }
 
-        try await withThrowingDiscardingTaskGroup { group in
-            for handler in [first, second, third, fourth, fifth] {
-                group.addTask {
-                    do {
-                        try await self.capturedLogs(of: handler.shell.node)
-                            .log(
-                                grep: #""swim/members/count": 5"#,
-                                within: .seconds(5)
-                            )
-                    } catch {
-                        throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
-                    }
-                }
+        for handler in [first, second, third, fourth, fifth] {
+            do {
+                try await self.capturedLogs(of: handler.shell.node)
+                    .log(
+                        grep: #""swim/members/count": 5"#,
+                        within: .seconds(5)
+                    )
+                
+            } catch {
+                throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
             }
         }
     }
@@ -164,19 +161,15 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             ]
         }
 
-        try await withThrowingDiscardingTaskGroup { group in
-            for handler in [first, second, third, fourth, fifth] {
-                group.addTask {
-                    do {
-                        try await self.capturedLogs(of: handler.shell.node)
-                            .log(
-                                grep: #""swim/members/count": 5"#,
-                                within: .seconds(5)
-                            )
-                    } catch {
-                        throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
-                    }
-                }
+        for handler in [first, second, third, fourth, fifth] {
+            do {
+                try await self.capturedLogs(of: handler.shell.node)
+                    .log(
+                        grep: #""swim/members/count": 5"#,
+                        within: .seconds(5)
+                    )
+            } catch {
+                throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
             }
         }
     }
@@ -207,37 +200,29 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             settings.swim.probeInterval = .milliseconds(500)
         }
 
-        try await withThrowingDiscardingTaskGroup { group in
-            for handler in [first, second, third, fourth, fifth] {
-                group.addTask {
-                    do {
-                        try await self.capturedLogs(of: handler.shell.node)
-                            .log(
-                                grep: #""swim/members/count": 5"#,
-                                within: .seconds(20)
-                            )
-                    } catch {
-                        throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
-                    }
-                }
+        for handler in [first, second, third, fourth, fifth] {
+            do {
+                try await self.capturedLogs(of: handler.shell.node)
+                    .log(
+                        grep: #""swim/members/count": 5"#,
+                        within: .seconds(20)
+                    )
+            } catch {
+                throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
             }
         }
 
         try await firstChannel.close().get()
 
-        try await withThrowingDiscardingTaskGroup { group in
-            for handler in  [second, third, fourth, fifth] {
-                group.addTask {
-                    do {
-                        try await self.capturedLogs(of: handler.shell.node)
-                            .log(
-                                grep: #""swim/suspects/count": 1"#,
-                                within: .seconds(10)
-                            )
-                    } catch {
-                        throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
-                    }
-                }
+        for handler in  [second, third, fourth, fifth] {
+            do {
+                try await self.capturedLogs(of: handler.shell.node)
+                    .log(
+                        grep: #""swim/suspects/count": 1"#,
+                        within: .seconds(10)
+                    )
+            } catch {
+                throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
             }
         }
     }

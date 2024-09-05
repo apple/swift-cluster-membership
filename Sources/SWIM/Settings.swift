@@ -26,7 +26,7 @@ import Glibc
 
 extension SWIM {
     /// Settings generally applicable to the SWIM implementation as well as any shell running it.
-    public struct Settings {
+    public struct Settings: Sendable {
         /// Create default settings.
         public init() {}
 
@@ -144,7 +144,7 @@ extension SWIM {
         public var unreachability: UnreachabilitySettings = .disabled
 
         /// Configure how unreachability should be handled by this instance.
-        public enum UnreachabilitySettings {
+        public enum UnreachabilitySettings: Sendable {
             /// Do not use the .unreachable state and just like classic SWIM automatically announce a node as `.dead`,
             /// if failure detection triggers.
             ///
@@ -172,7 +172,7 @@ extension SWIM {
         /// Doing this will require some control over SWIM's notion of time.
         ///
         /// This property allows to override the `.now()` function for mocking purposes.
-        internal var timeSourceNow: () -> ContinuousClock.Instant = { () -> ContinuousClock.Instant in
+        internal var timeSourceNow: @Sendable () -> ContinuousClock.Instant = { () -> ContinuousClock.Instant in
             ContinuousClock.now
         }
 
@@ -190,7 +190,7 @@ extension SWIM {
 // MARK: SWIM Gossip Settings
 
 /// Settings specific to the gossip payloads used in the SWIM gossip dissemination subsystem.
-public struct SWIMGossipSettings {
+public struct SWIMGossipSettings: Sendable {
     /// Create default settings.
     public init() {}
 
@@ -242,7 +242,7 @@ public struct SWIMGossipSettings {
 /// Lifeguard is a set of extensions to SWIM that helps reducing false positive failure detections.
 ///
 /// - SeeAlso: [Lifeguard: Local Health Awareness for More Accurate Failure Detection](https://arxiv.org/pdf/1707.00788.pdf)
-public struct SWIMLifeguardSettings {
+public struct SWIMLifeguardSettings: Sendable {
     /// Create default settings.
     public init() {}
 
@@ -330,7 +330,7 @@ public struct SWIMLifeguardSettings {
 // MARK: SWIM Metrics Settings
 
 /// Configure label names and other details about metrics reported by the `SWIM.Instance`.
-public struct SWIMMetricsSettings {
+public struct SWIMMetricsSettings: Sendable {
     public init() {}
 
     /// Configure the segments separator for use when creating labels;

@@ -21,11 +21,12 @@ actor TestPeer: @preconcurrency Codable,
                 SWIMPeer,
                 SWIMPingOriginPeer,
                 SWIMPingRequestOriginPeer,
-                @preconcurrency CustomStringConvertible {
+                CustomStringConvertible {
     
     nonisolated(unsafe) var swimNode: Node
     var messages: [TestPeer.Message] = []
     
+    // FIXME: .ping and .pingRequest are not used. Cover it with tests and remove this error.
     enum Error: Swift.Error {
         case notUsedAtTheMoment
     }
@@ -142,7 +143,7 @@ actor TestPeer: @preconcurrency Codable,
         return true
     }
     
-    var description: String {
+    nonisolated var description: String {
         "TestPeer(\(self.swimNode))"
     }
 }

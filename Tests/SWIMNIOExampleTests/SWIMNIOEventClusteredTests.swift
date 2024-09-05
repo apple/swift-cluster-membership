@@ -18,6 +18,7 @@ import SWIM
 @testable import SWIMNIOExample
 import SWIMTestKit
 import XCTest
+import Synchronization
 
 // TODO: those tests could be done on embedded event loops probably
 final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
@@ -102,8 +103,7 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         self._nodes.append(settings.node!)
         return try DatagramBootstrap(group: self.group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-            .channelInitializer { channel in
-
+            .channelInitializer { [settings] channel in
                 let swimHandler = SWIMNIOHandler(settings: settings)
                 return channel.pipeline.addHandler(swimHandler).flatMap { _ in
                     channel.pipeline.addHandler(probeHandler)
@@ -131,39 +131,41 @@ extension ProbeEventHandler {
     }
 }
 
-final class ProbeEventHandler: ChannelInboundHandler {
+final class ProbeEventHandler: ChannelInboundHandler, Sendable {
     typealias InboundIn = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
 
-    var events: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>] = []
-    var waitingPromise: EventLoopPromise<SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>>?
-    var loop: EventLoop
+    let events: Mutex<[SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>]> = .init([])
+    let waitingPromise: Mutex<EventLoopPromise<SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>>?> = .init(.none)
+    let loop: Mutex<EventLoop>
 
     init(loop: EventLoop) {
-        self.loop = loop
+        self.loop = .init(loop)
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let change = self.unwrapInboundIn(data)
-        self.events.append(change)
+        self.events.withLock { $0.append(change) }
 
-        if let probePromise = self.waitingPromise {
-            let event = self.events.removeFirst()
+        if let probePromise = self.waitingPromise.withLock({ $0 }) {
+            let event = self.events.withLock { $0.removeFirst() }
             probePromise.succeed(event)
-            self.waitingPromise = nil
+            self.waitingPromise.withLock { $0 = .none }
         }
     }
 
     func expectEvent(file: StaticString = #file, line: UInt = #line) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
-        let p = self.loop.makePromise(of: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>.self, file: file, line: line)
-        self.loop.execute {
-            assert(self.waitingPromise == nil, "Already waiting on an event")
-            if !self.events.isEmpty {
-                let event = self.events.removeFirst()
-                p.succeed(event)
-            } else {
-                self.waitingPromise = p
+        let p = self.loop.withLock { $0.makePromise(of: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>.self, file: file, line: line) }
+        return try self.loop.withLock {
+            $0.execute {
+                assert(self.waitingPromise.withLock { $0 == nil}, "Already waiting on an event")
+                if !self.events.withLock({ $0.isEmpty }) {
+                    let event = self.events.withLock { $0.removeFirst() }
+                    p.succeed(event)
+                } else {
+                    self.waitingPromise.withLock { $0 = p }
+                }
             }
+            return try p.futureResult.wait()
         }
-        return try p.futureResult.wait()
     }
 }

@@ -31,13 +31,13 @@ import ClusterMembership
 @testable import Metrics
 @testable import SWIM
 import XCTest
+import Synchronization
 
 /// Taken directly from swift-metrics's own test package.
 ///
 /// Metrics factory which allows inspecting recorded metrics programmatically.
 /// Only intended for tests of the Metrics API itself.
 public final class TestMetrics: MetricsFactory {
-    private let lock = NSLock()
 
     public typealias Label = String
     public typealias Dimensions = String
@@ -47,52 +47,57 @@ public final class TestMetrics: MetricsFactory {
         let dimensions: [(String, String)]
     }
 
-    private var counters = [FullKey: CounterHandler]()
-    private var recorders = [FullKey: RecorderHandler]()
-    private var timers = [FullKey: TimerHandler]()
+    private let counters = Mutex<[FullKey: CounterHandler]>([:])
+    private let recorders = Mutex<[FullKey: RecorderHandler]>([:])
+    private let timers = Mutex<[FullKey: TimerHandler]>([:])
 
     public init() {
         // nothing to do
     }
 
     public func makeCounter(label: String, dimensions: [(String, String)]) -> CounterHandler {
-        self.make(label: label, dimensions: dimensions, registry: &self.counters, maker: TestCounter.init)
+        self.make(label: label, dimensions: dimensions, registry: self.counters, maker: TestCounter.init)
     }
 
     public func makeRecorder(label: String, dimensions: [(String, String)], aggregate: Bool) -> RecorderHandler {
         let maker = { (label: String, dimensions: [(String, String)]) -> RecorderHandler in
             TestRecorder(label: label, dimensions: dimensions, aggregate: aggregate)
         }
-        return self.make(label: label, dimensions: dimensions, registry: &self.recorders, maker: maker)
+        return self.make(label: label, dimensions: dimensions, registry: self.recorders, maker: maker)
     }
 
     public func makeTimer(label: String, dimensions: [(String, String)]) -> TimerHandler {
-        self.make(label: label, dimensions: dimensions, registry: &self.timers, maker: TestTimer.init)
+        self.make(label: label, dimensions: dimensions, registry: self.timers, maker: TestTimer.init)
     }
 
-    private func make<Item>(label: String, dimensions: [(String, String)], registry: inout [FullKey: Item], maker: (String, [(String, String)]) -> Item) -> Item {
-        self.lock.withLock {
-            let item = maker(label, dimensions)
+    private func make<Item: Sendable>(
+        label: String,
+        dimensions: [(String, String)],
+        registry: borrowing Mutex<[FullKey: Item]>,
+        maker: (String, [(String, String)]) -> Item
+    ) -> Item {
+        let item = maker(label, dimensions)
+        registry.withLock { registry in
             registry[.init(label: label, dimensions: dimensions)] = item
-            return item
         }
+        return item
     }
 
     public func destroyCounter(_ handler: CounterHandler) {
         if let testCounter = handler as? TestCounter {
-            self.counters.removeValue(forKey: testCounter.key)
+            self.counters.withLock { _ = $0.removeValue(forKey: testCounter.key) }
         }
     }
 
     public func destroyRecorder(_ handler: RecorderHandler) {
         if let testRecorder = handler as? TestRecorder {
-            self.recorders.removeValue(forKey: testRecorder.key)
+            self.recorders.withLock { _ = $0.removeValue(forKey: testRecorder.key) }
         }
     }
 
     public func destroyTimer(_ handler: TimerHandler) {
         if let testTimer = handler as? TestTimer {
-            self.timers.removeValue(forKey: testTimer.key)
+            self.timers.withLock { _ = $0.removeValue(forKey: testTimer.key) }
         }
     }
 }
@@ -125,7 +130,7 @@ extension TestMetrics {
 
     public func expectCounter(_ label: String, _ dimensions: [(String, String)] = []) throws -> TestCounter {
         let counter: CounterHandler
-        if let c: CounterHandler = self.counters[.init(label: label, dimensions: dimensions)] {
+        if let c: CounterHandler = self.counters.withLock({ $0[.init(label: label, dimensions: dimensions)] }) {
             counter = c
         } else {
             throw TestMetricsError.missingMetric(label: label, dimensions: [])
@@ -157,7 +162,7 @@ extension TestMetrics {
     }
 
     public func expectRecorder(_ label: String, _ dimensions: [(String, String)] = []) throws -> TestRecorder {
-        guard let counter = self.recorders[.init(label: label, dimensions: dimensions)] else {
+        guard let counter = self.recorders.withLock({ $0[.init(label: label, dimensions: dimensions)] }) else {
             throw TestMetricsError.missingMetric(label: label, dimensions: [])
         }
         guard let testRecorder = counter as? TestRecorder else {
@@ -175,7 +180,7 @@ extension TestMetrics {
     }
 
     public func expectTimer(_ label: String, _ dimensions: [(String, String)] = []) throws -> TestTimer {
-        guard let counter = self.timers[.init(label: label, dimensions: dimensions)] else {
+        guard let counter = self.timers.withLock({ $0[.init(label: label, dimensions: dimensions)] }) else {
             throw TestMetricsError.missingMetric(label: label, dimensions: [])
         }
         guard let testTimer = counter as? TestTimer else {
@@ -207,8 +212,7 @@ public final class TestCounter: TestMetric, CounterHandler, Equatable {
         .init(label: self.label, dimensions: self.dimensions)
     }
 
-    let lock = NSLock()
-    private var values = [(Date, Int64)]()
+    private let values: Mutex<[(Date, Int64)]> = .init([])
 
     init(label: String, dimensions: [(String, String)]) {
         self.id = NSUUID().uuidString
@@ -217,34 +221,34 @@ public final class TestCounter: TestMetric, CounterHandler, Equatable {
     }
 
     public func increment(by amount: Int64) {
-        self.lock.withLock {
-            self.values.append((Date(), amount))
+        self.values.withLock {
+            $0.append((Date(), amount))
         }
         print("adding \(amount) to \(self.label)\(self.dimensions.map { "\($0):\($1)" })")
     }
 
     public func reset() {
-        self.lock.withLock {
-            self.values = []
+        self.values.withLock {
+            $0 = []
         }
         print("resetting \(self.label)")
     }
 
     public var lastValue: Int64? {
-        self.lock.withLock {
-            values.last?.1
+        self.values.withLock {
+            $0.last?.1
         }
     }
 
     public var totalValue: Int64 {
-        self.lock.withLock {
-            values.map { $0.1 }.reduce(0, +)
+        self.values.withLock {
+            $0.map { $0.1 }.reduce(0, +)
         }
     }
 
     public var last: (Date, Int64)? {
-        self.lock.withLock {
-            values.last
+        self.values.withLock {
+            $0.last
         }
     }
 
@@ -263,8 +267,7 @@ public final class TestRecorder: TestMetric, RecorderHandler, Equatable {
         .init(label: self.label, dimensions: self.dimensions)
     }
 
-    let lock = NSLock()
-    private var values = [(Date, Double)]()
+    private let values: Mutex<[(Date, Double)]> = .init([])
 
     init(label: String, dimensions: [(String, String)], aggregate: Bool) {
         self.id = NSUUID().uuidString
@@ -278,22 +281,22 @@ public final class TestRecorder: TestMetric, RecorderHandler, Equatable {
     }
 
     public func record(_ value: Double) {
-        self.lock.withLock {
+        self.values.withLock {
             // this may loose precision but good enough as an example
-            values.append((Date(), Double(value)))
+            $0.append((Date(), Double(value)))
         }
         print("recording \(value) in \(self.label)\(self.dimensions.map { "\($0):\($1)" })")
     }
 
     public var lastValue: Double? {
-        self.lock.withLock {
-            values.last?.1
+        self.values.withLock {
+            $0.last?.1
         }
     }
 
     public var last: (Date, Double)? {
-        self.lock.withLock {
-            values.last
+        self.values.withLock {
+            $0.last
         }
     }
 
@@ -305,33 +308,31 @@ public final class TestRecorder: TestMetric, RecorderHandler, Equatable {
 public final class TestTimer: TestMetric, TimerHandler, Equatable {
     public let id: String
     public let label: String
-    public var displayUnit: TimeUnit?
+    public let displayUnit: Mutex<TimeUnit?> = .init(.none)
     public let dimensions: [(String, String)]
 
     public var key: TestMetrics.FullKey {
         .init(label: self.label, dimensions: self.dimensions)
     }
 
-    let lock = NSLock()
-    private var _values = [(Date, Int64)]()
+    private let _values: Mutex<[(Date, Int64)]> = .init([])
 
     init(label: String, dimensions: [(String, String)]) {
         self.id = NSUUID().uuidString
         self.label = label
-        self.displayUnit = nil
         self.dimensions = dimensions
     }
 
     public func preferDisplayUnit(_ unit: TimeUnit) {
-        self.lock.withLock {
-            self.displayUnit = unit
+        self.displayUnit.withLock {
+            $0 = unit
         }
     }
 
     func retrieveValueInPreferredUnit(atIndex i: Int) -> Double {
-        self.lock.withLock {
-            let value = _values[i].1
-            guard let displayUnit = self.displayUnit else {
+        self._values.withLock {
+            let value = $0[i].1
+            guard let displayUnit = self.displayUnit.withLock({ $0 }) else {
                 return Double(value)
             }
             return Double(value) / Double(displayUnit.scaleFromNanoseconds)
@@ -339,27 +340,27 @@ public final class TestTimer: TestMetric, TimerHandler, Equatable {
     }
 
     public func recordNanoseconds(_ duration: Int64) {
-        self.lock.withLock {
-            _values.append((Date(), duration))
+        self._values.withLock {
+            $0.append((Date(), duration))
         }
         print("recording \(duration) in \(self.label)\(self.dimensions.map { "\($0):\($1)" })")
     }
 
     public var lastValue: Int64? {
-        self.lock.withLock {
-            _values.last?.1
+        self._values.withLock {
+            $0.last?.1
         }
     }
 
     public var values: [Int64] {
-        self.lock.withLock {
-            _values.map { $0.1 }
+        self._values.withLock {
+            $0.map { $0.1 }
         }
     }
 
     public var last: (Date, Int64)? {
-        self.lock.withLock {
-            _values.last
+        self._values.withLock {
+            $0.last
         }
     }
 
@@ -383,5 +384,5 @@ private extension NSLock {
 
 public enum TestMetricsError: Error {
     case missingMetric(label: String, dimensions: [(String, String)])
-    case illegalMetricType(metric: Any, expected: String)
+    case illegalMetricType(metric: any Sendable, expected: String)
 }

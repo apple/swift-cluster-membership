@@ -16,6 +16,7 @@ import ClusterMembership
 import Logging
 import NIO
 import SWIM
+import Synchronization
 
 /// The SWIM shell is responsible for driving all interactions of the `SWIM.Instance` with the outside world.
 ///
@@ -23,9 +24,13 @@ import SWIM
 /// all operations performed on the shell are properly synchronized by hopping to the right event loop.
 ///
 /// - SeeAlso: `SWIM.Instance` for detailed documentation about the SWIM protocol implementation.
-public final class SWIMNIOShell {
-    var swim: SWIM.Instance<SWIM.NIOPeer, SWIM.NIOPeer, SWIM.NIOPeer>!
-
+public final class SWIMNIOShell: Sendable {
+    var swim: SWIM.Instance<SWIM.NIOPeer, SWIM.NIOPeer, SWIM.NIOPeer>! {
+        get { self._swim.withLock { $0 } }
+        set { self._swim.withLock { $0 = newValue } }
+    }
+    private let _swim: Mutex<SWIM.Instance<SWIM.NIOPeer, SWIM.NIOPeer, SWIM.NIOPeer>?>
+    
     let settings: SWIMNIO.Settings
     var log: Logger {
         self.settings.logger
@@ -39,20 +44,24 @@ public final class SWIMNIOShell {
         self.myself
     }
 
-    let onMemberStatusChange: (SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>) -> Void
+    let onMemberStatusChange: @Sendable (SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>) -> Void
 
     public var node: Node {
         self.myself.node
     }
 
     /// Cancellable of the periodicPingTimer (if it was kicked off)
-    private var nextPeriodicTickCancellable: SWIMCancellable?
-
+    private let _nextPeriodicTickCancellable: Mutex<SWIMCancellable?> = .init(.none)
+    private var nextPeriodicTickCancellable: SWIMCancellable? {
+        get { _nextPeriodicTickCancellable.withLock { $0 } }
+        set { _nextPeriodicTickCancellable.withLock { $0 = newValue } }
+    }
+    
     internal init(
         node: Node,
         settings: SWIMNIO.Settings,
         channel: Channel,
-        onMemberStatusChange: @escaping (SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>) -> Void
+        onMemberStatusChange: @Sendable @escaping (SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>) -> Void
     ) {
         self.settings = settings
 
@@ -61,7 +70,7 @@ public final class SWIMNIOShell {
 
         let myself = SWIM.NIOPeer(node: node, channel: channel)
         self.myself = myself
-        self.swim = SWIM.Instance(settings: settings.swim, myself: myself)
+        self._swim = .init(SWIM.Instance(settings: settings.swim, myself: myself))
 
         self.onMemberStatusChange = onMemberStatusChange
         self.onStart(startPeriodicPingTimer: settings._startPeriodicPingTimer)
@@ -106,7 +115,7 @@ public final class SWIMNIOShell {
 
     /// Start a *single* timer, to run the passed task after given delay.
     @discardableResult
-    private func schedule(delay: Duration, _ task: @escaping () -> Void) -> SWIMCancellable {
+    private func schedule(delay: Duration, _ task: @Sendable @escaping () -> Void) -> SWIMCancellable {
         self.eventLoop.assertInEventLoop()
 
         let scheduled: Scheduled<Void> = self.eventLoop.scheduleTask(in: delay.toNIO) { () in task() }
@@ -587,10 +596,10 @@ public enum MemberReachability: String, Equatable {
     case unreachable
 }
 
-struct SWIMCancellable {
-    let cancel: () -> Void
+struct SWIMCancellable: Sendable {
+    let cancel: @Sendable () -> Void
 
-    init(_ cancel: @escaping () -> Void) {
+    init(_ cancel: @Sendable @escaping () -> Void) {
         self.cancel = cancel
     }
 }

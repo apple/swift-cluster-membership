@@ -155,8 +155,8 @@ class BaseClusteredXCTestCase: XCTestCase {
     open override func setUp() {
         super.setUp()
 
-        self.addTeardownBlock {
-            for shell in self._shells {
+        self.addTeardownBlock { [_shells] in
+            for shell in _shells {
                 do {
                     try await shell.myself.channel.close()
                 } catch {

@@ -17,12 +17,13 @@ import Logging
 import NIO
 import NIOFoundationCompat
 import SWIM
+import Synchronization
 
 /// `ChannelDuplexHandler` responsible for encoding/decoding SWIM messages to/from the `SWIMNIOShell`.
 ///
 /// It is designed to work with `DatagramBootstrap`s, and the contained shell can send messages by writing `SWIMNIOSWIMNIOWriteCommand`
 /// data into the channel which this handler converts into outbound `AddressedEnvelope<ByteBuffer>` elements.
-public final class SWIMNIOHandler: ChannelDuplexHandler {
+public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
     public typealias InboundIn = AddressedEnvelope<ByteBuffer>
     public typealias InboundOut = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
     public typealias OutboundIn = SWIMNIOWriteCommand
@@ -34,14 +35,26 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
     }
 
     // initialized in channelActive
-    var shell: SWIMNIOShell!
-    var metrics: SWIM.Metrics.ShellMetrics?
-
-    var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void]
+    private let _shell: Mutex<SWIMNIOShell?> = .init(.none)
+    var shell: SWIMNIOShell! {
+        get { self._shell.withLock { $0 } }
+        set { self._shell.withLock { $0 = newValue } }
+    }
+    
+    private let _metrics: Mutex<SWIM.Metrics.ShellMetrics?> = .init(.none)
+    var metrics: SWIM.Metrics.ShellMetrics? {
+        get { self._metrics.withLock { $0 } }
+        set { self._metrics.withLock { $0 = newValue } }
+    }
+    
+    private let _pendingReplyCallbacks: Mutex<[PendingResponseCallbackIdentifier: (@Sendable (Result<SWIM.Message, Error>) -> Void)]> = .init([:])
+    var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (@Sendable (Result<SWIM.Message, Error>) -> Void)] {
+        get { self._pendingReplyCallbacks.withLock { $0 } }
+        set { self._pendingReplyCallbacks.withLock { $0 = newValue } }
+    }
 
     public init(settings: SWIMNIO.Settings) {
         self.settings = settings
-        self.pendingReplyCallbacks = [:]
     }
 
     public func channelActive(context: ChannelHandlerContext) {
@@ -233,7 +246,7 @@ extension SWIMNIOHandler {
 /// Used to a command to the channel pipeline to write the message,
 /// and install a reply handler for the specific sequence number associated with the message (along with a timeout)
 /// when a callback is provided.
-public struct SWIMNIOWriteCommand {
+public struct SWIMNIOWriteCommand: Sendable {
     /// SWIM message to be written.
     public let message: SWIM.Message
     /// Address of recipient peer where the message should be written to.
@@ -242,10 +255,10 @@ public struct SWIMNIOWriteCommand {
     /// If the `replyCallback` is set, what timeout should be set for a reply to come back from the peer.
     public let replyTimeout: NIO.TimeAmount
     /// Callback to be invoked (calling into the SWIMNIOShell) when a reply to this message arrives.
-    public let replyCallback: ((Result<SWIM.Message, Error>) -> Void)?
+    public let replyCallback: (@Sendable (Result<SWIM.Message, Error>) -> Void)?
 
     /// Create a write command.
-    public init(message: SWIM.Message, to recipient: Node, replyTimeout: TimeAmount, replyCallback: ((Result<SWIM.Message, Error>) -> Void)?) {
+    public init(message: SWIM.Message, to recipient: Node, replyTimeout: TimeAmount, replyCallback: (@Sendable (Result<SWIM.Message, Error>) -> Void)?) {
         self.message = message
         self.recipient = try! .init(ipAddress: recipient.host, port: recipient.port) // try!-safe since the host/port is always safe
         self.replyTimeout = replyTimeout
@@ -257,7 +270,7 @@ public struct SWIMNIOWriteCommand {
 // MARK: Callback storage
 
 // TODO: move callbacks into the shell?
-struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
+struct PendingResponseCallbackIdentifier: Sendable, Hashable, CustomStringConvertible {
     let peerAddress: SocketAddress // FIXME: UID as well...?
     let sequenceNumber: SWIM.SequenceNumber
 
@@ -301,3 +314,6 @@ struct MissingDataError: Error {
         self.message = message
     }
 }
+
+// FIXME: Shouldn't be a case?
+extension ChannelHandlerContext: @retroactive @unchecked Sendable {}
