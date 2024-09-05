@@ -1,19 +1,21 @@
-// swift-tools-version:5.0
+// swift-tools-version:6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
+ 
+let globalSwiftSettings: [SwiftSetting] = [
+    .swiftLanguageMode(.v6)
+]
 
 var targets: [PackageDescription.Target] = [
-    .target(
+    .executableTarget(
         name: "SWIMNIOSampleCluster",
         dependencies: [
-            "SWIM",
-            "SWIMNIOExample",
-            "SwiftPrometheus",
-            "Lifecycle",
-            "ArgumentParser",
-        ],
-        path: "Sources/SWIMNIOSampleCluster"
+            .product(name: "SWIM", package: "swift-cluster-membership"),
+            .product(name: "SWIMNIOExample", package: "swift-cluster-membership"),
+            .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
+            .product(name: "ArgumentParser", package: "swift-argument-parser"),
+        ]
     ),
 
     /* --- tests --- */
@@ -22,9 +24,8 @@ var targets: [PackageDescription.Target] = [
     .testTarget(
         name: "NoopTests",
         dependencies: [
-            "SWIM",
-        ],
-        path: "Tests/NoopTests"
+            .product(name: "SWIM", package: "swift-cluster-membership"),
+        ]
     ),
 ]
 
@@ -34,15 +35,14 @@ var dependencies: [Package.Dependency] = [
 
     // ~~~~~~~ only for samples ~~~~~~~
 
-    .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "1.0.0-alpha"),
-    .package(url: "https://github.com/MrLotU/SwiftPrometheus.git", from: "1.0.0-alpha"),
-    .package(url: "https://github.com/apple/swift-argument-parser", from: "0.2.0"),
+    .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.6.1"),
+    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
 ]
 
 let package = Package(
     name: "swift-cluster-membership-samples",
     platforms: [
-        .macOS(.v10_12)
+        .macOS(.v15),
     ],
     products: [
         .executable(
@@ -54,7 +54,14 @@ let package = Package(
 
     dependencies: dependencies,
 
-    targets: targets,
+    targets: targets.map { target in
+        var swiftSettings = target.swiftSettings ?? []
+        swiftSettings.append(contentsOf: globalSwiftSettings)
+        if !swiftSettings.isEmpty {
+            target.swiftSettings = swiftSettings
+        }
+        return target
+    },
 
     cxxLanguageStandard: .cxx11
 )
