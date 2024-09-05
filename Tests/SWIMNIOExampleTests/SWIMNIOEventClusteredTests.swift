@@ -43,33 +43,33 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         super.tearDown()
     }
 
-    func test_memberStatusChange_alive_emittedForMyself() throws {
+    func test_memberStatusChange_alive_emittedForMyself() async throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
 
-        let first = try bindShell(probe: firstProbe) { settings in
+        let first = try await bindShell(probe: firstProbe) { settings in
             settings.node = self.myselfNode
         }
-        defer { try! first.close().wait() }
 
         try firstProbe.expectEvent(SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
+        
+        try await first.close().get()
     }
 
-    func test_memberStatusChange_suspect_emittedForDyingNode() throws {
+    func test_memberStatusChange_suspect_emittedForDyingNode() async throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
         let secondProbe = ProbeEventHandler(loop: group.next())
 
         let secondNodePort = 7002
         let secondNode = Node(protocol: "udp", host: "127.0.0.1", port: secondNodePort, uid: 222_222)
 
-        let second = try bindShell(probe: secondProbe) { settings in
+        let second = try await bindShell(probe: secondProbe) { settings in
             settings.node = secondNode
         }
 
-        let first = try bindShell(probe: firstProbe) { settings in
+        let first = try await bindShell(probe: firstProbe) { settings in
             settings.node = self.myselfNode
             settings.swim.initialContactPoints = [secondNode.withoutUID]
         }
-        defer { try! first.close().wait() }
 
         // wait for second probe to become alive:
         try secondProbe.expectEvent(
@@ -79,8 +79,8 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
             )
         )
 
-        sleep(5) // let them discover each other, since the nodes are slow at retrying and we didn't configure it yet a sleep is here meh
-        try! second.close().wait()
+        try await Task.sleep(for: .seconds(5)) // let them discover each other, since the nodes are slow at retrying and we didn't configure it yet a sleep is here meh
+        try await second.close().get()
 
         try firstProbe.expectEvent(SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
 
@@ -93,22 +93,28 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         XCTAssertTrue(secondDeadEvent.isReachabilityChange)
         XCTAssertTrue(secondDeadEvent.status.isDead)
         XCTAssertEqual(secondDeadEvent.member.node.withoutUID, secondNode.withoutUID)
+        
+        try await first.close().get()
     }
 
-    private func bindShell(probe probeHandler: ProbeEventHandler, configure: (inout SWIMNIO.Settings) -> Void = { _ in () }) throws -> Channel {
+    private func bindShell(
+        probe probeHandler: ProbeEventHandler,
+        configure: (inout SWIMNIO.Settings) -> Void = { _ in () }
+    ) async throws -> Channel {
         var settings = self.settings
         configure(&settings)
         self.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
 
         self._nodes.append(settings.node!)
-        return try DatagramBootstrap(group: self.group)
+        return try await DatagramBootstrap(group: self.group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { [settings] channel in
                 let swimHandler = SWIMNIOHandler(settings: settings)
                 return channel.pipeline.addHandler(swimHandler).flatMap { _ in
                     channel.pipeline.addHandler(probeHandler)
                 }
-            }.bind(host: settings.node!.host, port: settings.node!.port).wait()
+            }.bind(host: settings.node!.host, port: settings.node!.port)
+            .get()
     }
 }
 
@@ -135,6 +141,7 @@ final class ProbeEventHandler: ChannelInboundHandler, Sendable {
     typealias InboundIn = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
 
     let events: Mutex<[SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>]> = .init([])
+    // FIXME: Move to Swift Concurrency
     let waitingPromise: Mutex<EventLoopPromise<SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>>?> = .init(.none)
     let loop: Mutex<EventLoop>
 

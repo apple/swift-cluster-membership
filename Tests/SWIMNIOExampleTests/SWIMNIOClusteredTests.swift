@@ -27,9 +27,9 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     // MARK: Black box tests, we let the nodes run and inspect their state via logs
 
     func test_real_peers_2_connect() async throws {
-        let (firstHandler, _) = self.makeClusterNode()
+        let (firstHandler, _) = try await self.makeClusterNode()
 
-        let (secondHandler, _) = self.makeClusterNode() { settings in
+        let (secondHandler, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [firstHandler.shell.node]
         }
 
@@ -40,12 +40,12 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     }
 
     func test_real_peers_2_connect_first_terminates() async throws {
-        let (firstHandler, firstChannel) = self.makeClusterNode() { settings in
+        let (firstHandler, firstChannel) = try await self.makeClusterNode() { settings in
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
 
-        let (secondHandler, _) = self.makeClusterNode() { settings in
+        let (secondHandler, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [firstHandler.shell.node]
 
             settings.swim.pingTimeout = .milliseconds(100)
@@ -67,12 +67,12 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     }
 
     func test_real_peers_2_connect_peerCountNeverExceeds2() async throws {
-        let (firstHandler, _) = self.makeClusterNode() { settings in
+        let (firstHandler, _) = try await self.makeClusterNode() { settings in
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
 
-        let (secondHandler, _) = self.makeClusterNode() { settings in
+        let (secondHandler, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [firstHandler.shell.node]
 
             settings.swim.pingTimeout = .milliseconds(100)
@@ -82,7 +82,7 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
         try await self.capturedLogs(of: firstHandler.shell.node)
             .log(grep: #""swim/members/count": 2"#)
 
-        sleep(5)
+        try await Task.sleep(for: .seconds(5))
 
         do {
             let found = try await self.capturedLogs(of: secondHandler.shell.node)
@@ -95,22 +95,22 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     }
 
     func test_real_peers_5_connect() async throws {
-        let (first, _) = self.makeClusterNode() { settings in
+        let (first, _) = try await self.makeClusterNode() { settings in
             settings.swim.probeInterval = .milliseconds(200)
         }
-        let (second, _) = self.makeClusterNode() { settings in
+        let (second, _) = try await self.makeClusterNode() { settings in
             settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [first.shell.node]
         }
-        let (third, _) = self.makeClusterNode() { settings in
+        let (third, _) = try await self.makeClusterNode() { settings in
             settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [second.shell.node]
         }
-        let (fourth, _) = self.makeClusterNode() { settings in
+        let (fourth, _) = try await self.makeClusterNode() { settings in
             settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [third.shell.node]
         }
-        let (fifth, _) = self.makeClusterNode() { settings in
+        let (fifth, _) = try await self.makeClusterNode() { settings in
             settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [fourth.shell.node]
         }
@@ -130,30 +130,31 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     }
 
     func test_real_peers_5_connect_butSlowly() async throws {
-        let (first, _) = self.makeClusterNode() { settings in
+        let (first, _) = try await self.makeClusterNode() { settings in
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (second, _) = self.makeClusterNode() { settings in
+        let (second, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [first.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
         // we sleep in order to ensure we exhaust the "gossip at most ... times" logic
-        sleep(4)
-        let (third, _) = self.makeClusterNode() { settings in
+        try await Task.sleep(for: .seconds(4))
+        
+        let (third, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [second.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (fourth, _) = self.makeClusterNode() { settings in
+        let (fourth, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [third.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
         // after joining two more, we sleep again to make sure they all exhaust their gossip message counts
-        sleep(2)
-        let (fifth, _) = self.makeClusterNode() { settings in
+        try await Task.sleep(for: .seconds(2))
+        let (fifth, _) = try await self.makeClusterNode() { settings in
             // we connect fir the first, they should exchange all information
             settings.swim.initialContactPoints = [
                 first.shell.node,
@@ -175,26 +176,26 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     }
 
     func test_real_peers_5_then1Dies_becomesSuspect() async throws {
-        let (first, firstChannel) = self.makeClusterNode() { settings in
+        let (first, firstChannel) = try await self.makeClusterNode() { settings in
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (second, _) = self.makeClusterNode() { settings in
+        let (second, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [first.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (third, _) = self.makeClusterNode() { settings in
+        let (third, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [second.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (fourth, _) = self.makeClusterNode() { settings in
+        let (fourth, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [third.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (fifth, _) = self.makeClusterNode() { settings in
+        let (fifth, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [fourth.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
@@ -231,11 +232,11 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
     // MARK: nack tests
 
     func test_real_pingRequestsGetSent_nacksArriveBack() async throws {
-        let (firstHandler, _) = self.makeClusterNode()
-        let (secondHandler, _) = self.makeClusterNode() { settings in
+        let (firstHandler, _) = try await self.makeClusterNode()
+        let (secondHandler, _) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [firstHandler.shell.node]
         }
-        let (thirdHandler, thirdChannel) = self.makeClusterNode() { settings in
+        let (thirdHandler, thirdChannel) = try await self.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [firstHandler.shell.node, secondHandler.shell.node]
         }
 

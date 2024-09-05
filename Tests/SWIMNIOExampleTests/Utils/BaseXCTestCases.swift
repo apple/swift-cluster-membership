@@ -45,7 +45,10 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
         self.loop = nil
     }
 
-    func makeClusterNode(name: String? = nil, configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }) -> (SWIMNIOHandler, Channel) {
+    func makeClusterNode(
+        name: String? = nil,
+        configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }
+    ) async throws -> (SWIMNIOHandler, Channel) {
         let port = self.nextPort()
         let name = name ?? "swim-\(port)"
         var settings = SWIMNIO.Settings()
@@ -60,7 +63,7 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in channel.pipeline.addHandler(handler) }
 
-        let channel = try! bootstrap.bind(host: "127.0.0.1", port: port).wait()
+        let channel = try await bootstrap.bind(host: "127.0.0.1", port: port).get()
 
         self._shells.append(handler.shell)
         self._nodes.append(handler.shell.node)

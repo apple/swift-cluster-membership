@@ -39,23 +39,23 @@ final class SWIMNIOMetricsTests: RealClusteredXCTestCase {
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Metrics tests
 
-    func test_metrics_emittedByNIOImplementation() throws {
-        let (firstHandler, _) = self.makeClusterNode() { settings in
+    func test_metrics_emittedByNIOImplementation() async throws {
+        let (firstHandler, _) = try await self.makeClusterNode() { settings in
             settings.swim.metrics.labelPrefix = "first"
             settings.swim.probeInterval = .milliseconds(100)
         }
-        _ = self.makeClusterNode() { settings in
+        _ = try await self.makeClusterNode() { settings in
             settings.swim.metrics.labelPrefix = "second"
             settings.swim.probeInterval = .milliseconds(100)
             settings.swim.initialContactPoints = [firstHandler.shell.node]
         }
-        let (_, thirdChannel) = self.makeClusterNode() { settings in
+        let (_, thirdChannel) = try await self.makeClusterNode() { settings in
             settings.swim.metrics.labelPrefix = "third"
             settings.swim.probeInterval = .milliseconds(100)
             settings.swim.initialContactPoints = [firstHandler.shell.node]
         }
 
-        sleep(1) // giving it some extra time to report a few metrics (a few round-trip times etc).
+        try await Task.sleep(for: .seconds(1)) // giving it some extra time to report a few metrics (a few round-trip times etc).
 
         let m: SWIM.Metrics.ShellMetrics = firstHandler.metrics!
 
@@ -80,7 +80,7 @@ final class SWIMNIOMetricsTests: RealClusteredXCTestCase {
         XCTAssertGreaterThan(messageOutboundBytes.lastValue!, 0)
 
         thirdChannel.close(promise: nil)
-        sleep(2)
+        try await Task.sleep(for: .seconds(2))
 
         let pingRequestResponseTimeAll = try! self.testMetrics.expectTimer(m.pingRequestResponseTimeAll)
         print("  pingRequestResponseTimeAll = \(pingRequestResponseTimeAll.lastValue!)")
