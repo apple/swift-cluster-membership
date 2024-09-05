@@ -49,6 +49,17 @@ var targets: [PackageDescription.Target] = [
             .product(name: "Metrics", package: "swift-metrics"),
         ]
     ),
+    
+    // NOT FOR PUBLIC CONSUMPTION.
+    .target(
+        name: "SWIMTestKit",
+        dependencies: [
+            "SWIM",
+            .product(name: "NIO", package: "swift-nio"),
+            .product(name: "Logging", package: "swift-log"),
+            .product(name: "Metrics", package: "swift-metrics"),
+        ]
+    ),
 
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Other Membership Protocols ...
@@ -86,17 +97,6 @@ var targets: [PackageDescription.Target] = [
         dependencies: [
             "SWIMNIOExample",
             "SWIMTestKit",
-        ]
-    ),
-
-    // NOT FOR PUBLIC CONSUMPTION.
-    .testTarget(
-        name: "SWIMTestKit",
-        dependencies: [
-            "SWIM",
-            .product(name: "NIO", package: "swift-nio"),
-            .product(name: "Logging", package: "swift-log"),
-            .product(name: "Metrics", package: "swift-metrics"),
         ]
     ),
 
