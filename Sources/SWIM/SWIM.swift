@@ -15,6 +15,103 @@
 import ClusterMembership
 import struct Dispatch.DispatchTime
 
+/// ## Scalable Weakly-consistent Infection-style Process Group Membership Protocol
+///
+/// > As you swim lazily through the milieu, <br/>
+/// > The secrets of the world will infect you.
+///
+/// Implementation of the SWIM protocol in abstract terms, not dependent on any specific runtime.
+/// The actual implementation resides in `SWIM.Instance`.
+///
+/// ### Terminology
+/// This implementation follows the original terminology mostly directly, with the notable exception of the original
+/// wording of "confirm" being rather represented as `SWIM.Status.dead`, as we found the "confirm" wording to be
+/// confusing in practice.
+///
+/// ### Extensions & Modifications
+///
+/// This implementation has a few notable extensions and modifications implemented, some documented already in the initial
+/// SWIM paper, some in the Lifeguard extensions paper and some being simple adjustments we found practical in our environments.
+///
+/// - The "random peer selection" is not completely ad-hoc random, but follows a _stable order_, randomized on peer insertion.
+///   - Unlike the completely random selection in the original paper. This has the benefit of consistently going "around"
+///     all peers participating in the cluster, enabling a more efficient spread of membership information among peers,
+///     by allowing us to avoid continuously (yet randomly) selecting the same few peers.
+///   - This optimization is described in the original SWIM paper, and followed by some implementations.
+///
+/// - Introduction of an `.unreachable` status, that is ordered after `.suspect` and before `.dead`.
+///   - This is because the decision to move an unreachable peer to .dead status is a large and important decision,
+///     in which user code may want to participate, e.g. by attempting "shoot the other peer in the head" or other patterns,
+///     before triggering the `.dead` status (which usually implies a complete removal of information of that peer existence from the cluster),
+///     after which no further communication with given peer will ever be possible anymore.
+///   - The `.unreachable` status is optional and _disabled_ by default.
+///   - Other SWIM implementations handle this problem by _storing_ dead members for a period of time after declaring them dead,
+///     also deviating from the original paper; so we conclude that this use case is quite common and allow addressing it in various ways.
+///
+/// - Preservation of `.unreachable` information
+///   - The original paper does not keep in memory information about dead peers,
+///     it only gossips the information that a member is now dead, but does not keep tombstones for later reference.
+///
+/// Implementations of extensions documented in the Lifeguard paper (linked below):
+///
+/// - Local Health Aware Probe - which replaces the static timeouts in probing with a dynamic one, taking into account
+///   recent communication failures of our member with others.
+/// - Local Health Aware Suspicion - which improves the way `.suspect` states and their timeouts are handled,
+///   effectively relying on more information about unreachability. See: `suspicionTimeout`.
+/// - Buddy System - enables members to directly and immediately notify suspect peers about them being suspected,
+///   such that they have more time and a chance to refute these suspicions more quickly, rather than relying on completely
+///   random gossip for that suspicion information to reach such suspect peer.
+///
+/// SWIM serves as a low-level distributed failure detector mechanism.
+/// It also maintains its own membership in order to monitor and select peers to ping with periodic health checks,
+/// however this membership is not directly the same as the high-level membership exposed by the `Cluster`.
+///
+/// ### SWIM Membership
+/// SWIM provides a weakly consistent view on the process group membership.
+/// Membership in this context means that we have some knowledge about the node, that was acquired by either
+/// communicating with the peer directly, for example when initially connecting to the cluster,
+/// or because some other peer shared information about it with us.
+/// To avoid moving a peer "back" into alive or suspect state because of older statuses that get replicated,
+/// we need to be able to put them into temporal order. For this reason each peer has an incarnation number assigned to it.
+///
+/// This number is monotonically increasing and can only be incremented by the respective peer itself and only if it is
+/// suspected by another peer in its current incarnation.
+///
+/// The ordering of statuses is as follows:
+///
+///     alive(N) < suspect(N) < alive(N+1) < suspect(N+1) < dead
+///
+/// A member that has been declared dead can *never* return from that status and has to be restarted to join the cluster.
+/// Note that such "restarted node" from SWIM's perspective is simply a new node which happens to occupy the same host/port,
+/// as nodes are identified by their unique identifiers (`ClusterMembership.Node.uid`).
+///
+/// The information about dead nodes will be kept for a configurable amount of time, after which it will be removed to
+/// prevent the state on each node from growing too big. The timeout value should be chosen to be big enough to prevent
+/// faulty nodes from re-joining the cluster and is usually in the order of a few days.
+///
+/// ### SWIM Gossip
+///
+/// SWIM uses an infection style gossip mechanism to replicate state across the cluster.
+/// The gossip payload contains information about other node’s observed status, and will be disseminated throughout the
+/// cluster by piggybacking onto periodic health check messages, i.e. whenever a node is sending a ping, a ping request,
+/// or is responding with an acknowledgement, it will include the latest gossip with that message as well. When a node
+/// receives gossip, it has to apply the statuses to its local state according to the ordering stated above. If a node
+/// receives gossip about itself, it has to react accordingly.
+///
+/// If it is suspected by another peer in its current incarnation, it has to increment its incarnation in response.
+/// If it has been marked as dead, it SHOULD shut itself down (i.e. terminate the entire node / service), to avoid "zombie"
+/// nodes staying around even though they are already ejected from the cluster.
+///
+/// ### SWIM Protocol Logic Implementation
+///
+/// See `SWIM.Instance` for a detailed discussion on the implementation.
+///
+/// ### Further Reading
+///
+/// - [SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol](https://www.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf)
+/// - [Lifeguard: Local Health Awareness for More Accurate Failure Detection](https://arxiv.org/abs/1707.00788)
+public enum SWIM {}
+
 extension SWIM {
     /// Incarnation numbers serve as sequence number and used to determine which observation
     /// is "more recent" when comparing gossiped information.
