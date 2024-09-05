@@ -16,7 +16,7 @@
 ///
 /// Generally the node represents "some node we want to contact" if the `uid` is not set,
 /// and if the `uid` is available "the specific instance of a node".
-public struct Node: Hashable, Sendable, Comparable, CustomStringConvertible {
+public struct Node: Codable, Hashable, Sendable, Comparable, CustomStringConvertible {
     /// Protocol that can be used to contact this node;
     /// Does not have to be a formal protocol name and may be "swim" or a name which is understood by a membership implementation.
     public var `protocol`: String

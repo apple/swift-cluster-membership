@@ -12,7 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import struct Foundation.Date
 import class Foundation.NSLock
 @testable import Logging
 import NIO
@@ -59,17 +58,17 @@ public final class LogCapture {
     }
 
     @discardableResult
-    public func awaitLog(
+    public func log(
         grep: String,
-        within: TimeAmount = .seconds(10),
+        within: Duration = .seconds(10),
         file: StaticString = #file,
         line: UInt = #line,
         column: UInt = #column
-    ) throws -> CapturedLogMessage {
-        let startTime = DispatchTime.now()
-        let deadline = startTime.uptimeNanoseconds + UInt64(within.nanoseconds)
+    ) async throws -> CapturedLogMessage {
+        let startTime = ContinuousClock.now
+        let deadline = startTime.advanced(by: within)
         func timeExceeded() -> Bool {
-            DispatchTime.now().uptimeNanoseconds > deadline
+            ContinuousClock.now > deadline
         }
         while !timeExceeded() {
             let logs = self.logs
@@ -77,7 +76,7 @@ public final class LogCapture {
                 return log // ok, found it!
             }
 
-            sleep(1)
+            try await Task.sleep(for: .seconds(1))
         }
 
         throw LogCaptureError(message: "After \(within), logs still did not contain: [\(grep)]", file: file, line: line, column: column)

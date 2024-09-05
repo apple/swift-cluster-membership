@@ -14,7 +14,6 @@
 
 import ClusterMembership
 @testable import CoreMetrics
-import Dispatch
 import Metrics
 import NIO
 @testable import SWIM

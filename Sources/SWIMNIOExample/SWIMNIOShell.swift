@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import struct Dispatch.DispatchTime
 import Logging
 import NIO
 import SWIM
@@ -157,7 +156,7 @@ public final class SWIMNIOShell {
         }
     }
 
-    private func receivePing(pingOrigin: SWIM.NIOPeer, payload: SWIM.GossipPayload<SWIM.NIOPeer>, sequenceNumber: SWIM.SequenceNumber) {
+    private func receivePing(pingOrigin: SWIM.NIOPeer, payload: SWIM.GossipPayload<SWIM.NIOPeer>?, sequenceNumber: SWIM.SequenceNumber) {
         guard self.eventLoop.inEventLoop else {
             return self.eventLoop.execute {
                 self.receivePing(pingOrigin: pingOrigin, payload: payload, sequenceNumber: sequenceNumber)
@@ -166,7 +165,7 @@ public final class SWIMNIOShell {
 
         self.log.trace("Received ping@\(sequenceNumber)", metadata: self.swim.metadata([
             "swim/ping/pingOrigin": "\(pingOrigin.swimNode)",
-            "swim/ping/payload": "\(payload)",
+            "swim/ping/payload": "\(String(describing: payload))",
             "swim/ping/seqNr": "\(sequenceNumber)",
         ]))
 
@@ -188,7 +187,7 @@ public final class SWIMNIOShell {
     private func receivePingRequest(
         target: SWIM.NIOPeer,
         pingRequestOrigin: SWIM.NIOPeer,
-        payload: SWIM.GossipPayload<SWIM.NIOPeer>,
+        payload: SWIM.GossipPayload<SWIM.NIOPeer>?,
         sequenceNumber: SWIM.SequenceNumber
     ) {
         guard self.eventLoop.inEventLoop else {
@@ -201,7 +200,7 @@ public final class SWIMNIOShell {
             "swim/pingRequest/origin": "\(pingRequestOrigin.node)",
             "swim/pingRequest/sequenceNumber": "\(sequenceNumber)",
             "swim/target": "\(target.node)",
-            "swim/gossip/payload": "\(payload)",
+            "swim/gossip/payload": "\(String(describing: payload))",
         ])
 
         let directives = self.swim.onPingRequest(
@@ -389,7 +388,7 @@ public final class SWIMNIOShell {
         let firstSuccessPromise = self.eventLoop.makePromise(of: SWIM.PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)
         let pingTimeout = directive.timeout
         let target = directive.target
-        let startedSendingPingRequestsSentAt: DispatchTime = .now()
+        let startedSendingPingRequestsSentAt: ContinuousClock.Instant = .now
 
         await withTaskGroup(of: Void.self) { group in
             for pingRequest in directive.requestDetails {
@@ -401,7 +400,7 @@ public final class SWIMNIOShell {
                     self.log.trace("Sending ping request for [\(target)] to [\(peerToPingRequestThrough.swimNode)] with payload: \(payload)")
                     self.tracelog(.send(to: peerToPingRequestThrough), message: "pingRequest(target: \(target), replyTo: \(self.peer), payload: \(payload), sequenceNumber: \(sequenceNumber))")
 
-                    let pingRequestSentAt: DispatchTime = .now()
+                    let pingRequestSentAt: ContinuousClock.Instant = .now
                     do {
                         let response = try await peerToPingRequestThrough.pingRequest(
                             target: target,
@@ -411,7 +410,7 @@ public final class SWIMNIOShell {
                         )
 
                         // we only record successes
-                        self.swim.metrics.shell.pingRequestResponseTimeAll.recordInterval(since: pingRequestSentAt)
+                        self.swim.metrics.shell.pingRequestResponseTimeAll.record(duration: pingRequestSentAt.duration(to: .now))
                         self.receiveEveryPingRequestResponse(result: response, pingedPeer: target)
 
                         if case .ack = response {
@@ -440,7 +439,7 @@ public final class SWIMNIOShell {
         firstSuccessPromise.futureResult.whenComplete { result in
             switch result {
             case .success(let response):
-                self.swim.metrics.shell.pingRequestResponseTimeFirst.recordInterval(since: startedSendingPingRequestsSentAt)
+                self.swim.metrics.shell.pingRequestResponseTimeFirst.record(duration: startedSendingPingRequestsSentAt.duration(to: .now))
                 self.receivePingRequestResponse(result: response, pingedPeer: target)
 
             case .failure(let error):

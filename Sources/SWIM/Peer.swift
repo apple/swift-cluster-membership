@@ -15,7 +15,7 @@
 import ClusterMembership
 
 /// Any peer in the cluster, can be used used to identify a peer using its unique node that it represents.
-public protocol SWIMAddressablePeer: Sendable {
+public protocol SWIMAddressablePeer: Sendable, Codable {
     /// Node that this peer is representing.
     nonisolated var swimNode: ClusterMembership.Node { get }
 }
@@ -43,7 +43,7 @@ public protocol SWIMPingOriginPeer: SWIMAddressablePeer {
         acknowledging sequenceNumber: SWIM.SequenceNumber,
         target: Peer,
         incarnation: SWIM.Incarnation,
-        payload: SWIM.GossipPayload<Peer>
+        payload: SWIM.GossipPayload<Peer>?
     ) async throws
 }
 
@@ -88,7 +88,7 @@ public protocol SWIMPeer: SWIMAddressablePeer {
     ///
     /// - Throws if the ping fails or if the reply is `nack`.
     func ping(
-        payload: SWIM.GossipPayload<Peer>,
+        payload: SWIM.GossipPayload<Peer>?,
         from origin: PingOrigin,
         timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
@@ -112,7 +112,7 @@ public protocol SWIMPeer: SWIMAddressablePeer {
     /// - Throws if the ping request fails
     func pingRequest(
         target: Peer,
-        payload: SWIM.GossipPayload<Peer>,
+        payload: SWIM.GossipPayload<Peer>?,
         from origin: PingOrigin,
         timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber

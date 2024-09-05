@@ -57,23 +57,33 @@ final class CodingTests: XCTestCase {
     }
 
     func test_serializationOf_ping() throws {
-        let payloadSome: SWIM.GossipPayload = .membership([
-            self.memberOne,
-            self.memberTwo,
-            self.memberThree,
-        ])
+        let payloadSome: SWIM.GossipPayload = .init(
+            members: [
+                self.memberOne,
+                self.memberTwo,
+                self.memberThree,
+            ]
+        )
         try self.shared_serializationRoundtrip(SWIM.Message.ping(replyTo: self.nioPeer, payload: payloadSome, sequenceNumber: 1212))
     }
 
     func test_serializationOf_pingReq() throws {
-        let payloadNone: SWIM.GossipPayload<SWIM.NIOPeer> = .none
-        try self.shared_serializationRoundtrip(SWIM.Message.pingRequest(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadNone, sequenceNumber: 111))
+        try self.shared_serializationRoundtrip(
+            SWIM.Message.pingRequest(
+                target: self.nioPeer,
+                replyTo: self.nioPeerOther,
+                payload: .none,
+                sequenceNumber: 111
+            )
+        )
 
-        let payloadSome: SWIM.GossipPayload = .membership([
-            self.memberOne,
-            self.memberTwo,
-            self.memberThree,
-        ])
+        let payloadSome: SWIM.GossipPayload = .init(
+            members: [
+                self.memberOne,
+                self.memberTwo,
+                self.memberThree,
+            ]
+        )
         try self.shared_serializationRoundtrip(SWIM.Message.pingRequest(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadSome, sequenceNumber: 1212))
     }
 

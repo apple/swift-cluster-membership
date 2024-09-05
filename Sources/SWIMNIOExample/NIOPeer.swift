@@ -34,7 +34,7 @@ public extension SWIM {
         }
 
         public func ping(
-            payload: GossipPayload<SWIM.NIOPeer>,
+            payload: GossipPayload<SWIM.NIOPeer>?,
             from origin: SWIM.NIOPeer,
             timeout: Swift.Duration,
             sequenceNumber: SWIM.SequenceNumber
@@ -65,7 +65,7 @@ public extension SWIM {
 
         public func pingRequest(
             target: SWIM.NIOPeer,
-            payload: GossipPayload<SWIM.NIOPeer>,
+            payload: GossipPayload<SWIM.NIOPeer>?,
             from origin: SWIM.NIOPeer,
             timeout: Duration,
             sequenceNumber: SWIM.SequenceNumber
@@ -94,7 +94,7 @@ public extension SWIM {
             acknowledging sequenceNumber: SWIM.SequenceNumber,
             target: SWIM.NIOPeer,
             incarnation: Incarnation,
-            payload: GossipPayload<SWIM.NIOPeer>
+            payload: GossipPayload<SWIM.NIOPeer>?
         ) {
             let message = SWIM.Message.response(.ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
             let command = SWIMNIOWriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)

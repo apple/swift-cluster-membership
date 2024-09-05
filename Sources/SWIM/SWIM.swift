@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import struct Dispatch.DispatchTime
 
 /// ## Scalable Weakly-consistent Infection-style Process Group Membership Protocol
 ///
@@ -130,7 +129,7 @@ extension SWIM {
     ///
     /// The ack may be delivered directly in a request-response fashion between the probing and pinged members,
     /// or indirectly, as a result of a `pingRequest` message.
-    public enum PingResponse<Peer: SWIMPeer, PingRequestOrigin: SWIMPingRequestOriginPeer>: Sendable {
+    public enum PingResponse<Peer: SWIMPeer, PingRequestOrigin: SWIMPingRequestOriginPeer>: Codable, Sendable {
         /// - parameters:
         ///   - target: the target of the ping;
         ///     On the remote "pinged" node which is about to send an ack back to the ping origin this should be filled with the `myself` peer.
@@ -138,7 +137,7 @@ extension SWIM {
         ///   - payload: additional gossip data to be carried with the message.
         ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
         ///     It is used on the ping origin to co-relate the reply with its handling code.
-        case ack(target: Peer, incarnation: Incarnation, payload: GossipPayload<Peer>, sequenceNumber: SWIM.SequenceNumber)
+        case ack(target: Peer, incarnation: Incarnation, payload: GossipPayload<Peer>?, sequenceNumber: SWIM.SequenceNumber)
 
         /// A `.nack` MAY ONLY be sent by an *intermediary* member which was received a `pingRequest` to perform a `ping` of some `target` member.
         /// It SHOULD NOT be sent by a peer that received a `.ping` directly.
@@ -214,34 +213,14 @@ extension SWIM {
     }
 
     /// A `GossipPayload` is used to spread gossips about members.
-    public enum GossipPayload<Peer: SWIMPeer>: Sendable {
+    public struct GossipPayload<Peer: SWIMPeer>: Codable, Sendable {
         /// Explicit case to signal "no gossip payload"
         ///
-        /// Effectively equivalent to an empty `.membership([])` case.
-        case none
         /// Gossip information about a few select members.
-        case membership([SWIM.Member<Peer>])
-    }
-}
-
-extension SWIM.GossipPayload {
-    /// True if the underlying gossip is empty.
-    public var isNone: Bool {
-        switch self {
-        case .none:
-            return true
-        case .membership:
-            return false
-        }
-    }
-
-    /// True if the underlying gossip contains membership information.
-    public var isMembership: Bool {
-        switch self {
-        case .none:
-            return false
-        case .membership:
-            return true
+        public let members: [SWIM.Member<Peer>]
+        
+        public init(members: [SWIM.Member<Peer>]) {
+            self.members = members
         }
     }
 }

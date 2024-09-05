@@ -13,36 +13,41 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import Dispatch
 @testable import SWIM
 import XCTest
 
-final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOriginPeer, CustomStringConvertible {
-    var swimNode: Node
-
-    let semaphore = DispatchSemaphore(value: 1)
+actor TestPeer: @preconcurrency Codable,
+                Hashable,
+                SWIMPeer,
+                SWIMPingOriginPeer,
+                SWIMPingRequestOriginPeer,
+                @preconcurrency CustomStringConvertible {
+    
+    nonisolated(unsafe) var swimNode: Node
     var messages: [TestPeer.Message] = []
-
-    enum Message {
+    
+    enum Error: Swift.Error {
+        case notUsedAtTheMoment
+    }
+    
+    enum Message: Codable {
         case ping(
-            payload: SWIM.GossipPayload<TestPeer>,
+            payload: SWIM.GossipPayload<TestPeer>?,
             origin: TestPeer,
             timeout: Duration,
-            sequenceNumber: SWIM.SequenceNumber,
-            continuation: CheckedContinuation<SWIM.PingResponse<TestPeer, TestPeer>, Error>
+            sequenceNumber: SWIM.SequenceNumber
         )
         case pingReq(
             target: TestPeer,
-            payload: SWIM.GossipPayload<TestPeer>,
+            payload: SWIM.GossipPayload<TestPeer>?,
             origin: TestPeer,
             timeout: Duration,
-            sequenceNumber: SWIM.SequenceNumber,
-            continuation: CheckedContinuation<SWIM.PingResponse<TestPeer, TestPeer>, Error>
+            sequenceNumber: SWIM.SequenceNumber
         )
         case ack(
             target: TestPeer,
             incarnation: SWIM.Incarnation,
-            payload: SWIM.GossipPayload<TestPeer>,
+            payload: SWIM.GossipPayload<TestPeer>?,
             sequenceNumber: SWIM.SequenceNumber
         )
         case nack(
@@ -50,67 +55,81 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
             sequenceNumber: SWIM.SequenceNumber
         )
     }
-
+    
     init(node: Node) {
         self.swimNode = node
     }
-
+    
     func ping(
-        payload: SWIM.GossipPayload<TestPeer>,
+        payload: SWIM.GossipPayload<TestPeer>?,
         from pingOrigin: TestPeer,
         timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
     ) async throws -> SWIM.PingResponse<TestPeer, TestPeer> {
-        self.semaphore.wait()
-        defer { self.semaphore.signal() }
-
-        return try await withCheckedThrowingContinuation { continuation in
-            self.messages.append(.ping(payload: payload, origin: pingOrigin, timeout: timeout, sequenceNumber: sequenceNumber, continuation: continuation))
-        }
+        throw Error.notUsedAtTheMoment
+        // FIXME: Apparently not used, would be nice to mock and test it
+        let response = Message.ping(
+            payload: payload,
+            origin: pingOrigin,
+            timeout: timeout,
+            sequenceNumber: sequenceNumber
+        )
+        self.messages.append(response)
     }
-
+    
     func pingRequest(
         target: TestPeer,
-        payload: SWIM.GossipPayload<TestPeer>,
+        payload: SWIM.GossipPayload<TestPeer>?,
         from origin: TestPeer,
         timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
     ) async throws -> SWIM.PingResponse<TestPeer, TestPeer> {
-        self.semaphore.wait()
-        defer { self.semaphore.signal() }
-
-        return try await withCheckedThrowingContinuation { continuation in
-            self.messages.append(.pingReq(target: target, payload: payload, origin: origin, timeout: timeout, sequenceNumber: sequenceNumber, continuation: continuation))
-        }
+        throw Error.notUsedAtTheMoment
+        // FIXME: Apparently not used, would be nice to mock and test it
+        self.messages.append(
+            .pingReq(
+                target: target,
+                payload: payload,
+                origin: origin,
+                timeout: timeout,
+                sequenceNumber: sequenceNumber
+            )
+        )
     }
-
+    
     func ack(
         acknowledging sequenceNumber: SWIM.SequenceNumber,
         target: TestPeer,
         incarnation: SWIM.Incarnation,
-        payload: SWIM.GossipPayload<TestPeer>
+        payload: SWIM.GossipPayload<TestPeer>?
     ) {
-        self.semaphore.wait()
-        defer { self.semaphore.signal() }
-
-        self.messages.append(.ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
+        self.messages.append(
+            .ack(
+                target: target,
+                incarnation: incarnation,
+                payload: payload,
+                sequenceNumber: sequenceNumber
+            )
+        )
     }
-
+    
     func nack(
         acknowledging sequenceNumber: SWIM.SequenceNumber,
         target: TestPeer
     ) {
-        self.semaphore.wait()
-        defer { self.semaphore.signal() }
-
-        self.messages.append(.nack(target: target, sequenceNumber: sequenceNumber))
+        self.messages.append(
+            .nack(
+                target: target,
+                sequenceNumber: sequenceNumber
+            )
+        )
     }
-
-    func hash(into hasher: inout Hasher) {
+    
+    nonisolated func hash(into hasher: inout Hasher) {
         hasher.combine(self.node)
     }
-
-    static func == (lhs: TestPeer, rhs: TestPeer) -> Bool {
+    
+    nonisolated static func == (lhs: TestPeer, rhs: TestPeer) -> Bool {
         if lhs === rhs {
             return true
         }
@@ -122,7 +141,7 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
         }
         return true
     }
-
+    
     var description: String {
         "TestPeer(\(self.swimNode))"
     }

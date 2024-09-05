@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import struct Dispatch.DispatchTime
 import Logging
 
 #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
@@ -173,8 +172,8 @@ extension SWIM {
         /// Doing this will require some control over SWIM's notion of time.
         ///
         /// This property allows to override the `.now()` function for mocking purposes.
-        internal var timeSourceNow: () -> DispatchTime = { () -> DispatchTime in
-            DispatchTime.now()
+        internal var timeSourceNow: () -> ContinuousClock.Instant = { () -> ContinuousClock.Instant in
+            ContinuousClock.now
         }
 
         #if TRACELOG_SWIM

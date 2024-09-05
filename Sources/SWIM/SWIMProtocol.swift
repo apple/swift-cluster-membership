@@ -52,7 +52,7 @@ public protocol SWIMProtocol {
     /// - Returns: `Instance.PingDirective` which must be interpreted by a shell implementation
     mutating func onPing(
         pingOrigin: PingOrigin,
-        payload: SWIM.GossipPayload<Peer>,
+        payload: SWIM.GossipPayload<Peer>?,
         sequenceNumber: SWIM.SequenceNumber
     ) -> [Instance.PingDirective]
 
@@ -69,7 +69,7 @@ public protocol SWIMProtocol {
     mutating func onPingRequest(
         target: Peer,
         pingRequestOrigin: PingRequestOrigin,
-        payload: SWIM.GossipPayload<Peer>,
+        payload: SWIM.GossipPayload<Peer>?,
         sequenceNumber: SWIM.SequenceNumber
     ) -> [Instance.PingRequestDirective]
 
@@ -94,7 +94,10 @@ public protocol SWIMProtocol {
     ///   - response: the response representing this ping's result (i.e. `ack` or `timeout`).
     ///   - pinged: the pinged peer that this response is from
     /// - Returns: `Instance.PingRequestResponseDirective` which must be interpreted by a shell implementation
-    mutating func onPingRequestResponse(_ response: SWIM.PingResponse<Peer, PingRequestOrigin>, pinged: Peer) -> [Instance.PingRequestResponseDirective]
+    mutating func onPingRequestResponse(
+        _ response: SWIM.PingResponse<Peer, PingRequestOrigin>,
+        pinged: Peer
+    ) -> [Instance.PingRequestResponseDirective]
 
     /// MUST be invoked whenever a response to a `pingRequest` (an ack, nack or lack response i.e. a timeout) happens.
     ///

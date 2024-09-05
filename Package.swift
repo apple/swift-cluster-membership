@@ -1,4 +1,4 @@
-// swift-tools-version:5.7
+// swift-tools-version:5.10
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import class Foundation.ProcessInfo
@@ -123,7 +123,7 @@ var dependencies: [Package.Dependency] = [
 
     // ~~~ SSWG APIs ~~~
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
-    .package(url: "https://github.com/apple/swift-metrics.git", "2.3.2" ..< "3.0.0"), // since latest
+    .package(url: "https://github.com/apple/swift-metrics.git", "2.5.0" ..< "3.0.0"), // since latest
 
     // ~~~ SwiftPM Plugins ~~~
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
@@ -147,10 +147,10 @@ let products: [PackageDescription.Product] = [
 var package = Package(
     name: "swift-cluster-membership",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16),
-        .tvOS(.v16),
-        .watchOS(.v9),
+        .macOS(.v14),
+        .iOS(.v17),
+        .tvOS(.v17),
+        .watchOS(.v10),
     ],
     products: products,
 
