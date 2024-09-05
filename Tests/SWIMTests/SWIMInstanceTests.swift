@@ -1419,18 +1419,6 @@ final class SWIMInstanceTests: XCTestCase {
 
     func validateGossip(swim: inout SWIM.Instance<TestPeer, TestPeer, TestPeer>, expected: Set<SWIM.Member<TestPeer>>, file: StaticString = (#file), line: UInt = #line) throws {
         let payload = swim.makeGossipPayload(to: nil)
-//        if expected.isEmpty {
-//            guard case SWIM.GossipPayload.none = payload else {
-//                XCTFail("Expected `.none`, but got `\(payload)`", file: file, line: line)
-//                return
-//            }
-//        } else {
-//            guard case SWIM.GossipPayload.membership(let members) = payload else {
-//                XCTFail("Expected `.membership`, but got `\(payload)`", file: file, line: line)
-//                return
-//            }
-//
-//            XCTAssertEqual(Set(members), expected, file: file, line: line)
-//        }
+        XCTAssertEqual(Set(payload.members), expected, file: file, line: line)
     }
 }
