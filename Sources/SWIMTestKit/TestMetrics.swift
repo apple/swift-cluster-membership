@@ -30,8 +30,9 @@ import ClusterMembership
 @testable import CoreMetrics
 @testable import Metrics
 @testable import SWIM
-import XCTest
+import Testing
 import Synchronization
+import Foundation
 
 /// Taken directly from swift-metrics's own test package.
 ///

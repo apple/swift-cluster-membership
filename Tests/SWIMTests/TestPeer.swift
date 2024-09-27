@@ -14,7 +14,7 @@
 
 import ClusterMembership
 @testable import SWIM
-import XCTest
+import Testing
 
 actor TestPeer: @preconcurrency Codable,
                 Hashable,

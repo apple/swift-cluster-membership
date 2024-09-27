@@ -17,10 +17,10 @@ import ClusterMembership
 import Metrics
 @testable import SWIM
 import SWIMTestKit
-import XCTest
+import Testing
 import Synchronization
 
-final class SWIMMetricsTests: XCTestCase {
+final class SWIMMetricsTests {
     let myselfNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7001, uid: 1111)
     let secondNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7002, uid: 2222)
     let thirdNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7003, uid: 3333)
@@ -35,8 +35,7 @@ final class SWIMMetricsTests: XCTestCase {
 
     var testMetrics: TestMetrics!
 
-    override func setUp() {
-        super.setUp()
+    init() {
         self.myself = TestPeer(node: self.myselfNode)
         self.second = TestPeer(node: self.secondNode)
         self.third = TestPeer(node: self.thirdNode)
@@ -47,8 +46,7 @@ final class SWIMMetricsTests: XCTestCase {
         MetricsSystem.bootstrapInternal(self.testMetrics)
     }
 
-    override func tearDown() {
-        super.tearDown()
+    deinit {
         self.myself = nil
         self.second = nil
         self.third = nil
@@ -65,6 +63,7 @@ final class SWIMMetricsTests: XCTestCase {
     let unreachable = [("status", "unreachable")]
     let dead = [("status", "dead")]
 
+    @Test
     func test_members_becoming_suspect() {
         var settings = SWIM.Settings()
         settings.unreachability = .enabled
@@ -193,10 +192,11 @@ final class SWIMMetricsTests: XCTestCase {
             )
 
             let gotRemovedDeadTombstones = try! self.testMetrics.expectRecorder(swim.metrics.removedDeadMemberTombstones).lastValue!
-            XCTAssertEqual(gotRemovedDeadTombstones, Double(expectedDeads2 + 1))
+            #expect(gotRemovedDeadTombstones == Double(expectedDeads2 + 1))
         }
     }
 
+    @Test
     func test_lha_adjustment() {
         let settings = SWIM.Settings()
         var swim = SWIM.Instance<TestPeer, TestPeer, TestPeer>(settings: settings, myself: self.myself)
@@ -204,16 +204,16 @@ final class SWIMMetricsTests: XCTestCase {
         _ = swim.addMember(self.second, status: .alive(incarnation: 0))
         _ = swim.addMember(self.third, status: .alive(incarnation: 0))
 
-        XCTAssertEqual(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue, Double(0))
+        #expect(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue == Double(0))
 
         swim.adjustLHMultiplier(.failedProbe)
-        XCTAssertEqual(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue, Double(1))
+        #expect(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue == Double(1))
 
         swim.adjustLHMultiplier(.failedProbe)
-        XCTAssertEqual(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue, Double(2))
+        #expect(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue == Double(2))
 
         swim.adjustLHMultiplier(.successfulProbe)
-        XCTAssertEqual(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue, Double(1))
+        #expect(try! self.testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue == Double(1))
     }
 }
 
@@ -225,15 +225,14 @@ extension SWIMMetricsTests {
         let m: SWIM.Metrics = swim.metrics
 
         let gotSuspect: Double? = try! self.testMetrics.expectRecorder(m.membersSuspect).lastValue
-        XCTAssertEqual(
-            gotSuspect,
-            Double(suspect),
+        #expect(
+            gotSuspect == Double(suspect),
             """
             Expected \(suspect) [alive] members, was: \(String(reflecting: gotSuspect)); Members:
             \(swim.members.map(\.description).joined(separator: "\n"))
-            """,
-            file: file,
-            line: line
+            """
+//            file: file,
+//            line: line
         )
     }
 
@@ -241,39 +240,36 @@ extension SWIMMetricsTests {
         let m: SWIM.Metrics = swim.metrics
 
         let gotAlive: Double? = try! self.testMetrics.expectRecorder(m.membersAlive).lastValue
-        XCTAssertEqual(
-            gotAlive,
-            Double(alive),
+        #expect(
+            gotAlive == Double(alive),
             """
             Expected \(alive) [alive] members, was: \(String(reflecting: gotAlive)); Members:
             \(swim.members.map(\.description).joined(separator: "\n"))
-            """,
-            file: file,
-            line: line
+            """
+//            file: file,
+//            line: line
         )
 
         let gotUnreachable: Double? = try! self.testMetrics.expectRecorder(m.membersUnreachable).lastValue
-        XCTAssertEqual(
-            gotUnreachable,
-            Double(unreachable),
+        #expect(
+            gotUnreachable == Double(unreachable),
             """
             Expected \(unreachable) [unreachable] members, was: \(String(reflecting: gotUnreachable)); Members:
             \(swim.members.map(\.description).joined(separator: "\n")))
-            """,
-            file: file,
-            line: line
+            """
+//            file: file,
+//            line: line
         )
 
         let gotTotalDead: Int64? = try! self.testMetrics.expectCounter(m.membersTotalDead).totalValue
-        XCTAssertEqual(
-            gotTotalDead,
-            Int64(totalDead),
+        #expect(
+            gotTotalDead == Int64(totalDead),
             """
             Expected \(totalDead) [dead] members, was: \(String(reflecting: gotTotalDead)); Members:
             \(swim.members.map(\.description).joined(separator: "\n"))
-            """,
-            file: file,
-            line: line
+            """
+//            file: file,
+//            line: line
         )
     }
 }

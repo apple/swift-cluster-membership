@@ -17,11 +17,14 @@ import NIO
 import SWIM
 @testable import SWIMNIOExample
 import SWIMTestKit
-import XCTest
+import Testing
 import Synchronization
 
 // TODO: those tests could be done on embedded event loops probably
-final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
+@Suite(.serialized)
+final class SWIMNIOEventClusteredTests {
+    
+    let suite = EmbeddedClustered(startingPort: 8001)
     var settings: SWIMNIO.Settings = SWIMNIO.Settings(swim: .init())
     lazy var myselfNode = Node(protocol: "udp", host: "127.0.0.1", port: 7001, uid: 1111)
     lazy var myselfPeer = SWIM.NIOPeer(node: myselfNode, channel: EmbeddedChannel())
@@ -29,20 +32,18 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
 
     var group: MultiThreadedEventLoopGroup!
 
-    override func setUp() {
-        super.setUp()
-
+    init() {
         self.settings.node = self.myselfNode
 
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
     }
 
-    override func tearDown() {
+    deinit {
         try! self.group.syncShutdownGracefully()
         self.group = nil
-        super.tearDown()
     }
 
+    @Test
     func test_memberStatusChange_alive_emittedForMyself() async throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
 
@@ -55,6 +56,7 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         try await first.close().get()
     }
 
+    @Test
     func test_memberStatusChange_suspect_emittedForDyingNode() async throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
         let secondProbe = ProbeEventHandler(loop: group.next())
@@ -85,14 +87,14 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         try firstProbe.expectEvent(SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
 
         let secondAliveEvent = try firstProbe.expectEvent()
-        XCTAssertTrue(secondAliveEvent.isReachabilityChange)
-        XCTAssertTrue(secondAliveEvent.status.isAlive)
-        XCTAssertEqual(secondAliveEvent.member.node.withoutUID, secondNode.withoutUID)
+        #expect(secondAliveEvent.isReachabilityChange)
+        #expect(secondAliveEvent.status.isAlive)
+        #expect(secondAliveEvent.member.node.withoutUID == secondNode.withoutUID)
 
         let secondDeadEvent = try firstProbe.expectEvent()
-        XCTAssertTrue(secondDeadEvent.isReachabilityChange)
-        XCTAssertTrue(secondDeadEvent.status.isDead)
-        XCTAssertEqual(secondDeadEvent.member.node.withoutUID, secondNode.withoutUID)
+        #expect(secondDeadEvent.isReachabilityChange)
+        #expect(secondDeadEvent.status.isDead)
+        #expect(secondDeadEvent.member.node.withoutUID == secondNode.withoutUID)
         
         try await first.close().get()
     }
@@ -103,9 +105,9 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
     ) async throws -> Channel {
         var settings = self.settings
         configure(&settings)
-        self.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
+        await self.suite.clustered.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
 
-        self._nodes.append(settings.node!)
+        await self.suite.clustered.addNode(settings.node!)
         return try await DatagramBootstrap(group: self.group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { [settings] channel in
@@ -130,7 +132,8 @@ extension ProbeEventHandler {
         let got = try self.expectEvent()
 
         if let expected = expected {
-            XCTAssertEqual(got, expected, file: file, line: line)
+            #expect(got == expected)
+//            , file: file, line: line)
         }
 
         return got

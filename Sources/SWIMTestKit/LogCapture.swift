@@ -15,8 +15,9 @@
 import class Foundation.NSLock
 @testable import Logging
 import NIO
-import XCTest
+import Testing
 import Synchronization
+import Foundation
 
 /// Testing only utility: Captures all log statements for later inspection.
 public final class LogCapture: Sendable {
@@ -91,14 +92,6 @@ extension LogCapture {
 /// ### Warning
 /// This handler uses locks for each and every operation.
 extension LogCapture {
-    public func printIfFailed(_ testRun: XCTestRun?) {
-        if let failureCount = testRun?.failureCount, failureCount > 0 {
-            print("------------------------------------------------------------------------------------------------------------------------")
-            self.printLogs()
-            print("========================================================================================================================")
-        }
-    }
-
     public func printLogs() {
         for log in self.logs {
             var metadataString: String = ""
@@ -328,7 +321,8 @@ extension LogCapture {
             in captured logs at \(file):\(line)
             """
             if failTest {
-                XCTFail(message, file: (file), line: line)
+                Issue.record(.init(rawValue: message))
+//                , file: (file), line: line)
             }
 
             throw LogCaptureError(message: message, file: file, line: line, column: column)

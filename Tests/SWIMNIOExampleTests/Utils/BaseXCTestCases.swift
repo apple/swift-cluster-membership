@@ -21,41 +21,52 @@ import NIOCore
 import SWIM
 @testable import SWIMNIOExample
 import SWIMTestKit
-import XCTest
+import Testing
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Real Networking Test Case
 
-class RealClusteredXCTestCase: BaseClusteredXCTestCase {
+final class RealClustered {
+    let clustered: Clustered
     var group: MultiThreadedEventLoopGroup!
     var loop: EventLoop!
+    
+    /// If `true` automatically captures all logs of all `setUpNode` started systems, and prints them if at least one test failure is encountered.
+    /// If `false`, log capture is disabled and the systems will log messages normally.
+    ///
+    /// - Default: `true`
+    var captureLogs: Bool { true }
 
-    override func setUp() {
-        super.setUp()
-
+    /// Enables logging all captured logs, even if the test passed successfully.
+    /// - Default: `false`
+    var alwaysPrintCaptureLogs: Bool { false }
+    
+    init(startingPort: Int) {
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 8)
         self.loop = group.next()
+        self.clustered = .init(startingPort: startingPort)
     }
 
-    override func tearDown() {
-        super.tearDown()
-
+    deinit {
         try! self.group.syncShutdownGracefully()
         self.group = nil
         self.loop = nil
+        Task { [clustered] in
+            await clustered.reset()
+        }
     }
 
     func makeClusterNode(
         name: String? = nil,
         configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }
     ) async throws -> (SWIMNIOHandler, Channel) {
-        let port = self.nextPort()
+        let port = await clustered.nextPort()
         let name = name ?? "swim-\(port)"
         var settings = SWIMNIO.Settings()
         configureSettings(&settings)
 
         if self.captureLogs {
-            self.makeLogCapture(name: name, settings: &settings)
+            await clustered.makeLogCapture(name: name, settings: &settings)
         }
 
         let handler = SWIMNIOHandler(settings: settings)
@@ -65,8 +76,8 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
 
         let channel = try await bootstrap.bind(host: "127.0.0.1", port: port).get()
 
-        self._shells.append(handler.shell)
-        self._nodes.append(handler.shell.node)
+        await clustered.addShell(handler.shell)
+        await clustered.addNode(handler.shell.node)
 
         return (handler, channel)
     }
@@ -75,36 +86,48 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Embedded Networking Test Case
 
-class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
+final class EmbeddedClustered {
+    let clustered: Clustered
     var loop: EmbeddedEventLoop!
+    
+    /// If `true` automatically captures all logs of all `setUpNode` started systems, and prints them if at least one test failure is encountered.
+    /// If `false`, log capture is disabled and the systems will log messages normally.
+    ///
+    /// - Default: `true`
+    var captureLogs: Bool { true }
 
-    open override func setUp() {
-        super.setUp()
+    /// Enables logging all captured logs, even if the test passed successfully.
+    /// - Default: `false`
+    var alwaysPrintCaptureLogs: Bool { false }
 
+    
+    init(startingPort: Int) {
         self.loop = EmbeddedEventLoop()
+        self.clustered = .init(startingPort: startingPort)
     }
 
-    open override func tearDown() {
-        super.tearDown()
-
+    deinit {
         try! self.loop.close()
         self.loop = nil
+        Task { [clustered] in
+            await clustered.reset()
+        }
     }
 
-    func makeEmbeddedShell(_ _name: String? = nil, configure: (inout SWIMNIO.Settings) -> Void = { _ in () }) -> SWIMNIOShell {
+    func makeEmbeddedShell(_ _name: String? = nil, configure: (inout SWIMNIO.Settings) -> Void = { _ in () }) async -> SWIMNIOShell {
         var settings = SWIMNIO.Settings()
         configure(&settings)
         let node: Node
         if let _node = settings.swim.node {
             node = _node
         } else {
-            let port = self.nextPort()
+            let port = await clustered.nextPort()
             let name = _name ?? "swim-\(port)"
-            node = Node(protocol: "test", name: name, host: "127.0.0.1", port: port, uid: .random(in: 1 ..< UInt64.max))
+            node = Node(protocol: "test", name: name, host: "127.0.0.2", port: port, uid: .random(in: 1 ..< UInt64.max))
         }
 
         if self.captureLogs {
-            self.makeLogCapture(name: node.name ?? "swim-\(node.port)", settings: &settings)
+            await clustered.makeLogCapture(name: node.name ?? "swim-\(node.port)", settings: &settings)
         }
 
         let channel = EmbeddedChannel(loop: self.loop)
@@ -116,8 +139,8 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
             onMemberStatusChange: { _ in () } // TODO: store events so we can inspect them?
         )
 
-        self._nodes.append(shell.node)
-        self._shells.append(shell)
+        await self.clustered.addNode(shell.node)
+        await self.clustered.addShell(shell)
 
         return shell
     }
@@ -125,60 +148,28 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Base
-
-class BaseClusteredXCTestCase: XCTestCase {
+// FIXME: Give better naming
+actor Clustered {
     public internal(set) var _nodes: [Node] = []
     public internal(set) var _shells: [SWIMNIOShell] = []
     public internal(set) var _logCaptures: [LogCapture] = []
 
-    /// If `true` automatically captures all logs of all `setUpNode` started systems, and prints them if at least one test failure is encountered.
-    /// If `false`, log capture is disabled and the systems will log messages normally.
-    ///
-    /// - Default: `true`
-    open var captureLogs: Bool {
-        true
-    }
-
-    /// Enables logging all captured logs, even if the test passed successfully.
-    /// - Default: `false`
-    open var alwaysPrintCaptureLogs: Bool {
-        false
-    }
-
     var _nextPort = 9001
-    open func nextPort() -> Int {
-        defer { self._nextPort += 1 }
-        return self._nextPort
+    
+    // Because tests are parallel now—testing will fail as same ports will occur. For now passing different starting ports.
+    // FIXME: Don't pass starting port probably, come up with better design.
+    init(startingPort: Int = 9001) {
+        self._nextPort = startingPort
+    }
+    
+    func nextPort() -> Int {
+        let port = self._nextPort
+        self._nextPort += 1
+        return port
     }
 
-    open func configureLogCapture(settings: inout LogCapture.Settings) {
+    func configureLogCapture(settings: inout LogCapture.Settings) {
         // just use defaults
-    }
-
-    open override func setUp() {
-        super.setUp()
-
-        self.addTeardownBlock { [_shells] in
-            for shell in _shells {
-                do {
-                    try await shell.myself.channel.close()
-                } catch {
-                    () // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
-                }
-            }
-        }
-    }
-
-    open override func tearDown() {
-        super.tearDown()
-
-        let testsFailed = self.testRun?.totalFailureCount ?? 0 > 0
-        if self.captureLogs, self.alwaysPrintCaptureLogs || testsFailed {
-            self.printAllCapturedLogs()
-        }
-
-        self._nodes = []
-        self._logCaptures = []
     }
 
     func makeLogCapture(name: String, settings: inout SWIMNIO.Settings) {
@@ -190,12 +181,32 @@ class BaseClusteredXCTestCase: XCTestCase {
 
         self._logCaptures.append(capture)
     }
+    
+    func reset() async {
+        for shell in _shells {
+            do {
+                try await shell.myself.channel.close()
+            } catch {
+                () // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
+            }
+        }
+        self._shells.removeAll()
+        self._nodes.removeAll()
+    }
+    
+    func addShell(_ shell: SWIMNIOShell) {
+        self._shells.append(shell)
+    }
+    
+    func addNode(_ node: Node) {
+        self._nodes.append(node)
+    }
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Captured Logs
 
-extension BaseClusteredXCTestCase {
+extension Clustered {
     public func capturedLogs(of node: Node) -> LogCapture {
         guard let index = self._nodes.firstIndex(of: node) else {
             fatalError("No such node: [\(node)] in [\(self._nodes)]!")

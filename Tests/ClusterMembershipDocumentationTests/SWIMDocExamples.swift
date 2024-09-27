@@ -18,6 +18,6 @@ import SWIM
 
 // end::imports[]
 
-import XCTest
+import Testing
 
-final class SWIMDocExamples: XCTestCase {}
+final class SWIMDocExamples {}
