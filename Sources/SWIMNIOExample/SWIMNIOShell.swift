@@ -601,32 +601,36 @@ public final class SWIMNIOShell: Sendable {
     // TODO: Could this be done already in shell rather than calling in handler?
     // register and manage reply callback ------------------------------
     internal func registerCallback(for writeCommand: SWIMNIOWriteCommand) {
-        guard let replyCallback = writeCommand.replyCallback else { return }
-        let sequenceNumber = writeCommand.message.sequenceNumber
-        #if DEBUG
-        let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: sequenceNumber, inResponseTo: writeCommand.message)
-        #else
-        let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: sequenceNumber)
-        #endif
+        switch writeCommand {
+        case .wait(let reply, _):
+            let sequenceNumber = writeCommand.message.sequenceNumber
+            #if DEBUG
+            let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: sequenceNumber, inResponseTo: writeCommand.message)
+            #else
+            let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: sequenceNumber)
+            #endif
 
-        let timeoutTask = self.eventLoop.scheduleTask(in: writeCommand.replyTimeout) {
-            if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
-                callback(.failure(
-                    SWIMNIOTimeoutError(
-                        timeout: writeCommand.replyTimeout,
-                        message: "Timeout of [\(callbackKey)], no reply to [\(writeCommand.message.messageCaseDescription)] after \(writeCommand.replyTimeout.prettyDescription())"
-                    )
-                ))
-            } // else, task fired already (should have been removed)
-        }
+            let timeoutTask = self.eventLoop.scheduleTask(in: reply.timeout) {
+                if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
+                    callback(.failure(
+                        SWIMNIOTimeoutError(
+                            timeout: reply.timeout,
+                            message: "Timeout of [\(callbackKey)], no reply to [\(writeCommand.message.messageCaseDescription)] after \(reply.timeout.prettyDescription())"
+                        )
+                    ))
+                } // else, task fired already (should have been removed)
+            }
 
-        self.log.trace("Store callback: \(callbackKey)", metadata: [
-            "message": "\(writeCommand.message)",
-            "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
-        ])
-        self.pendingReplyCallbacks[callbackKey] = { reply in
-            timeoutTask.cancel() // when we trigger the callback, we should also cancel the timeout task
-            replyCallback(reply) // successful reply received
+            self.log.trace("Store callback: \(callbackKey)", metadata: [
+                "message": "\(writeCommand.message)",
+                "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
+            ])
+            self.pendingReplyCallbacks[callbackKey] = { result in
+                timeoutTask.cancel() // when we trigger the callback, we should also cancel the timeout task
+                reply.callback(result) // successful reply received
+            }
+        case .fireAndForget:
+            return
         }
     }
 }

@@ -91,11 +91,22 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
     public func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
         let writeCommand = self.unwrapOutboundIn(data)
 
-        self.log.trace("Write command: \(writeCommand.message.messageCaseDescription)", metadata: [
-            "write/message": "\(writeCommand.message)",
-            "write/recipient": "\(writeCommand.recipient)",
-            "write/reply-timeout": "\(writeCommand.replyTimeout)",
-        ])
+        let metadata: Logger.Metadata = switch writeCommand {
+        case let .wait(reply, info): [
+                "write/message": "\(info.message)",
+                "write/recipient": "\(info.recipient)",
+                "write/reply-timeout": "\(reply.timeout)",
+            ]
+        case .fireAndForget(let info): [
+                "write/message": "\(info.message)",
+                "write/recipient": "\(info.recipient)"
+            ]
+        }
+        
+        self.log.trace(
+            "Write command: \(writeCommand.message.messageCaseDescription)",
+            metadata: metadata
+        )
 
         do {
             // TODO: note that this impl does not handle "new node on same host/port" yet
@@ -190,23 +201,37 @@ extension SWIMNIOHandler {
 /// Used to a command to the channel pipeline to write the message,
 /// and install a reply handler for the specific sequence number associated with the message (along with a timeout)
 /// when a callback is provided.
-public struct SWIMNIOWriteCommand: Sendable {
-    /// SWIM message to be written.
-    public let message: SWIM.Message
-    /// Address of recipient peer where the message should be written to.
-    public let recipient: SocketAddress
-
-    /// If the `replyCallback` is set, what timeout should be set for a reply to come back from the peer.
-    public let replyTimeout: NIO.TimeAmount
-    /// Callback to be invoked (calling into the SWIMNIOShell) when a reply to this message arrives.
-    public let replyCallback: (@Sendable (Result<SWIM.PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>, Error>) -> Void)?
-
-    /// Create a write command.
-    public init(message: SWIM.Message, to recipient: Node, replyTimeout: TimeAmount, replyCallback: (@Sendable (Result<SWIM.PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>, Error>) -> Void)?) {
-        self.message = message
-        self.recipient = try! .init(ipAddress: recipient.host, port: recipient.port) // try!-safe since the host/port is always safe
-        self.replyTimeout = replyTimeout
-        self.replyCallback = replyCallback
+public enum SWIMNIOWriteCommand: Sendable {
+    
+    case wait(reply: Reply, info: Info)
+    case fireAndForget(Info)
+    
+    public struct Info: Sendable {
+        /// SWIM message to be written.
+        public let message: SWIM.Message
+        /// Address of recipient peer where the message should be written to.
+        public let recipient: SocketAddress
+    }
+    
+    public struct Reply: Sendable {
+        /// If the `replyCallback` is set, what timeout should be set for a reply to come back from the peer.
+        public let timeout: NIO.TimeAmount
+        /// Callback to be invoked (calling into the SWIMNIOShell) when a reply to this message arrives.
+        public let callback: @Sendable (Result<SWIM.PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>, Error>) -> Void
+    }
+    
+    var message: SWIM.Message {
+        switch self {
+        case .fireAndForget(let info): info.message
+        case .wait(_, let info): info.message
+        }
+    }
+    
+    var recipient: SocketAddress {
+        switch self {
+        case .fireAndForget(let info): info.recipient
+        case .wait(_, let info): info.recipient
+        }
     }
 }
 
