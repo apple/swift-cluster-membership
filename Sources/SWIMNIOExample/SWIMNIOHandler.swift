@@ -100,35 +100,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
         do {
             // TODO: note that this impl does not handle "new node on same host/port" yet
 
-            // register and manage reply callback ------------------------------
-            if let replyCallback = writeCommand.replyCallback {
-                let sequenceNumber = writeCommand.message.sequenceNumber
-                #if DEBUG
-                let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: sequenceNumber, inResponseTo: writeCommand.message)
-                #else
-                let callbackKey = PendingResponseCallbackIdentifier(peerAddress: writeCommand.recipient, sequenceNumber: sequenceNumber)
-                #endif
-
-                let timeoutTask = context.eventLoop.scheduleTask(in: writeCommand.replyTimeout) {
-                    if let callback = self.shell.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
-                        callback(.failure(
-                            SWIMNIOTimeoutError(
-                                timeout: writeCommand.replyTimeout,
-                                message: "Timeout of [\(callbackKey)], no reply to [\(writeCommand.message.messageCaseDescription)] after \(writeCommand.replyTimeout.prettyDescription())"
-                            )
-                        ))
-                    } // else, task fired already (should have been removed)
-                }
-
-                self.log.trace("Store callback: \(callbackKey)", metadata: [
-                    "message": "\(writeCommand.message)",
-                    "pending/callbacks": Logger.MetadataValue.array(self.shell.pendingReplyCallbacks.map { "\($0)" }),
-                ])
-                self.shell.pendingReplyCallbacks[callbackKey] = { @Sendable reply in
-                    timeoutTask.cancel() // when we trigger the callback, we should also cancel the timeout task
-                    replyCallback(reply) // successful reply received
-                }
-            }
+            self.shell.registerCallback(for: writeCommand)
 
             // serialize & send message ----------------------------------------
             let buffer = try self.serialize(message: writeCommand.message, using: context.channel.allocator)
