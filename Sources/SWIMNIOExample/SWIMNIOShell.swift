@@ -51,17 +51,8 @@ public final class SWIMNIOShell: Sendable {
     }
 
     /// Cancellable of the periodicPingTimer (if it was kicked off)
-    private let _nextPeriodicTickCancellable: Mutex<SWIMCancellable?> = .init(.none)
-    private var nextPeriodicTickCancellable: SWIMCancellable? {
-        get { _nextPeriodicTickCancellable.withLock { $0 } }
-        set { _nextPeriodicTickCancellable.withLock { $0 = newValue } }
-    }
-    
-    private let _pendingReplyCallbacks: Mutex<[PendingResponseCallbackIdentifier: (@Sendable (Result<SWIM.PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>, Error>) -> Void)]> = .init([:])
-    var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (@Sendable (Result<SWIM.PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>, Error>) -> Void)] {
-        get { self._pendingReplyCallbacks.withLock { $0 } }
-        set { self._pendingReplyCallbacks.withLock { $0 = newValue } }
-    }
+    private let nextPeriodicTickCancellable: Mutex<SWIMCancellable?> = .init(.none)
+    private let pendingReplyCallbacks: Mutex<[PendingResponseCallbackIdentifier: (@Sendable (Result<SWIM.PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>, Error>) -> Void)]> = .init([:])
     
     internal init(
         node: Node,
@@ -109,7 +100,7 @@ public final class SWIMNIOShell: Sendable {
             }
         }
 
-        self.nextPeriodicTickCancellable?.cancel()
+        self.nextPeriodicTickCancellable.withLock { $0?.cancel() }
         switch self.swim.confirmDead(peer: self.peer) {
         case .applied(let change):
             self.tryAnnounceMemberReachability(change: change)
@@ -153,17 +144,17 @@ public final class SWIMNIOShell: Sendable {
             #else
             let callbackKey = PendingResponseCallbackIdentifier(peerAddress: address, sequenceNumber: response.sequenceNumber)
             #endif
-            if let index = self.pendingReplyCallbacks.index(forKey: callbackKey) {
-                let (storedKey, callback) = self.pendingReplyCallbacks.remove(at: index)
+            if let index = self.pendingReplyCallbacks.withLock({ $0.index(forKey: callbackKey) }) {
+                let (storedKey, callback) = self.pendingReplyCallbacks.withLock { $0.remove(at: index) }
                 // TODO: UIDs of nodes matter
                 self.log.trace("Received response, key: \(callbackKey); Invoking callback...", metadata: [
-                    "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
+                    "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.withLock { $0.map { "\($0)" } }),
                 ])
                 self.swim.metrics.shell.pingResponseTime.recordNanoseconds(storedKey.nanosecondsSinceCallbackStored().nanoseconds)
                 callback(.success(response))
             } else {
                 self.log.trace("No callback for \(callbackKey); It may have been removed due to a timeout already.", metadata: [
-                    "pending callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
+                    "pending callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.withLock { $0.map { "\($0)" } }),
                 ])
             }
         }
@@ -498,8 +489,10 @@ public final class SWIMNIOShell: Sendable {
                 }
 
             case .scheduleNextTick(let delay):
-                self.nextPeriodicTickCancellable = self.schedule(delay: delay) {
-                    self.handlePeriodicProtocolPeriodTick()
+                self.nextPeriodicTickCancellable.withLock {
+                    $0 = self.schedule(delay: delay) {
+                        self.handlePeriodicProtocolPeriodTick()
+                    }
                 }
             }
         }
@@ -611,7 +604,7 @@ public final class SWIMNIOShell: Sendable {
             #endif
 
             let timeoutTask = self.eventLoop.scheduleTask(in: reply.timeout) {
-                if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
+                if let callback = self.pendingReplyCallbacks.withLock({ $0.removeValue(forKey: callbackKey) }) {
                     callback(.failure(
                         SWIMNIOTimeoutError(
                             timeout: reply.timeout,
@@ -623,11 +616,13 @@ public final class SWIMNIOShell: Sendable {
 
             self.log.trace("Store callback: \(callbackKey)", metadata: [
                 "message": "\(writeCommand.message)",
-                "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
+                "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.withLock { $0.map { "\($0)" } }),
             ])
-            self.pendingReplyCallbacks[callbackKey] = { result in
-                timeoutTask.cancel() // when we trigger the callback, we should also cancel the timeout task
-                reply.callback(result) // successful reply received
+            self.pendingReplyCallbacks.withLock {
+                $0[callbackKey] = { result in
+                    timeoutTask.cancel() // when we trigger the callback, we should also cancel the timeout task
+                    reply.callback(result) // successful reply received
+                }
             }
         case .fireAndForget:
             return
