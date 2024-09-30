@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-@preconcurrency import struct Dispatch.DispatchTime
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: SWIM Member
@@ -22,7 +21,7 @@ extension SWIM {
     /// A `SWIM.Member` represents an active participant of the cluster.
     ///
     /// It associates a specific `SWIMAddressablePeer` with its `SWIM.Status` and a number of other SWIM specific state information.
-    public struct Member<Peer: SWIMPeer>: Sendable {
+    public struct Member<Peer: SWIMPeer>: Codable, Sendable {
         /// Peer reference, used to send messages to this cluster member.
         ///
         /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
@@ -43,10 +42,10 @@ extension SWIM {
         ///
         /// - Note: Only suspect members may have this value set, but having the actual field in SWIM.Member feels more natural.
         /// - Note: This value is never carried across processes, as it serves only locally triggering suspicion timeouts.
-        public let localSuspicionStartedAt: DispatchTime? // could be "status updated at"?
+        public let localSuspicionStartedAt: ContinuousClock.Instant? // could be "status updated at"?
 
         /// Create a new member.
-        public init(peer: Peer, status: SWIM.Status, protocolPeriod: UInt64, suspicionStartedAt: DispatchTime? = nil) {
+        public init(peer: Peer, status: SWIM.Status, protocolPeriod: UInt64, suspicionStartedAt: ContinuousClock.Instant? = nil) {
             self.peer = peer
             self.status = status
             self.protocolPeriod = protocolPeriod

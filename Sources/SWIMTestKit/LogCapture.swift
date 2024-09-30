@@ -12,64 +12,49 @@
 //
 //===----------------------------------------------------------------------===//
 
-import struct Foundation.Date
 import class Foundation.NSLock
 @testable import Logging
 import NIO
-import XCTest
+import Testing
+import Synchronization
+import Foundation
 
 /// Testing only utility: Captures all log statements for later inspection.
-public final class LogCapture {
-    private var _logs: [CapturedLogMessage] = []
-    private let lock = NSLock()
+public final class LogCapture: Sendable {
+    private let _logs: Mutex<[CapturedLogMessage]> = .init([])
 
     let settings: Settings
-    private var captureLabel: String = ""
+    private let captureLabel: Mutex<String> = .init("")
 
     public init(settings: Settings = .init()) {
         self.settings = settings
     }
 
     public func logger(label: String) -> Logger {
-        self.lock.lock()
-        defer {
-            self.lock.unlock()
-        }
-
-        self.captureLabel = label
+        self.captureLabel.withLock { $0 = label }
         return Logger(label: "LogCapture(\(label))", LogCaptureLogHandler(label: label, self))
     }
 
     func append(_ log: CapturedLogMessage) {
-        self.lock.lock()
-        defer {
-            self.lock.unlock()
+        self._logs.withLock {
+            $0.append(log)
         }
-
-        self._logs.append(log)
     }
 
     public var logs: [CapturedLogMessage] {
-        self.lock.lock()
-        defer {
-            self.lock.unlock()
-        }
-
-        return self._logs
+        self._logs.withLock { $0 }
     }
 
     @discardableResult
-    public func awaitLog(
+    public func log(
         grep: String,
-        within: TimeAmount = .seconds(10),
-        file: StaticString = #file,
-        line: UInt = #line,
-        column: UInt = #column
-    ) throws -> CapturedLogMessage {
-        let startTime = DispatchTime.now()
-        let deadline = startTime.uptimeNanoseconds + UInt64(within.nanoseconds)
+        within: Duration = .seconds(10),
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) async throws -> CapturedLogMessage {
+        let startTime = ContinuousClock.now
+        let deadline = startTime.advanced(by: within)
         func timeExceeded() -> Bool {
-            DispatchTime.now().uptimeNanoseconds > deadline
+            ContinuousClock.now > deadline
         }
         while !timeExceeded() {
             let logs = self.logs
@@ -77,15 +62,18 @@ public final class LogCapture {
                 return log // ok, found it!
             }
 
-            sleep(1)
+            try await Task.sleep(for: .seconds(1))
         }
 
-        throw LogCaptureError(message: "After \(within), logs still did not contain: [\(grep)]", file: file, line: line, column: column)
+        throw LogCaptureError(
+            message: "After \(within), logs still did not contain: [\(grep)]",
+            sourceLocation: sourceLocation
+        )
     }
 }
 
 extension LogCapture {
-    public struct Settings {
+    public struct Settings: Sendable {
         public init() {}
 
         public var minimumLogLevel: Logger.Level = .trace
@@ -105,14 +93,6 @@ extension LogCapture {
 /// ### Warning
 /// This handler uses locks for each and every operation.
 extension LogCapture {
-    public func printIfFailed(_ testRun: XCTestRun?) {
-        if let failureCount = testRun?.failureCount, failureCount > 0 {
-            print("------------------------------------------------------------------------------------------------------------------------")
-            self.printLogs()
-            print("========================================================================================================================")
-        }
-    }
-
     public func printLogs() {
         for log in self.logs {
             var metadataString: String = ""
@@ -152,7 +132,8 @@ extension LogCapture {
             let date = Self._createFormatter().string(from: log.date)
             let file = log.file.split(separator: "/").last ?? ""
             let line = log.line
-            print("[\(self.captureLabel)][\(date)] [\(file):\(line)]\(node) [\(log.level)] \(log.message)\(metadataString)")
+            let label = self.captureLabel.withLock { $0 }
+            print("[\(label)][\(date)] [\(file):\(line)]\(node) [\(log.level)] \(log.message)\(metadataString)")
         }
     }
 
@@ -186,7 +167,7 @@ extension LogCapture {
     }
 }
 
-public struct CapturedLogMessage {
+public struct CapturedLogMessage: Sendable {
     public let date: Date
     public let level: Logger.Level
     public var message: Logger.Message
@@ -261,7 +242,7 @@ extension LogCapture {
         expectedFile: String? = nil,
         expectedLine: Int = -1,
         failTest: Bool = true,
-        file: StaticString = #file, line: UInt = #line, column: UInt = #column
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws -> CapturedLogMessage {
         precondition(prefix != nil || message != nil || grep != nil || level != nil || level != nil || expectedFile != nil, "At least one query parameter must be not `nil`!")
 
@@ -338,13 +319,19 @@ extension LogCapture {
             let message = """
             Did not find expected log, matching query: 
                 [\(query)]
-            in captured logs at \(file):\(line)
+            in captured logs at \(sourceLocation)
             """
             if failTest {
-                XCTFail(message, file: (file), line: line)
+                Issue.record(
+                    .init(rawValue: message),
+                    sourceLocation: sourceLocation
+                )
             }
-
-            throw LogCaptureError(message: message, file: file, line: line, column: column)
+            
+            throw LogCaptureError(
+                message: message,
+                sourceLocation: sourceLocation
+            )
         }
     }
 
@@ -379,10 +366,8 @@ extension LogCapture {
 
 internal struct LogCaptureError: Error, CustomStringConvertible {
     let message: String
-    let file: StaticString
-    let line: UInt
-    let column: UInt
+    let sourceLocation: SourceLocation
     var description: String {
-        "LogCaptureError(\(message) at \(file):\(line) column:\(column))"
+        "LogCaptureError(\(message) with at \(sourceLocation)"
     }
 }

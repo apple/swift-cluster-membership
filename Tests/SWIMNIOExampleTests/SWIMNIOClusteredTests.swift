@@ -17,142 +17,151 @@ import Logging
 import NIO
 import SWIM
 @testable import SWIMNIOExample
-import XCTest
+import Testing
 
-final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
+@Suite(.serialized)
+class SWIMNIOClusteredTests {
+    
+    let suite: RealClustered = .init(startingPort: 9001)
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: White box tests // TODO: implement more of the tests in terms of inspecting events
 
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Black box tests, we let the nodes run and inspect their state via logs
+    @Test
+    func test_real_peers_2_connect() async throws {
+        let (firstHandler, _) = try await self.suite.makeClusterNode()
 
-    func test_real_peers_2_connect() throws {
-        let (firstHandler, _) = self.makeClusterNode()
-
-        let (secondHandler, _) = self.makeClusterNode() { settings in
+        let (secondHandler, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [firstHandler.shell.node]
         }
 
-        try self.capturedLogs(of: firstHandler.shell.node)
-            .awaitLog(grep: #""swim/members/count": 2"#)
-        try self.capturedLogs(of: secondHandler.shell.node)
-            .awaitLog(grep: #""swim/members/count": 2"#)
+        try await self.suite.clustered.capturedLogs(of: firstHandler.shell.node)
+            .log(grep: #""swim/members/count": 2"#)
+        try await self.suite.clustered.capturedLogs(of: secondHandler.shell.node)
+            .log(grep: #""swim/members/count": 2"#)
     }
 
-    func test_real_peers_2_connect_first_terminates() throws {
-        let (firstHandler, firstChannel) = self.makeClusterNode() { settings in
+    @Test
+    func test_real_peers_2_connect_first_terminates() async throws {
+        let (firstHandler, firstChannel) = try await self.suite.makeClusterNode() { settings in
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
 
-        let (secondHandler, _) = self.makeClusterNode() { settings in
+        let (secondHandler, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [firstHandler.shell.node]
 
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
 
-        try self.capturedLogs(of: firstHandler.shell.node)
-            .awaitLog(grep: #""swim/members/count": 2"#)
+        try await self.suite.clustered.capturedLogs(of: firstHandler.shell.node)
+            .log(grep: #""swim/members/count": 2"#)
 
         // close first channel
         firstHandler.log.warning("Killing \(firstHandler.shell.node)...")
         secondHandler.log.warning("Killing \(firstHandler.shell.node)...")
-        try firstChannel.close().wait()
+        try await firstChannel.close().get()
 
         // we should get back down to a 1 node cluster
         // TODO: add same tests but embedded
-        try self.capturedLogs(of: secondHandler.shell.node)
-            .awaitLog(grep: #""swim/suspects/count": 1"#, within: .seconds(20))
+        try await self.suite.clustered.capturedLogs(of: secondHandler.shell.node)
+            .log(grep: #""swim/suspects/count": 1"#, within: .seconds(20))
     }
 
-    func test_real_peers_2_connect_peerCountNeverExceeds2() throws {
-        let (firstHandler, _) = self.makeClusterNode() { settings in
+    @Test
+    func test_real_peers_2_connect_peerCountNeverExceeds2() async throws {
+        let (firstHandler, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
 
-        let (secondHandler, _) = self.makeClusterNode() { settings in
+        let (secondHandler, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [firstHandler.shell.node]
 
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
 
-        try self.capturedLogs(of: firstHandler.shell.node)
-            .awaitLog(grep: #""swim/members/count": 2"#)
+        try await self.suite.clustered.capturedLogs(of: firstHandler.shell.node)
+            .log(grep: #""swim/members/count": 2"#)
 
-        sleep(5)
+        try await Task.sleep(for: .seconds(5))
 
         do {
-            let found = try self.capturedLogs(of: secondHandler.shell.node)
-                .awaitLog(grep: #""swim/members/count": 3"#, within: .seconds(5))
-            XCTFail("Found unexpected members count: 3! Log message: \(found)")
+            let found = try await self.suite.clustered.capturedLogs(of: secondHandler.shell.node)
+                .log(grep: #""swim/members/count": 3"#, within: .seconds(5))
+            Issue.record("Found unexpected members count: 3! Log message: \(found)")
             return
         } catch {
             () // good!
         }
     }
 
-    func test_real_peers_5_connect() throws {
-        let (first, _) = self.makeClusterNode() { settings in
+    @Test
+    func test_real_peers_5_connect() async throws {
+        let (first, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.probeInterval = .milliseconds(200)
         }
-        let (second, _) = self.makeClusterNode() { settings in
+        let (second, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [first.shell.node]
         }
-        let (third, _) = self.makeClusterNode() { settings in
+        let (third, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [second.shell.node]
         }
-        let (fourth, _) = self.makeClusterNode() { settings in
+        let (fourth, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [third.shell.node]
         }
-        let (fifth, _) = self.makeClusterNode() { settings in
+        let (fifth, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.probeInterval = .milliseconds(200)
             settings.swim.initialContactPoints = [fourth.shell.node]
         }
 
-        try [first, second, third, fourth, fifth].forEach { handler in
+        for handler in [first, second, third, fourth, fifth] {
             do {
-                try self.capturedLogs(of: handler.shell.node)
-                    .awaitLog(
+                try await self.suite.clustered.capturedLogs(of: handler.shell.node)
+                    .log(
                         grep: #""swim/members/count": 5"#,
                         within: .seconds(5)
                     )
+                
             } catch {
                 throw TestError("Failed to find expected logs on \(handler.shell.node)", error: error)
             }
         }
     }
 
-    func test_real_peers_5_connect_butSlowly() throws {
-        let (first, _) = self.makeClusterNode() { settings in
+    @Test
+    func test_real_peers_5_connect_butSlowly() async throws {
+        let (first, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (second, _) = self.makeClusterNode() { settings in
+        let (second, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [first.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
         // we sleep in order to ensure we exhaust the "gossip at most ... times" logic
-        sleep(4)
-        let (third, _) = self.makeClusterNode() { settings in
+        try await Task.sleep(for: .seconds(4))
+        
+        let (third, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [second.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (fourth, _) = self.makeClusterNode() { settings in
+        let (fourth, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [third.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
         // after joining two more, we sleep again to make sure they all exhaust their gossip message counts
-        sleep(2)
-        let (fifth, _) = self.makeClusterNode() { settings in
+        try await Task.sleep(for: .seconds(2))
+        let (fifth, _) = try await self.suite.makeClusterNode() { settings in
             // we connect fir the first, they should exchange all information
             settings.swim.initialContactPoints = [
                 first.shell.node,
@@ -160,10 +169,10 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             ]
         }
 
-        try [first, second, third, fourth, fifth].forEach { handler in
+        for handler in [first, second, third, fourth, fifth] {
             do {
-                try self.capturedLogs(of: handler.shell.node)
-                    .awaitLog(
+                try await self.suite.clustered.capturedLogs(of: handler.shell.node)
+                    .log(
                         grep: #""swim/members/count": 5"#,
                         within: .seconds(5)
                     )
@@ -173,36 +182,37 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
         }
     }
 
-    func test_real_peers_5_then1Dies_becomesSuspect() throws {
-        let (first, firstChannel) = self.makeClusterNode() { settings in
+    @Test
+    func test_real_peers_5_then1Dies_becomesSuspect() async throws {
+        let (first, firstChannel) = try await self.suite.makeClusterNode() { settings in
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (second, _) = self.makeClusterNode() { settings in
+        let (second, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [first.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (third, _) = self.makeClusterNode() { settings in
+        let (third, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [second.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (fourth, _) = self.makeClusterNode() { settings in
+        let (fourth, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [third.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
-        let (fifth, _) = self.makeClusterNode() { settings in
+        let (fifth, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [fourth.shell.node]
             settings.swim.pingTimeout = .milliseconds(100)
             settings.swim.probeInterval = .milliseconds(500)
         }
 
-        try [first, second, third, fourth, fifth].forEach { handler in
+        for handler in [first, second, third, fourth, fifth] {
             do {
-                try self.capturedLogs(of: handler.shell.node)
-                    .awaitLog(
+                try await self.suite.clustered.capturedLogs(of: handler.shell.node)
+                    .log(
                         grep: #""swim/members/count": 5"#,
                         within: .seconds(20)
                     )
@@ -211,12 +221,12 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             }
         }
 
-        try firstChannel.close().wait()
+        try await firstChannel.close().get()
 
-        try [second, third, fourth, fifth].forEach { handler in
+        for handler in  [second, third, fourth, fifth] {
             do {
-                try self.capturedLogs(of: handler.shell.node)
-                    .awaitLog(
+                try await self.suite.clustered.capturedLogs(of: handler.shell.node)
+                    .log(
                         grep: #""swim/suspects/count": 1"#,
                         within: .seconds(10)
                     )
@@ -228,34 +238,34 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
 
     // ==== ----------------------------------------------------------------------------------------------------------------
     // MARK: nack tests
-
-    func test_real_pingRequestsGetSent_nacksArriveBack() throws {
-        let (firstHandler, _) = self.makeClusterNode()
-        let (secondHandler, _) = self.makeClusterNode() { settings in
+    @Test
+    func test_real_pingRequestsGetSent_nacksArriveBack() async throws {
+        let (firstHandler, _) = try await self.suite.makeClusterNode()
+        let (secondHandler, _) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [firstHandler.shell.node]
         }
-        let (thirdHandler, thirdChannel) = self.makeClusterNode() { settings in
+        let (thirdHandler, thirdChannel) = try await self.suite.makeClusterNode() { settings in
             settings.swim.initialContactPoints = [firstHandler.shell.node, secondHandler.shell.node]
         }
 
-        try self.capturedLogs(of: firstHandler.shell.node)
-            .awaitLog(grep: #""swim/members/count": 3"#)
-        try self.capturedLogs(of: secondHandler.shell.node)
-            .awaitLog(grep: #""swim/members/count": 3"#)
-        try self.capturedLogs(of: thirdHandler.shell.node)
-            .awaitLog(grep: #""swim/members/count": 3"#)
+        try await self.suite.clustered.capturedLogs(of: firstHandler.shell.node)
+            .log(grep: #""swim/members/count": 3"#)
+        try await self.suite.clustered.capturedLogs(of: secondHandler.shell.node)
+            .log(grep: #""swim/members/count": 3"#)
+        try await self.suite.clustered.capturedLogs(of: thirdHandler.shell.node)
+            .log(grep: #""swim/members/count": 3"#)
 
-        try thirdChannel.close().wait()
+        try await thirdChannel.close().get()
 
-        try self.capturedLogs(of: firstHandler.shell.node)
-            .awaitLog(grep: "Read successful: response/nack")
-        try self.capturedLogs(of: secondHandler.shell.node)
-            .awaitLog(grep: "Read successful: response/nack")
+        try await self.suite.clustered.capturedLogs(of: firstHandler.shell.node)
+            .log(grep: "Read successful: response/nack")
+        try await self.suite.clustered.capturedLogs(of: secondHandler.shell.node)
+            .log(grep: "Read successful: response/nack")
 
-        try self.capturedLogs(of: firstHandler.shell.node)
-            .awaitLog(grep: #""swim/suspects/count": 1"#)
-        try self.capturedLogs(of: secondHandler.shell.node)
-            .awaitLog(grep: #""swim/suspects/count": 1"#)
+        try await self.suite.clustered.capturedLogs(of: firstHandler.shell.node)
+            .log(grep: #""swim/suspects/count": 1"#)
+        try await self.suite.clustered.capturedLogs(of: secondHandler.shell.node)
+            .log(grep: #""swim/suspects/count": 1"#)
     }
 }
 

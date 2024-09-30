@@ -1,4 +1,4 @@
-// swift-tools-version:5.7
+// swift-tools-version:6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import class Foundation.ProcessInfo
@@ -12,9 +12,12 @@ if ProcessInfo.processInfo.environment["WARNINGS_AS_ERRORS"] != nil {
     print("WARNINGS_AS_ERRORS enabled, passing `-warnings-as-errors`")
     globalSwiftSettings = [
         SwiftSetting.unsafeFlags(["-warnings-as-errors"]),
+        .swiftLanguageMode(.v6)
     ]
 } else {
-    globalSwiftSettings = []
+    globalSwiftSettings = [
+        .swiftLanguageMode(.v6)
+    ]
 }
 
 var targets: [PackageDescription.Target] = [
@@ -22,9 +25,7 @@ var targets: [PackageDescription.Target] = [
     // MARK: SWIM
 
     .target(
-        name: "ClusterMembership",
-        dependencies: [
-        ]
+        name: "ClusterMembership"
     ),
 
     .target(
@@ -45,6 +46,17 @@ var targets: [PackageDescription.Target] = [
             .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
             .product(name: "NIOExtras", package: "swift-nio-extras"),
 
+            .product(name: "Logging", package: "swift-log"),
+            .product(name: "Metrics", package: "swift-metrics"),
+        ]
+    ),
+    
+    // NOT FOR PUBLIC CONSUMPTION.
+    .target(
+        name: "SWIMTestKit",
+        dependencies: [
+            "SWIM",
+            .product(name: "NIO", package: "swift-nio"),
             .product(name: "Logging", package: "swift-log"),
             .product(name: "Metrics", package: "swift-metrics"),
         ]
@@ -89,17 +101,6 @@ var targets: [PackageDescription.Target] = [
         ]
     ),
 
-    // NOT FOR PUBLIC CONSUMPTION.
-    .testTarget(
-        name: "SWIMTestKit",
-        dependencies: [
-            "SWIM",
-            .product(name: "NIO", package: "swift-nio"),
-            .product(name: "Logging", package: "swift-log"),
-            .product(name: "Metrics", package: "swift-metrics"),
-        ]
-    ),
-
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Integration Tests - `it_` prefixed
 
@@ -123,7 +124,7 @@ var dependencies: [Package.Dependency] = [
 
     // ~~~ SSWG APIs ~~~
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
-    .package(url: "https://github.com/apple/swift-metrics.git", "2.3.2" ..< "3.0.0"), // since latest
+    .package(url: "https://github.com/apple/swift-metrics.git", "2.5.0" ..< "3.0.0"), // since latest
 
     // ~~~ SwiftPM Plugins ~~~
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
@@ -147,10 +148,10 @@ let products: [PackageDescription.Product] = [
 var package = Package(
     name: "swift-cluster-membership",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16),
-        .tvOS(.v16),
-        .watchOS(.v9),
+        .macOS(.v15),
+        .iOS(.v18),
+        .tvOS(.v18),
+        .watchOS(.v11),
     ],
     products: products,
 

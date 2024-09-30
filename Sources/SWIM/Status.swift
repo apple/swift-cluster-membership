@@ -36,7 +36,7 @@ extension SWIM {
     /// - `alive | suspect | unreachable -> dead`
     ///
     /// - SeeAlso: `SWIM.Incarnation`
-    public enum Status: Hashable, Sendable {
+    public enum Status: Codable, Hashable, Sendable {
         /// Indicates an `alive` member of the cluster, i.e. if is reachable and properly replies to all probes on time.
         case alive(incarnation: Incarnation)
         /// Indicates a `suspect` member of the cluster, meaning that it did not reply on time to probing and MAY be unreachable.

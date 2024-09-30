@@ -15,22 +15,23 @@
 import ClusterMembership
 import SWIM
 import Metrics
-import Prometheus
 import SWIMNIOExample
 import NIO
 import Logging
-import Lifecycle
+import ServiceLifecycle
 import ArgumentParser
 
-struct SWIMNIOSampleCluster: ParsableCommand {
+@main
+struct SWIMNIOSampleCluster: AsyncParsableCommand {
+    
     @Option(name: .shortAndLong, help: "The number of nodes to start, defaults to: 1")
-    var count: Int?
+    var count: Int = 1
 
-    @Argument(help: "Hostname that node(s) should bind to")
-    var host: String?
+//    @Argument(help: "Hostname that node(s) should bind to")
+//    var host: String?
     
     @Option(help: "Determines which this node should bind to; Only effective when running a single node")
-    var port: Int?
+    var port: Int = 7001
 
     @Option(help: "Configures which nodes should be passed in as initial contact points, format: host:port,")
     var initialContactPoints: String = ""
@@ -38,10 +39,11 @@ struct SWIMNIOSampleCluster: ParsableCommand {
     @Option(help: "Configures log level")
     var logLevel: String = "info"
 
-    mutating func run() throws {
+    func run() async throws {
         LoggingSystem.bootstrap(_SWIMPrettyMetadataLogHandler.init)
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
 
+        // FIXME: Update Prometheus client
         // Uncomment this if you'd like to see metrics displayed in the command line periodically;
         // This bootstraps and uses the Prometheus metrics backend to report metrics periodically by printing them to the stdout (console).
         //
@@ -58,51 +60,44 @@ struct SWIMNIOSampleCluster: ParsableCommand {
 //             }
 //        }
         
-        let lifecycle = ServiceLifecycle()
-        lifecycle.registerShutdown(
-            label: "eventLoopGroup",
-            .sync(group.syncShutdownGracefully)
-        )
-
+        var services: [any Service] = []
         var settings = SWIMNIO.Settings()
-        if count == nil || count == 1 {
-            let nodePort = self.port ?? 7001
+        if self.count == 1 {
+            let nodePort = self.port
             settings.logger = Logger(label: "swim-\(nodePort)")
             settings.logger.logLevel = self.parseLogLevel()
             settings.swim.logger.logLevel = self.parseLogLevel()
 
             settings.swim.initialContactPoints = self.parseContactPoints()
-
-            let node = SampleSWIMNIONode(port: nodePort, settings: settings, group: group)
-            lifecycle.register(
-                label: "swim-\(nodePort)",
-                start: .sync { node.start() },
-                shutdown: .sync {}
+            services.append(
+                SampleSWIMNIONode(
+                    port: nodePort,
+                    settings: settings,
+                    group: group
+                )
             )
-
         } else {
-            let basePort = port ?? 7001
-            for i in 1...(count ?? 1) {
+            let basePort = port
+            for i in 1...count {
                 let nodePort = basePort + i
 
                 settings.logger = Logger(label: "swim-\(nodePort)")
                 settings.swim.initialContactPoints = self.parseContactPoints()
 
-                let node = SampleSWIMNIONode(
-                    port: nodePort,
-                    settings: settings,
-                    group: group
-                )
-
-                lifecycle.register(
-                    label: "swim\(nodePort)",
-                    start: .sync { node.start() },
-                    shutdown: .sync {}
+                services.append(
+                    SampleSWIMNIONode(
+                        port: nodePort,
+                        settings: settings,
+                        group: group
+                    )
                 )
             }
         }
-        
-        try lifecycle.startAndWait()
+        let serviceGroup = ServiceGroup(
+            services: services,
+            logger: .init(label: "swim")
+        )
+        try await serviceGroup.run()
     }
 
     private func parseLogLevel() -> Logger.Level {
@@ -127,5 +122,3 @@ struct SWIMNIOSampleCluster: ParsableCommand {
         return Set(contactPoints)
     }
 }
-
-SWIMNIOSampleCluster.main()

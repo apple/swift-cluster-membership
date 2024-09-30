@@ -14,9 +14,10 @@
 
 import ClusterMembership
 @testable import SWIM
-import XCTest
+import Testing
 
-final class SWIMSettingsTests: XCTestCase {
+final class SWIMSettingsTests {
+    @Test
     func test_gossipedEnoughTimes() {
         let settings = SWIM.Settings()
 
@@ -29,35 +30,35 @@ final class SWIMSettingsTests: XCTestCase {
         // just 1 member, means no other peers thus we dont have to gossip ever
         members = 1
         g.numberOfTimesGossiped = 0
-        XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
+        #expect(settings.gossip.gossipedEnoughTimes(g, members: members) == false)
         g.numberOfTimesGossiped = 1
-        XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
+        #expect(settings.gossip.gossipedEnoughTimes(g, members: members) == false)
 
         members = 2
         g.numberOfTimesGossiped = 0
         for _ in 0 ... 3 {
-            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
+            #expect(settings.gossip.gossipedEnoughTimes(g, members: members) == false)
             g.numberOfTimesGossiped += 1
         }
 
         members = 10
         g.numberOfTimesGossiped = 0
         for _ in 0 ... 9 {
-            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
+            #expect(settings.gossip.gossipedEnoughTimes(g, members: members) == false)
             g.numberOfTimesGossiped += 1
         }
 
         members = 50
         g.numberOfTimesGossiped = 0
         for _ in 0 ... 16 {
-            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
+            #expect(settings.gossip.gossipedEnoughTimes(g, members: members) == false)
             g.numberOfTimesGossiped += 1
         }
 
         members = 200
         g.numberOfTimesGossiped = 0
         for _ in 0 ... 21 {
-            XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
+            #expect(settings.gossip.gossipedEnoughTimes(g, members: members) == false)
             g.numberOfTimesGossiped += 1
         }
     }

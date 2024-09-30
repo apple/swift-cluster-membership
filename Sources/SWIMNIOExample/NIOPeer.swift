@@ -34,30 +34,32 @@ public extension SWIM {
         }
 
         public func ping(
-            payload: GossipPayload<SWIM.NIOPeer>,
+            payload: GossipPayload<SWIM.NIOPeer>?,
             from origin: SWIM.NIOPeer,
             timeout: Swift.Duration,
             sequenceNumber: SWIM.SequenceNumber
         ) async throws -> PingResponse<SWIM.NIOPeer, SWIM.NIOPeer> {
             try await withCheckedThrowingContinuation { continuation in
                 let message = SWIM.Message.ping(replyTo: origin, payload: payload, sequenceNumber: sequenceNumber)
-                let command = SWIMNIOWriteCommand(message: message, to: self.swimNode, replyTimeout: timeout.toNIO, replyCallback: { reply in
-                    switch reply {
-                    case .success(.response(.nack(_, _))):
-                        continuation.resume(throwing: SWIMNIOIllegalMessageTypeError("Unexpected .nack reply to .ping message! Was: \(reply)"))
-
-                    case .success(.response(let pingResponse)):
-                        assert(sequenceNumber == pingResponse.sequenceNumber, "callback invoked with not matching sequence number! Submitted with \(sequenceNumber) but invoked with \(pingResponse.sequenceNumber)!")
-                        continuation.resume(returning: pingResponse)
-
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-
-                    case .success(let other):
-                        continuation.resume(throwing:
-                            SWIMNIOIllegalMessageTypeError("Unexpected message, got: [\(other)]:\(reflecting: type(of: other)) while expected \(PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)"))
-                    }
-                })
+                let command: SWIMNIOWriteCommand = .wait(
+                    reply: .init(timeout: timeout.toNIO) { reply in
+                        switch reply {
+                        case .success(.nack(_, _)):
+                            continuation.resume(throwing: SWIMNIOIllegalMessageTypeError("Unexpected .nack reply to .ping message! Was: \(reply)"))
+                            
+                        case .success(let pingResponse):
+                            assert(sequenceNumber == pingResponse.sequenceNumber, "callback invoked with not matching sequence number! Submitted with \(sequenceNumber) but invoked with \(pingResponse.sequenceNumber)!")
+                            continuation.resume(returning: pingResponse)
+                            
+                        case .failure(let error):
+                            continuation.resume(throwing: error)
+                        }
+                    },
+                    info: .init(
+                        message: message,
+                        recipient: self.swimNode.address
+                    )
+                )
 
                 self.channel.writeAndFlush(command, promise: nil)
             }
@@ -65,26 +67,29 @@ public extension SWIM {
 
         public func pingRequest(
             target: SWIM.NIOPeer,
-            payload: GossipPayload<SWIM.NIOPeer>,
+            payload: GossipPayload<SWIM.NIOPeer>?,
             from origin: SWIM.NIOPeer,
             timeout: Duration,
             sequenceNumber: SWIM.SequenceNumber
         ) async throws -> PingResponse<SWIM.NIOPeer, SWIM.NIOPeer> {
             try await withCheckedThrowingContinuation { continuation in
                 let message = SWIM.Message.pingRequest(target: target, replyTo: origin, payload: payload, sequenceNumber: sequenceNumber)
-                let command = SWIMNIOWriteCommand(message: message, to: self.node, replyTimeout: timeout.toNIO, replyCallback: { reply in
-                    switch reply {
-                    case .success(.response(let pingResponse)):
-                        assert(sequenceNumber == pingResponse.sequenceNumber, "callback invoked with not matching sequence number! Submitted with \(sequenceNumber) but invoked with \(pingResponse.sequenceNumber)!")
-                        continuation.resume(returning: pingResponse)
+                let command: SWIMNIOWriteCommand = .wait(
+                    reply: .init(timeout: timeout.toNIO) { reply in
+                        switch reply {
+                        case .success(let pingResponse):
+                            assert(sequenceNumber == pingResponse.sequenceNumber, "callback invoked with not matching sequence number! Submitted with \(sequenceNumber) but invoked with \(pingResponse.sequenceNumber)!")
+                            continuation.resume(returning: pingResponse)
 
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-
-                    case .success(let other):
-                        continuation.resume(throwing: SWIMNIOIllegalMessageTypeError("Unexpected message, got: \(other) while expected \(PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)"))
-                    }
-                })
+                        case .failure(let error):
+                            continuation.resume(throwing: error)
+                        }
+                    },
+                    info: .init(
+                        message: message,
+                        recipient: self.node.address
+                    )
+                )
 
                 self.channel.writeAndFlush(command, promise: nil)
             }
@@ -94,10 +99,12 @@ public extension SWIM {
             acknowledging sequenceNumber: SWIM.SequenceNumber,
             target: SWIM.NIOPeer,
             incarnation: Incarnation,
-            payload: GossipPayload<SWIM.NIOPeer>
+            payload: GossipPayload<SWIM.NIOPeer>?
         ) {
             let message = SWIM.Message.response(.ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
-            let command = SWIMNIOWriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)
+            let command: SWIMNIOWriteCommand = .fireAndForget(
+                .init(message: message, recipient: self.node.address)
+            )
 
             self.channel.writeAndFlush(command, promise: nil)
         }
@@ -107,7 +114,9 @@ public extension SWIM {
             target: SWIM.NIOPeer
         ) {
             let message = SWIM.Message.response(.nack(target: target, sequenceNumber: sequenceNumber))
-            let command = SWIMNIOWriteCommand(message: message, to: self.node, replyTimeout: .seconds(0), replyCallback: nil)
+            let command: SWIMNIOWriteCommand = .fireAndForget(
+                .init(message: message, recipient: self.node.address)
+            )
 
             self.channel.writeAndFlush(command, promise: nil)
         }
@@ -156,5 +165,11 @@ public struct SWIMNIOIllegalMessageTypeError: Error, CustomStringConvertible {
 
     public var description: String {
         "SWIMNIOIllegalMessageTypeError(\(self.message))"
+    }
+}
+
+extension Node {
+    var address: SocketAddress {
+        try! .init(ipAddress: self.host, port: self.port) // try!-safe since the host/port is always safe
     }
 }

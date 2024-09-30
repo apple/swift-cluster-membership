@@ -62,7 +62,7 @@ public protocol SWIMPeer: SWIMAddressablePeer {
     func ping(
         payload: SWIM.GossipPayload,
         from origin: SWIMPingOriginPeer,
-        timeout: DispatchTimeInterval,
+        timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
     ) async throws -> SWIM.PingResponse
     
