@@ -49,9 +49,7 @@ public final class LogCapture: Sendable {
     public func log(
         grep: String,
         within: Duration = .seconds(10),
-        file: StaticString = #file,
-        line: UInt = #line,
-        column: UInt = #column
+        sourceLocation: SourceLocation = #_sourceLocation
     ) async throws -> CapturedLogMessage {
         let startTime = ContinuousClock.now
         let deadline = startTime.advanced(by: within)
@@ -67,7 +65,10 @@ public final class LogCapture: Sendable {
             try await Task.sleep(for: .seconds(1))
         }
 
-        throw LogCaptureError(message: "After \(within), logs still did not contain: [\(grep)]", file: file, line: line, column: column)
+        throw LogCaptureError(
+            message: "After \(within), logs still did not contain: [\(grep)]",
+            sourceLocation: sourceLocation
+        )
     }
 }
 
@@ -241,7 +242,7 @@ extension LogCapture {
         expectedFile: String? = nil,
         expectedLine: Int = -1,
         failTest: Bool = true,
-        file: StaticString = #file, line: UInt = #line, column: UInt = #column
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws -> CapturedLogMessage {
         precondition(prefix != nil || message != nil || grep != nil || level != nil || level != nil || expectedFile != nil, "At least one query parameter must be not `nil`!")
 
@@ -318,14 +319,19 @@ extension LogCapture {
             let message = """
             Did not find expected log, matching query: 
                 [\(query)]
-            in captured logs at \(file):\(line)
+            in captured logs at \(sourceLocation)
             """
             if failTest {
-                Issue.record(.init(rawValue: message))
-//                , file: (file), line: line)
+                Issue.record(
+                    .init(rawValue: message),
+                    sourceLocation: sourceLocation
+                )
             }
-
-            throw LogCaptureError(message: message, file: file, line: line, column: column)
+            
+            throw LogCaptureError(
+                message: message,
+                sourceLocation: sourceLocation
+            )
         }
     }
 
@@ -360,10 +366,8 @@ extension LogCapture {
 
 internal struct LogCaptureError: Error, CustomStringConvertible {
     let message: String
-    let file: StaticString
-    let line: UInt
-    let column: UInt
+    let sourceLocation: SourceLocation
     var description: String {
-        "LogCaptureError(\(message) at \(file):\(line) column:\(column))"
+        "LogCaptureError(\(message) with at \(sourceLocation)"
     }
 }

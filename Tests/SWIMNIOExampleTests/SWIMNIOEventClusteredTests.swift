@@ -127,15 +127,20 @@ extension ProbeEventHandler {
     @discardableResult
     func expectEvent(
         _ expected: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>? = nil,
-        file: StaticString = (#file), line: UInt = #line
+        fileID: String = #fileID,
+        filePath: String = #filePath,
+        line: Int = #line,
+        column: Int = #column
     ) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
         let got = try self.expectEvent()
-
+        
         if let expected = expected {
-            #expect(got == expected)
-//            , file: file, line: line)
+            #expect(
+                got == expected,
+                sourceLocation: SourceLocation(fileID: fileID, filePath: filePath, line: line, column: column)
+            )
         }
-
+        
         return got
     }
 }

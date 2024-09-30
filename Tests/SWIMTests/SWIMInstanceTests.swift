@@ -1422,27 +1422,31 @@ final class SWIMInstanceTests {
     // MARK: utility functions
     func validateMark(
         swim: inout SWIM.Instance<TestPeer, TestPeer, TestPeer>, member: SWIM.Member<TestPeer>, status: SWIM.Status, shouldSucceed: Bool,
-        file: StaticString = (#file), line: UInt = #line
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
-        try self.validateMark(swim: &swim, peer: member.peer, status: status, shouldSucceed: shouldSucceed, file: file, line: line)
+        try self.validateMark(swim: &swim, peer: member.peer, status: status, shouldSucceed: shouldSucceed, sourceLocation: sourceLocation)
     }
 
     func validateMark(
         swim: inout SWIM.Instance<TestPeer, TestPeer, TestPeer>, peer: TestPeer, status: SWIM.Status, shouldSucceed: Bool,
-        file: StaticString = (#file), line: UInt = #line
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
         let markResult = swim.mark(peer, as: status)
 
         if shouldSucceed {
             guard case .applied = markResult else {
-                Issue.record("Expected `.applied`, got `\(markResult)`")
-//                , file: file, line: line)
+                Issue.record(
+                  "Expected `.applied`, got `\(markResult)`",
+                  sourceLocation: sourceLocation
+                )
                 return
             }
         } else {
             guard case .ignoredDueToOlderStatus = markResult else {
-                Issue.record("Expected `.ignoredDueToOlderStatus`, got `\(markResult)`")
-//                , file: file, line: line)
+                Issue.record(
+                    "Expected `.ignoredDueToOlderStatus`, got `\(markResult)`",
+                    sourceLocation: sourceLocation
+                )
                 return
             }
         }
@@ -1450,15 +1454,23 @@ final class SWIMInstanceTests {
 
     func validateSuspects(
         _ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>, expected: Set<Node>,
-        file: StaticString = (#file), line: UInt = #line
+        sourceLocation: SourceLocation = #_sourceLocation
     ) {
-        #expect(Set(swim.suspects.map {$0.node}) == expected)
-//                file: file, line: line)
+        #expect(
+            Set(swim.suspects.map {$0.node}) == expected,
+            sourceLocation: sourceLocation
+        )
     }
-
-    func validateGossip(swim: inout SWIM.Instance<TestPeer, TestPeer, TestPeer>, expected: Set<SWIM.Member<TestPeer>>, file: StaticString = (#file), line: UInt = #line) throws {
+    
+    func validateGossip(
+        swim: inout SWIM.Instance<TestPeer, TestPeer, TestPeer>,
+        expected: Set<SWIM.Member<TestPeer>>,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) throws {
         let payload = swim.makeGossipPayload(to: nil)
-        #expect(Set(payload.members) == expected)
-//                , file: file, line: line)
+        #expect(
+            Set(payload.members) == expected,
+            sourceLocation: sourceLocation
+        )
     }
 }

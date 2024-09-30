@@ -221,33 +221,41 @@ final class SWIMMetricsTests {
 // MARK: Assertions
 
 extension SWIMMetricsTests {
-    private func expectMembership(_ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>, suspect: Int, file: StaticString = #file, line: UInt = #line) {
+    private func expectMembership(
+        _ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>,
+        suspect: Int,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         let m: SWIM.Metrics = swim.metrics
-
+        
         let gotSuspect: Double? = try! self.testMetrics.expectRecorder(m.membersSuspect).lastValue
         #expect(
             gotSuspect == Double(suspect),
             """
             Expected \(suspect) [alive] members, was: \(String(reflecting: gotSuspect)); Members:
             \(swim.members.map(\.description).joined(separator: "\n"))
-            """
-//            file: file,
-//            line: line
+            """,
+            sourceLocation: sourceLocation
         )
     }
-
-    private func expectMembership(_ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>, alive: Int, unreachable: Int, totalDead: Int, file: StaticString = #file, line: UInt = #line) {
+    
+    private func expectMembership(
+        _ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>,
+        alive: Int,
+        unreachable: Int,
+        totalDead: Int,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
         let m: SWIM.Metrics = swim.metrics
-
+        
         let gotAlive: Double? = try! self.testMetrics.expectRecorder(m.membersAlive).lastValue
         #expect(
             gotAlive == Double(alive),
             """
             Expected \(alive) [alive] members, was: \(String(reflecting: gotAlive)); Members:
             \(swim.members.map(\.description).joined(separator: "\n"))
-            """
-//            file: file,
-//            line: line
+            """,
+            sourceLocation: sourceLocation
         )
 
         let gotUnreachable: Double? = try! self.testMetrics.expectRecorder(m.membersUnreachable).lastValue
@@ -256,9 +264,8 @@ extension SWIMMetricsTests {
             """
             Expected \(unreachable) [unreachable] members, was: \(String(reflecting: gotUnreachable)); Members:
             \(swim.members.map(\.description).joined(separator: "\n")))
-            """
-//            file: file,
-//            line: line
+            """,
+            sourceLocation: sourceLocation
         )
 
         let gotTotalDead: Int64? = try! self.testMetrics.expectCounter(m.membersTotalDead).totalValue
@@ -267,9 +274,8 @@ extension SWIMMetricsTests {
             """
             Expected \(totalDead) [dead] members, was: \(String(reflecting: gotTotalDead)); Members:
             \(swim.members.map(\.description).joined(separator: "\n"))
-            """
-//            file: file,
-//            line: line
+            """,
+            sourceLocation: sourceLocation
         )
     }
 }
