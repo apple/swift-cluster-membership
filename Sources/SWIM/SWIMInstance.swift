@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -286,7 +286,7 @@ extension SWIM {
             }
 
             // just in case we had a peer added manually, and thus we did not know its uuid, let us remove it
-            // maybe we replaced a mismatching UID node already, but let's sanity check and remove also if we stored any "without UID" node
+            // maybe we replaced a mismatching UID node already, but let's check and remove also if we stored any "without UID" node
             if let removed = self._members.removeValue(forKey: self.node.withoutUID) {
                 switch self.confirmDead(peer: removed.peer) {
                 case .ignored:

@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -57,8 +57,8 @@ final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
             .awaitLog(grep: #""swim/members/count": 2"#)
 
         // close first channel
-        firstHandler.log.warning("Killing \(firstHandler.shell.node)...")
-        secondHandler.log.warning("Killing \(firstHandler.shell.node)...")
+        firstHandler.log.warning("Stopping \(firstHandler.shell.node)...")
+        secondHandler.log.warning("Stopping \(firstHandler.shell.node)...")
         try firstChannel.close().wait()
 
         // we should get back down to a 1 node cluster

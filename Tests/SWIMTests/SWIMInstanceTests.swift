@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -432,7 +432,7 @@ final class SWIMInstanceTests: XCTestCase {
         )
 
         // those are illegal, but even IF they happened at least we'd never bubble them up to high level
-        // moving from .dead to any other state is illegal and should assert // TODO: sanity check
+        // moving from .dead to any other state is illegal and should assert // TODO: check
         XCTAssertFalse(
             SWIM.MemberStatusChangedEvent(
                 previousStatus: .dead,
@@ -1612,7 +1612,7 @@ final class SWIMInstanceTests: XCTestCase {
     // MARK: Checks
 
     /// This test is weird and should "never" fail, but it did, on some toolchains.
-    /// This test is to remain here as a sanity check if timeouts or something else would suddenly return unexpected values.
+    /// This test is to remain here as a check if timeouts or something else would suddenly return unexpected values.
     func test_log_becauseWeSawItReturnWronglyOnSomeToolchains() {
         XCTAssertEqual(log2(4.0), 2)
     }

@@ -33,3 +33,6 @@ Dockerfile
 Snippets/*
 dev/git.commit.template
 .unacceptablelanguageignore
+IntegrationTests/*.sh
+Sources/SWIM/Utils/Heap.swift
+Tests/SWIMTests/HeapTests.swift

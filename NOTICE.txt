@@ -29,7 +29,7 @@ components that this product depends on.
 This product contains some modified data-structures from Apple/Swift-NIO.
 
   * LICENSE (Apache 2.0):
-    * https://github.com/apple/swift-nio/blob/master/LICENSE.txt
+    * https://github.com/apple/swift-nio/blob/main/LICENSE.txt
   * HOMEPAGE:
     * https://github.com/apple/swift-nio
 
