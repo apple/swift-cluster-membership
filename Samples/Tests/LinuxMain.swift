@@ -25,7 +25,7 @@ import XCTest
 
 XCTMain(
     [
-        testCase(SampleTest.allTests),
+        testCase(SampleTest.allTests)
     ]
 )
 #endif

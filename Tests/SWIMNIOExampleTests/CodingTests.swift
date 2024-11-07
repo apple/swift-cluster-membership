@@ -16,12 +16,19 @@ import ClusterMembership
 import Foundation
 import NIO
 import SWIM
-@testable import SWIMNIOExample
 import XCTest
 
+@testable import SWIMNIOExample
+
 final class CodingTests: XCTestCase {
-    lazy var nioPeer: SWIM.NIOPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121), channel: EmbeddedChannel())
-    lazy var nioPeerOther: SWIM.NIOPeer = SWIM.NIOPeer(node: .init(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324), channel: EmbeddedChannel())
+    lazy var nioPeer: SWIM.NIOPeer = SWIM.NIOPeer(
+        node: .init(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121),
+        channel: EmbeddedChannel()
+    )
+    lazy var nioPeerOther: SWIM.NIOPeer = SWIM.NIOPeer(
+        node: .init(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324),
+        channel: EmbeddedChannel()
+    )
 
     lazy var memberOne = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 1), protocolPeriod: 0)
     lazy var memberTwo = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0)
@@ -36,15 +43,15 @@ final class CodingTests: XCTestCase {
             ContainsNode(node: Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: nil))
         )
         try self.shared_serializationRoundtrip(
-            ContainsNode(node: Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: .random(in: 0 ... UInt64.max)))
+            ContainsNode(node: Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: .random(in: 0...UInt64.max)))
         )
         try self.shared_serializationRoundtrip(
-            Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: .random(in: 0 ... UInt64.max))
+            Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: .random(in: 0...UInt64.max))
         )
 
         // with name
         try self.shared_serializationRoundtrip(
-            Node(protocol: "udp", name: "kappa", host: "127.0.0.1", port: 2222, uid: .random(in: 0 ... UInt64.max))
+            Node(protocol: "udp", name: "kappa", host: "127.0.0.1", port: 2222, uid: .random(in: 0...UInt64.max))
         )
     }
 
@@ -62,19 +69,35 @@ final class CodingTests: XCTestCase {
             self.memberTwo,
             self.memberThree,
         ])
-        try self.shared_serializationRoundtrip(SWIM.Message.ping(replyTo: self.nioPeer, payload: payloadSome, sequenceNumber: 1212))
+        try self.shared_serializationRoundtrip(
+            SWIM.Message.ping(replyTo: self.nioPeer, payload: payloadSome, sequenceNumber: 1212)
+        )
     }
 
     func test_serializationOf_pingReq() throws {
         let payloadNone: SWIM.GossipPayload<SWIM.NIOPeer> = .none
-        try self.shared_serializationRoundtrip(SWIM.Message.pingRequest(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadNone, sequenceNumber: 111))
+        try self.shared_serializationRoundtrip(
+            SWIM.Message.pingRequest(
+                target: self.nioPeer,
+                replyTo: self.nioPeerOther,
+                payload: payloadNone,
+                sequenceNumber: 111
+            )
+        )
 
         let payloadSome: SWIM.GossipPayload = .membership([
             self.memberOne,
             self.memberTwo,
             self.memberThree,
         ])
-        try self.shared_serializationRoundtrip(SWIM.Message.pingRequest(target: self.nioPeer, replyTo: self.nioPeerOther, payload: payloadSome, sequenceNumber: 1212))
+        try self.shared_serializationRoundtrip(
+            SWIM.Message.pingRequest(
+                target: self.nioPeer,
+                replyTo: self.nioPeerOther,
+                payload: payloadSome,
+                sequenceNumber: 1212
+            )
+        )
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------

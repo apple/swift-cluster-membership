@@ -27,10 +27,11 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import XCTest
+
 @testable import CoreMetrics
 @testable import Metrics
 @testable import SWIM
-import XCTest
 
 /// Taken directly from swift-metrics's own test package.
 ///
@@ -70,7 +71,12 @@ public final class TestMetrics: MetricsFactory {
         self.make(label: label, dimensions: dimensions, registry: &self.timers, maker: TestTimer.init)
     }
 
-    private func make<Item>(label: String, dimensions: [(String, String)], registry: inout [FullKey: Item], maker: (String, [(String, String)]) -> Item) -> Item {
+    private func make<Item>(
+        label: String,
+        dimensions: [(String, String)],
+        registry: inout [FullKey: Item],
+        maker: (String, [(String, String)]) -> Item
+    ) -> Item {
         self.lock.withLock {
             let item = maker(label, dimensions)
             registry[.init(label: label, dimensions: dimensions)] = item
@@ -107,8 +113,8 @@ extension TestMetrics.FullKey: Hashable {
     }
 
     public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.label == rhs.label &&
-            Dictionary(uniqueKeysWithValues: lhs.dimensions) == Dictionary(uniqueKeysWithValues: rhs.dimensions)
+        lhs.label == rhs.label
+            && Dictionary(uniqueKeysWithValues: lhs.dimensions) == Dictionary(uniqueKeysWithValues: rhs.dimensions)
     }
 }
 
@@ -368,8 +374,8 @@ public final class TestTimer: TestMetric, TimerHandler, Equatable {
     }
 }
 
-private extension NSLock {
-    func withLock<T>(_ body: () -> T) -> T {
+extension NSLock {
+    fileprivate func withLock<T>(_ body: () -> T) -> T {
         self.lock()
         defer {
             self.unlock()

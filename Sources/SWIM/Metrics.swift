@@ -110,26 +110,26 @@ extension SWIM {
                 self.messageInboundCount = Counter(
                     label: settings.metrics.makeLabel("message", "count"),
                     dimensions: [
-                        ("direction", "in"),
+                        ("direction", "in")
                     ]
                 )
                 self.messageInboundBytes = Recorder(
                     label: settings.metrics.makeLabel("message", "bytes"),
                     dimensions: [
-                        ("direction", "in"),
+                        ("direction", "in")
                     ]
                 )
 
                 self.messageOutboundCount = Counter(
                     label: settings.metrics.makeLabel("message", "count"),
                     dimensions: [
-                        ("direction", "out"),
+                        ("direction", "out")
                     ]
                 )
                 self.messageOutboundBytes = Recorder(
                     label: settings.metrics.makeLabel("message", "bytes"),
                     dimensions: [
-                        ("direction", "out"),
+                        ("direction", "out")
                     ]
                 )
             }
@@ -200,7 +200,7 @@ extension SWIM.Metrics {
             case .unreachable:
                 unreachables += 1
             case .dead:
-                () // dead is reported as a removal when they're removed and tombstoned, not as a gauge
+                ()  // dead is reported as a removal when they're removed and tombstoned, not as a gauge
             }
         }
         self.membersAlive.record(alives)

@@ -13,12 +13,13 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-@testable import CoreMetrics
 import Dispatch
 import Metrics
-@testable import SWIM
 import SWIMTestKit
 import XCTest
+
+@testable import CoreMetrics
+@testable import SWIM
 
 final class SWIMMetricsTests: XCTestCase {
     let myselfNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7001, uid: 1111)
@@ -82,9 +83,14 @@ final class SWIMMetricsTests: XCTestCase {
         _ = swim.onPeriodicPingTick()
         self.expectMembership(swim, alive: 4, unreachable: 0, totalDead: 0)
 
-        for _ in 0 ..< 10 {
+        for _ in 0..<10 {
             _ = swim.onPingResponse(
-                response: .timeout(target: self.second, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
+                response: .timeout(
+                    target: self.second,
+                    pingRequestOrigin: nil,
+                    timeout: .seconds(1),
+                    sequenceNumber: 0
+                ),
                 pingRequestOrigin: nil,
                 pingRequestSequenceNumber: nil
             )
@@ -92,7 +98,7 @@ final class SWIMMetricsTests: XCTestCase {
         }
         expectMembership(swim, suspect: 1)
 
-        for _ in 0 ..< 10 {
+        for _ in 0..<10 {
             _ = swim.onPingResponse(
                 response: .timeout(target: self.third, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
                 pingRequestOrigin: nil,
@@ -141,9 +147,14 @@ final class SWIMMetricsTests: XCTestCase {
 
         let totalMembers = 4
 
-        for _ in 0 ..< 10 {
+        for _ in 0..<10 {
             _ = swim.onPingResponse(
-                response: .timeout(target: self.second, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
+                response: .timeout(
+                    target: self.second,
+                    pingRequestOrigin: nil,
+                    timeout: .seconds(1),
+                    sequenceNumber: 0
+                ),
                 pingRequestOrigin: nil,
                 pingRequestSequenceNumber: nil
             )
@@ -155,9 +166,14 @@ final class SWIMMetricsTests: XCTestCase {
         case .unreachableFirst: (expectedUnreachables1, expectedDeads1) = (1, 0)
         case .deadImmediately: (expectedUnreachables1, expectedDeads1) = (0, 1)
         }
-        self.expectMembership(swim, alive: totalMembers - expectedDeads1 - expectedUnreachables1, unreachable: expectedUnreachables1, totalDead: expectedDeads1)
+        self.expectMembership(
+            swim,
+            alive: totalMembers - expectedDeads1 - expectedUnreachables1,
+            unreachable: expectedUnreachables1,
+            totalDead: expectedDeads1
+        )
 
-        for _ in 0 ..< 10 {
+        for _ in 0..<10 {
             _ = swim.onPingResponse(
                 response: .timeout(target: self.third, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
                 pingRequestOrigin: nil,
@@ -171,13 +187,25 @@ final class SWIMMetricsTests: XCTestCase {
         case .unreachableFirst: (expectedUnreachables2, expectedDeads2) = (2, 0)
         case .deadImmediately: (expectedUnreachables2, expectedDeads2) = (0, 2)
         }
-        self.expectMembership(swim, alive: totalMembers - expectedDeads2 - expectedUnreachables2, unreachable: expectedUnreachables2, totalDead: expectedDeads2)
+        self.expectMembership(
+            swim,
+            alive: totalMembers - expectedDeads2 - expectedUnreachables2,
+            unreachable: expectedUnreachables2,
+            totalDead: expectedDeads2
+        )
 
         if mode == .unreachableFirst {
             _ = swim.confirmDead(peer: self.second)
-            self.expectMembership(swim, alive: totalMembers - expectedDeads2 - expectedUnreachables2, unreachable: expectedUnreachables2 - 1, totalDead: expectedDeads2 + 1)
+            self.expectMembership(
+                swim,
+                alive: totalMembers - expectedDeads2 - expectedUnreachables2,
+                unreachable: expectedUnreachables2 - 1,
+                totalDead: expectedDeads2 + 1
+            )
 
-            let gotRemovedDeadTombstones = try! self.testMetrics.expectRecorder(swim.metrics.removedDeadMemberTombstones).lastValue!
+            let gotRemovedDeadTombstones = try! self.testMetrics.expectRecorder(
+                swim.metrics.removedDeadMemberTombstones
+            ).lastValue!
             XCTAssertEqual(gotRemovedDeadTombstones, Double(expectedDeads2 + 1))
         }
     }
@@ -206,7 +234,12 @@ final class SWIMMetricsTests: XCTestCase {
 // MARK: Assertions
 
 extension SWIMMetricsTests {
-    private func expectMembership(_ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>, suspect: Int, file: StaticString = #file, line: UInt = #line) {
+    private func expectMembership(
+        _ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>,
+        suspect: Int,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
         let m: SWIM.Metrics = swim.metrics
 
         let gotSuspect: Double? = try! self.testMetrics.expectRecorder(m.membersSuspect).lastValue
@@ -222,7 +255,14 @@ extension SWIMMetricsTests {
         )
     }
 
-    private func expectMembership(_ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>, alive: Int, unreachable: Int, totalDead: Int, file: StaticString = #file, line: UInt = #line) {
+    private func expectMembership(
+        _ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>,
+        alive: Int,
+        unreachable: Int,
+        totalDead: Int,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) {
         let m: SWIM.Metrics = swim.metrics
 
         let gotAlive: Double? = try! self.testMetrics.expectRecorder(m.membersAlive).lastValue

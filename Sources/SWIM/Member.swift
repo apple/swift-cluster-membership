@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+
 @preconcurrency import struct Dispatch.DispatchTime
 
 // ==== ----------------------------------------------------------------------------------------------------------------
@@ -43,7 +44,7 @@ extension SWIM {
         ///
         /// - Note: Only suspect members may have this value set, but having the actual field in SWIM.Member feels more natural.
         /// - Note: This value is never carried across processes, as it serves only locally triggering suspicion timeouts.
-        public let localSuspicionStartedAt: DispatchTime? // could be "status updated at"?
+        public let localSuspicionStartedAt: DispatchTime?  // could be "status updated at"?
 
         /// Create a new member.
         public init(peer: Peer, status: SWIM.Status, protocolPeriod: UInt64, suspicionStartedAt: DispatchTime? = nil) {
@@ -86,9 +87,7 @@ extension SWIM {
 /// Manual Hashable conformance since we omit `suspicionStartedAt` from identity
 extension SWIM.Member: Hashable, Equatable {
     public static func == (lhs: SWIM.Member<Peer>, rhs: SWIM.Member<Peer>) -> Bool {
-        lhs.peer.node == rhs.peer.node &&
-            lhs.protocolPeriod == rhs.protocolPeriod &&
-            lhs.status == rhs.status
+        lhs.peer.node == rhs.peer.node && lhs.protocolPeriod == rhs.protocolPeriod && lhs.status == rhs.status
     }
 
     public func hash(into hasher: inout Hasher) {

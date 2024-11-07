@@ -22,7 +22,12 @@ extension SWIM {
         case ping(replyTo: NIOPeer, payload: GossipPayload<NIOPeer>, sequenceNumber: SWIM.SequenceNumber)
 
         /// "Ping Request" requests a SWIM probe.
-        case pingRequest(target: NIOPeer, replyTo: NIOPeer, payload: GossipPayload<NIOPeer>, sequenceNumber: SWIM.SequenceNumber)
+        case pingRequest(
+            target: NIOPeer,
+            replyTo: NIOPeer,
+            payload: GossipPayload<NIOPeer>,
+            sequenceNumber: SWIM.SequenceNumber
+        )
 
         case response(PingResponse<NIOPeer, NIOPeer>)
 

@@ -69,7 +69,8 @@ extension SWIM.Status: Comparable {
         case (.alive(let selfIncarnation), .unreachable(let rhsIncarnation)):
             return selfIncarnation <= rhsIncarnation
         case (.suspect(let selfIncarnation, let selfSuspectedBy), .suspect(let rhsIncarnation, let rhsSuspectedBy)):
-            return selfIncarnation < rhsIncarnation || (selfIncarnation == rhsIncarnation && selfSuspectedBy.isStrictSubset(of: rhsSuspectedBy))
+            return selfIncarnation < rhsIncarnation
+                || (selfIncarnation == rhsIncarnation && selfSuspectedBy.isStrictSubset(of: rhsSuspectedBy))
         case (.suspect(let selfIncarnation, _), .alive(let rhsIncarnation)):
             return selfIncarnation < rhsIncarnation
         case (.suspect(let selfIncarnation, _), .unreachable(let rhsIncarnation)):

@@ -13,10 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import Logging
+import NIO
 import SWIM
 import SWIMNIOExample
-import NIO
-import Logging
 
 struct SampleSWIMNIONode {
     let port: Int
@@ -63,10 +63,13 @@ final class SWIMNIOSampleHandler: ChannelInboundHandler {
         let change: SWIM.MemberStatusChangedEvent = self.unwrapInboundIn(data)
 
         // we log each event (in a pretty way)
-        self.log.info("Membership status changed: [\(change.member.node)] is now [\(change.status)]", metadata: [
-            "swim/member": "\(change.member.node)",
-            "swim/member/previousStatus": "\(change.previousStatus.map({"\($0)"}) ?? "unknown")",
-            "swim/member/status": "\(change.status)",
-        ])
+        self.log.info(
+            "Membership status changed: [\(change.member.node)] is now [\(change.status)]",
+            metadata: [
+                "swim/member": "\(change.member.node)",
+                "swim/member/previousStatus": "\(change.previousStatus.map({"\($0)"}) ?? "unknown")",
+                "swim/member/status": "\(change.status)",
+            ]
+        )
     }
 }

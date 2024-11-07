@@ -22,7 +22,7 @@ var targets: [PackageDescription.Target] = [
     .testTarget(
         name: "NoopTests",
         dependencies: [
-            "SWIM",
+            "SWIM"
         ],
         path: "Tests/NoopTests"
     ),
@@ -48,7 +48,7 @@ let package = Package(
         .executable(
             name: "SWIMNIOSampleCluster",
             targets: ["SWIMNIOSampleCluster"]
-        ),
+        )
 
     ],
 

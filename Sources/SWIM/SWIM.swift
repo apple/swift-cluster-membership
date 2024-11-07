@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+
 import struct Dispatch.DispatchTime
 
 extension SWIM {
@@ -41,7 +42,12 @@ extension SWIM {
         ///   - payload: additional gossip data to be carried with the message.
         ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
         ///     It is used on the ping origin to co-relate the reply with its handling code.
-        case ack(target: Peer, incarnation: Incarnation, payload: GossipPayload<Peer>, sequenceNumber: SWIM.SequenceNumber)
+        case ack(
+            target: Peer,
+            incarnation: Incarnation,
+            payload: GossipPayload<Peer>,
+            sequenceNumber: SWIM.SequenceNumber
+        )
 
         /// A `.nack` MAY ONLY be sent by an *intermediary* member which was received a `pingRequest` to perform a `ping` of some `target` member.
         /// It SHOULD NOT be sent by a peer that received a `.ping` directly.
@@ -81,7 +87,12 @@ extension SWIM {
         ///     In case of "cancelled" operations or similar semantics it is allowed to use a placeholder value here.
         ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
         ///     It is used on the ping origin to co-relate the reply with its handling code.
-        case timeout(target: Peer, pingRequestOrigin: PingRequestOrigin?, timeout: Duration, sequenceNumber: SWIM.SequenceNumber)
+        case timeout(
+            target: Peer,
+            pingRequestOrigin: PingRequestOrigin?,
+            timeout: Duration,
+            sequenceNumber: SWIM.SequenceNumber
+        )
 
         /// Sequence number of the initial request this is a response to.
         /// Used to pair up responses to the requests which initially caused them.
