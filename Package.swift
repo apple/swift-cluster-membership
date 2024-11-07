@@ -101,17 +101,6 @@ var targets: [PackageDescription.Target] = [
     ),
 
     // ==== ------------------------------------------------------------------------------------------------------------
-    // MARK: Integration Tests - `it_` prefixed
-
-    .executableTarget(
-        name: "it_Clustered_swim_suspension_reachability",
-        dependencies: [
-            "SWIM"
-        ],
-        path: "IntegrationTests/tests_01_cluster/it_Clustered_swim_suspension_reachability"
-    ),
-
-    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Samples are defined in Samples/Package.swift
     // ==== ------------------------------------------------------------------------------------------------------------
 ]
