@@ -114,8 +114,6 @@ var dependencies: [Package.Dependency] = [
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
     .package(url: "https://github.com/apple/swift-metrics.git", "2.3.2"..<"3.0.0"),  // since latest
 
-    // ~~~ SwiftPM Plugins ~~~
-    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
 ]
 
 let products: [PackageDescription.Product] = [
