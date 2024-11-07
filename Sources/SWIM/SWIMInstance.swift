@@ -1078,7 +1078,8 @@ extension SWIM.Instance {
     /// Prepare ping request directives such that the shell can easily fire those messages
     mutating func preparePingRequests(target: Peer) -> SendPingRequestDirective? {
         guard let lastKnownStatus = self.status(of: target) else {
-            // context.log.info("Skipping ping requests after failed ping to [\(toPing)] because node has been removed from member list") // FIXME allow logging
+            // FIXME allow logging
+            // context.log.info("Skipping ping requests after failed ping to [\(toPing)] because node has been removed from member list")
             return nil
         }
 
@@ -1088,16 +1089,19 @@ extension SWIM.Instance {
         guard !membersToPingRequest.isEmpty else {
             // no nodes available to ping, so we have to assume the node suspect right away
             guard let lastKnownIncarnation = lastKnownStatus.incarnation else {
-                // log.debug("Not marking .suspect, as [\(target)] is already dead.") // "You are already dead!" // TODO logging
+                // TODO logging
+                // log.debug("Not marking .suspect, as [\(target)] is already dead.") // "You are already dead!"
                 return nil
             }
 
             switch self.mark(target, as: self.makeSuspicion(incarnation: lastKnownIncarnation)) {
             case .applied:
-                // log.debug("No members to ping-req through, marked [\(target)] immediately as [\(currentStatus)].") // TODO: logging
+                // TODO: logging
+                // log.debug("No members to ping-req through, marked [\(target)] immediately as [\(currentStatus)].")
                 return nil
             case .ignoredDueToOlderStatus:
-                // log.debug("No members to ping-req through to [\(target)], was already [\(currentStatus)].") // TODO: logging
+                // TODO: logging
+                // log.debug("No members to ping-req through to [\(target)], was already [\(currentStatus)].")
                 return nil
             }
         }

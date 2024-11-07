@@ -32,4 +32,4 @@ rm -f ${second_logs}
 
 # === cleanup ----------------------------------------------------------------------------------------------------------
 
-_killall ${app_name}
+_killall ${app_name} # ignore-unacceptable-language

@@ -139,7 +139,8 @@ extension SWIM.Member: Codable {
         let peer = try container.decode(SWIM.NIOPeer.self, forKey: .node)
         let status = try container.decode(SWIM.Status.self, forKey: .status)
         let protocolPeriod = try container.decode(UInt64.self, forKey: .protocolPeriod)
-        self.init(peer: peer as! Peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: nil)  // as!-safe, since we only have members of a NIO implementation, so Peer will be NIOPeer
+        // as!-safe, since we only have members of a NIO implementation, so Peer will be NIOPeer
+        self.init(peer: peer as! Peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: nil)
     }
 
     public func encode(to encoder: Encoder) throws {

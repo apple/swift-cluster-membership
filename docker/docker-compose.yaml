@@ -24,10 +24,6 @@ services:
     environment:
       - MAX_ALLOCS_ALLOWED_example=1000
 
-  sanity:
-    <<: *common
-    command: /bin/bash -cl "./scripts/soundness.sh"
-
   unit-tests:
     <<: *common
     command: /bin/bash -cl "swift test"
@@ -39,9 +35,7 @@ services:
   test:
     <<: *common
     command: /bin/bash -cl "swift test -Xswiftc -DTESTS_LEAKS && ./scripts/integration_tests.sh"
-#    command: /bin/bash -cl "WARNINGS_AS_ERRORS=yes swift test -Xswiftc -DTESTS_LEAKS && ./scripts/integration_tests.sh"
-
-  # util
+    #    command: /bin/bash -cl "WARNINGS_AS_ERRORS=yes swift test -Xswiftc -DTESTS_LEAKS && ./scripts/integration_tests.sh"
 
   shell:
     <<: *common

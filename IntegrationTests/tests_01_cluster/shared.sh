@@ -20,11 +20,11 @@ function echoerr() {
     echo "${RED}$@${RST}" 1>&2;
 }
 
-function _killall() {
+function _killall() { # ignore-unacceptable-language
     set +e
-    local killall_app_name="$1"
-    echo "> KILLALL: $killall_app_name"
-    ps aux | grep ${killall_app_name} | awk '{ print $2 }' | xargs kill -9
+    local killall_app_name="$1" # ignore-unacceptable-language
+    echo "> KILLALL: $killall_app_name" # ignore-unacceptable-language
+    ps aux | grep ${killall_app_name} | awk '{ print $2 }' | xargs kill -9 # ignore-unacceptable-language
     set -e
 }
 

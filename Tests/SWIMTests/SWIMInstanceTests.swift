@@ -1609,7 +1609,7 @@ final class SWIMInstanceTests: XCTestCase {
     }
 
     // ==== ----------------------------------------------------------------------------------------------------------------
-    // MARK: Sanity checks
+    // MARK: Checks
 
     /// This test is weird and should "never" fail, but it did, on some toolchains.
     /// This test is to remain here as a sanity check if timeouts or something else would suddenly return unexpected values.

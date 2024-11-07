@@ -34,7 +34,7 @@ struct SampleSWIMNIONode {
         let bootstrap = DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in
-                return channel.pipeline
+                channel.pipeline
                     .addHandler(SWIMNIOHandler(settings: self.settings)).flatMap {
                         channel.pipeline.addHandler(SWIMNIOSampleHandler())
                     }
