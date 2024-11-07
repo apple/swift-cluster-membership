@@ -64,10 +64,10 @@ public struct Node: Hashable, Sendable, Comparable, CustomStringConvertible {
     }
 }
 
-public extension Node {
+extension Node {
     // Silly but good enough comparison for deciding "who is lower node"
     // as we only use those for "tie-breakers" any ordering is fine to be honest here.
-    static func < (lhs: Node, rhs: Node) -> Bool {
+    public static func < (lhs: Node, rhs: Node) -> Bool {
         if lhs.protocol == rhs.protocol, lhs.host == rhs.host {
             if lhs.port == rhs.port {
                 return (lhs.uid ?? 0) < (rhs.uid ?? 0)
