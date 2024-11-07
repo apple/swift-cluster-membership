@@ -210,6 +210,7 @@ public struct SWIMGossipSettings {
     /// is gossiped only a limited number of times, after which the algorithms
     ///
     /// - parameters:
+    ///   - gossip: the payload
     ///   - n: total number of cluster members (including myself), MUST be >= 1 (or will crash)
     ///
     /// - SeeAlso: SWIM 4.1. Infection-Style Dissemination Component
