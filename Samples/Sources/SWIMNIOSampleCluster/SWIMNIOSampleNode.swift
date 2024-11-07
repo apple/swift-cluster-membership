@@ -6,17 +6,17 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import Logging
+import NIO
 import SWIM
 import SWIMNIOExample
-import NIO
-import Logging
 
 struct SampleSWIMNIONode {
     let port: Int
@@ -34,7 +34,7 @@ struct SampleSWIMNIONode {
         let bootstrap = DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in
-                return channel.pipeline
+                channel.pipeline
                     .addHandler(SWIMNIOHandler(settings: self.settings)).flatMap {
                         channel.pipeline.addHandler(SWIMNIOSampleHandler())
                     }
@@ -63,10 +63,13 @@ final class SWIMNIOSampleHandler: ChannelInboundHandler {
         let change: SWIM.MemberStatusChangedEvent = self.unwrapInboundIn(data)
 
         // we log each event (in a pretty way)
-        self.log.info("Membership status changed: [\(change.member.node)] is now [\(change.status)]", metadata: [
-            "swim/member": "\(change.member.node)",
-            "swim/member/previousStatus": "\(change.previousStatus.map({"\($0)"}) ?? "unknown")",
-            "swim/member/status": "\(change.status)",
-        ])
+        self.log.info(
+            "Membership status changed: [\(change.member.node)] is now [\(change.status)]",
+            metadata: [
+                "swim/member": "\(change.member.node)",
+                "swim/member/previousStatus": "\(change.previousStatus.map({"\($0)"}) ?? "unknown")",
+                "swim/member/status": "\(change.status)",
+            ]
+        )
     }
 }

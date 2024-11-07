@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -83,6 +83,7 @@ public protocol SWIMPeer: SWIMAddressablePeer {
     ///     replies (`ack`s) from to this ping should be send to this peer
     ///   - timeout: timeout during which we expect the other peer to have replied to us with a `PingResponse` about the pinged node.
     ///     If we get no response about that peer in that time, this `ping` is considered failed, and the onResponse MUST be invoked with a `.timeout`.
+    ///   - sequenceNumber: sequence number of the ping message
     ///
     /// - Returns the corresponding reply (`ack`) or `timeout` event for this ping request occurs.
     ///
@@ -107,6 +108,7 @@ public protocol SWIMPeer: SWIMAddressablePeer {
     ///     replies (`ack`s) from this indirect ping should be forwarded to it.
     ///   - timeout: timeout during which we expect the other peer to have replied to us with a `PingResponse` about the pinged node.
     ///     If we get no response about that peer in that time, this `pingRequest` is considered failed, and the onResponse MUST be invoked with a `.timeout`.
+    ///   - sequenceNumber: sequence number of the pingRequest message
     ///
     /// - Returns the corresponding reply (`ack`, `nack`) or `timeout` event for this ping request occurs.
     /// - Throws if the ping request fails

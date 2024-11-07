@@ -6,21 +6,21 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
-import ClusterMembership
-import SWIM
-import Metrics
-import Prometheus
-import SWIMNIOExample
-import NIO
-import Logging
-import Lifecycle
 import ArgumentParser
+import ClusterMembership
+import Lifecycle
+import Logging
+import Metrics
+import NIO
+import Prometheus
+import SWIM
+import SWIMNIOExample
 
 struct SWIMNIOSampleCluster: ParsableCommand {
     @Option(name: .shortAndLong, help: "The number of nodes to start, defaults to: 1")
@@ -28,7 +28,7 @@ struct SWIMNIOSampleCluster: ParsableCommand {
 
     @Argument(help: "Hostname that node(s) should bind to")
     var host: String?
-    
+
     @Option(help: "Determines which this node should bind to; Only effective when running a single node")
     var port: Int?
 
@@ -47,17 +47,17 @@ struct SWIMNIOSampleCluster: ParsableCommand {
         //
         // Note though that this will be a bit noisy, since logs are also emitted to the stdout by default, however it's a nice way
         // to learn and explore what the metrics are and how they behave when toying around with a local cluster.
-//        let prom = PrometheusClient()
-//        MetricsSystem.bootstrap(prom)
-//
-//        group.next().scheduleRepeatedTask(initialDelay: .seconds(1), delay: .seconds(10)) { _ in
-//             prom.collect { (string: String) in
-//                 print("")
-//                 print("")
-//                 print(string)
-//             }
-//        }
-        
+        //        let prom = PrometheusClient()
+        //        MetricsSystem.bootstrap(prom)
+        //
+        //        group.next().scheduleRepeatedTask(initialDelay: .seconds(1), delay: .seconds(10)) { _ in
+        //             prom.collect { (string: String) in
+        //                 print("")
+        //                 print("")
+        //                 print(string)
+        //             }
+        //        }
+
         let lifecycle = ServiceLifecycle()
         lifecycle.registerShutdown(
             label: "eventLoopGroup",
@@ -101,7 +101,7 @@ struct SWIMNIOSampleCluster: ParsableCommand {
                 )
             }
         }
-        
+
         try lifecycle.startAndWait()
     }
 
@@ -116,7 +116,7 @@ struct SWIMNIOSampleCluster: ParsableCommand {
         guard self.initialContactPoints.trimmingCharacters(in: .whitespacesAndNewlines) != "" else {
             return []
         }
-        
+
         let contactPoints: [Node] = self.initialContactPoints.split(separator: ",").map { hostPort in
             let host = String(hostPort.split(separator: ":")[0])
             let port = Int(String(hostPort.split(separator: ":")[1]))!

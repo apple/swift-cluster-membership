@@ -1,12 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-// This source file is part of the swift-cluster-membership open source project
+// This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2020 Apple Inc. and the swift-cluster-membership project authors
+// Copyright (c) 2020 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.txt for the list of swift-cluster-membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -110,26 +110,26 @@ extension SWIM {
                 self.messageInboundCount = Counter(
                     label: settings.metrics.makeLabel("message", "count"),
                     dimensions: [
-                        ("direction", "in"),
+                        ("direction", "in")
                     ]
                 )
                 self.messageInboundBytes = Recorder(
                     label: settings.metrics.makeLabel("message", "bytes"),
                     dimensions: [
-                        ("direction", "in"),
+                        ("direction", "in")
                     ]
                 )
 
                 self.messageOutboundCount = Counter(
                     label: settings.metrics.makeLabel("message", "count"),
                     dimensions: [
-                        ("direction", "out"),
+                        ("direction", "out")
                     ]
                 )
                 self.messageOutboundBytes = Recorder(
                     label: settings.metrics.makeLabel("message", "bytes"),
                     dimensions: [
-                        ("direction", "out"),
+                        ("direction", "out")
                     ]
                 )
             }
@@ -200,7 +200,7 @@ extension SWIM.Metrics {
             case .unreachable:
                 unreachables += 1
             case .dead:
-                () // dead is reported as a removal when they're removed and tombstoned, not as a gauge
+                ()  // dead is reported as a removal when they're removed and tombstoned, not as a gauge
             }
         }
         self.membersAlive.record(alives)

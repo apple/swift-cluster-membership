@@ -6,17 +6,19 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
-import struct Foundation.Date
-import class Foundation.NSLock
-@testable import Logging
 import NIO
 import XCTest
+
+import struct Foundation.Date
+import class Foundation.NSLock
+
+@testable import Logging
 
 /// Testing only utility: Captures all log statements for later inspection.
 public final class LogCapture {
@@ -74,13 +76,18 @@ public final class LogCapture {
         while !timeExceeded() {
             let logs = self.logs
             if let log = logs.first(where: { log in "\(log)".contains(grep) }) {
-                return log // ok, found it!
+                return log  // ok, found it!
             }
 
             sleep(1)
         }
 
-        throw LogCaptureError(message: "After \(within), logs still did not contain: [\(grep)]", file: file, line: line, column: column)
+        throw LogCaptureError(
+            message: "After \(within), logs still did not contain: [\(grep)]",
+            file: file,
+            line: line,
+            column: column
+        )
     }
 }
 
@@ -107,9 +114,13 @@ extension LogCapture {
 extension LogCapture {
     public func printIfFailed(_ testRun: XCTestRun?) {
         if let failureCount = testRun?.failureCount, failureCount > 0 {
-            print("------------------------------------------------------------------------------------------------------------------------")
+            print(
+                "------------------------------------------------------------------------------------------------------------------------"
+            )
             self.printLogs()
-            print("========================================================================================================================")
+            print(
+                "========================================================================================================================"
+            )
         }
     }
 
@@ -152,7 +163,9 @@ extension LogCapture {
             let date = Self._createFormatter().string(from: log.date)
             let file = log.file.split(separator: "/").last ?? ""
             let line = log.line
-            print("[\(self.captureLabel)][\(date)] [\(file):\(line)]\(node) [\(log.level)] \(log.message)\(metadataString)")
+            print(
+                "[\(self.captureLabel)][\(date)] [\(file):\(line)]\(node) [\(log.level)] \(log.message)\(metadataString)"
+            )
         }
     }
 
@@ -208,12 +221,22 @@ struct LogCaptureLogHandler: LogHandler {
         self.capture = capture
     }
 
-    public func log(level: Logger.Level, message: Logger.Message, metadata: Logger.Metadata?, file: String, function: String, line: UInt) {
-        guard self.capture.settings.grep.isEmpty || self.capture.settings.grep.contains(where: { "\(message)".contains($0) }) else {
-            return // log was included explicitly
+    public func log(
+        level: Logger.Level,
+        message: Logger.Message,
+        metadata: Logger.Metadata?,
+        file: String,
+        function: String,
+        line: UInt
+    ) {
+        guard
+            self.capture.settings.grep.isEmpty
+                || self.capture.settings.grep.contains(where: { "\(message)".contains($0) })
+        else {
+            return  // log was included explicitly
         }
         guard !self.capture.settings.excludeGrep.contains(where: { "\(message)".contains($0) }) else {
-            return // log was excluded explicitly
+            return  // log was excluded explicitly
         }
 
         let date = Date()
@@ -221,7 +244,17 @@ struct LogCaptureLogHandler: LogHandler {
         _metadata.merge(metadata ?? [:], uniquingKeysWith: { _, r in r })
         _metadata["label"] = "\(self.label)"
 
-        self.capture.append(CapturedLogMessage(date: date, level: level, message: message, metadata: _metadata, file: file, function: function, line: line))
+        self.capture.append(
+            CapturedLogMessage(
+                date: date,
+                level: level,
+                message: message,
+                metadata: _metadata,
+                file: file,
+                function: function,
+                line: line
+            )
+        )
     }
 
     public subscript(metadataKey metadataKey: String) -> Logger.Metadata.Value? {
@@ -261,9 +294,14 @@ extension LogCapture {
         expectedFile: String? = nil,
         expectedLine: Int = -1,
         failTest: Bool = true,
-        file: StaticString = #file, line: UInt = #line, column: UInt = #column
+        file: StaticString = #file,
+        line: UInt = #line,
+        column: UInt = #column
     ) throws -> CapturedLogMessage {
-        precondition(prefix != nil || message != nil || grep != nil || level != nil || level != nil || expectedFile != nil, "At least one query parameter must be not `nil`!")
+        precondition(
+            prefix != nil || message != nil || grep != nil || level != nil || level != nil || expectedFile != nil,
+            "At least one query parameter must be not `nil`!"
+        )
 
         let found = self.logs.lazy
             .filter { log in
@@ -336,10 +374,10 @@ extension LogCapture {
             .joined(separator: ", ")
 
             let message = """
-            Did not find expected log, matching query: 
-                [\(query)]
-            in captured logs at \(file):\(line)
-            """
+                Did not find expected log, matching query: 
+                    [\(query)]
+                in captured logs at \(file):\(line)
+                """
             if failTest {
                 XCTFail(message, file: (file), line: line)
             }
@@ -365,7 +403,7 @@ extension LogCapture {
                     if queryValue != "\(value)" {
                         // mismatch, exclude it
                         return false
-                    } // ok, continue checking other keys
+                    }  // ok, continue checking other keys
                 } else {
                     // key did not exist
                     return false

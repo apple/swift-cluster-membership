@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -61,7 +61,9 @@ extension SWIM.Message: Codable {
             let incarnation = try container.decode(SWIM.Incarnation.self, forKey: .incarnation)
             let payload = try container.decode(SWIM.GossipPayload<SWIM.NIOPeer>.self, forKey: .payload)
             let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
-            self = .response(.ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
+            self = .response(
+                .ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber)
+            )
 
         case .response_nack:
             let target = try container.decode(SWIM.NIOPeer.self, forKey: .target)
@@ -137,7 +139,8 @@ extension SWIM.Member: Codable {
         let peer = try container.decode(SWIM.NIOPeer.self, forKey: .node)
         let status = try container.decode(SWIM.Status.self, forKey: .status)
         let protocolPeriod = try container.decode(UInt64.self, forKey: .protocolPeriod)
-        self.init(peer: peer as! Peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: nil) // as!-safe, since we only have members of a NIO implementation, so Peer will be NIOPeer
+        // as!-safe, since we only have members of a NIO implementation, so Peer will be NIOPeer
+        self.init(peer: peer as! Peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: nil)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -177,7 +180,7 @@ extension ClusterMembership.Node: Codable {
 
         let name: String?
         if let nameEndIndex = repr[atIndex...].firstIndex(of: "@"), nameEndIndex < repr.endIndex {
-            name = String(repr[atIndex ..< nameEndIndex])
+            name = String(repr[atIndex..<nameEndIndex])
             atIndex = repr.index(after: nameEndIndex)
         } else {
             name = nil
@@ -187,21 +190,21 @@ extension ClusterMembership.Node: Codable {
         guard let hostEndIndex = repr[atIndex...].firstIndex(of: ":") else {
             throw SWIMSerializationError.missingData("Node format illegal, was: \(repr), failed at `host` part")
         }
-        let host = String(repr[atIndex ..< hostEndIndex])
+        let host = String(repr[atIndex..<hostEndIndex])
         atIndex = hostEndIndex
 
         // :
         atIndex = repr.index(after: atIndex)
         // port
         let portEndIndex = repr[atIndex...].firstIndex(of: "#") ?? repr.endIndex
-        guard let port = Int(String(repr[atIndex ..< (portEndIndex)])) else {
+        guard let port = Int(String(repr[atIndex..<(portEndIndex)])) else {
             throw SWIMSerializationError.missingData("Node format illegal, missing port, was: \(repr)")
         }
 
         let uid: UInt64?
         if portEndIndex < repr.endIndex, repr[portEndIndex] == "#" {
             atIndex = repr.index(after: portEndIndex)
-            let uidSubString = repr[atIndex ..< repr.endIndex]
+            let uidSubString = repr[atIndex..<repr.endIndex]
             if uidSubString.isEmpty {
                 uid = nil
             } else {
@@ -235,7 +238,7 @@ extension SWIM.GossipPayload: Codable {
         if members.isEmpty {
             self = .none
         } else {
-            self = .membership(members as! [SWIM.Member<Peer>]) // as! safe, since we always have Peer == NIOPeer
+            self = .membership(members as! [SWIM.Member<Peer>])  // as! safe, since we always have Peer == NIOPeer
         }
     }
 

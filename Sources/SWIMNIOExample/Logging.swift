@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,15 +25,20 @@ extension SWIMNIOShell {
     ///
     /// Enabled by `SWIM.Settings.traceLogLevel` or `-DTRACELOG_SWIM`
     func tracelog(
-        _ type: TraceLogType, message: @autoclosure () -> String,
-        file: String = #file, function: String = #function, line: UInt = #line
+        _ type: TraceLogType,
+        message: @autoclosure () -> String,
+        file: String = #file,
+        function: String = #function,
+        line: UInt = #line
     ) {
         if let level = self.settings.swim.traceLogLevel {
             self.log.log(
                 level: level,
                 "[\(self.myself.node)] \(type.description) :: \(message())",
                 metadata: self.swim.metadata,
-                file: file, function: function, line: line
+                file: file,
+                function: function,
+                line: line
             )
         }
     }

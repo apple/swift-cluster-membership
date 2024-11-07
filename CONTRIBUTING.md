@@ -58,10 +58,6 @@ A good Swift Cluster Membership patch is:
 4. Adheres to our code formatting conventions and [style guide](STYLE_GUIDE.md).
 5. Accompanied by a great commit message, using our commit message template.
 
-You should run the **`scripts/sanity.sh`** script before submitting your pull request. It will check formatting and other rules and fail if they are not in accordance to the project's rules, e.g. fixing all the formatting along the way.
-
-Once the sanity script passes, you are ready to submit your pull request!
-
 ### Code Format and Style
 
 Swift Cluster Membership uses [SwiftFormat](https://github.com/nicklockwood/SwiftFormat) to enforce the preferred [swift code format](.swiftformat). Always run SwiftFormat before committing your code. 
@@ -72,9 +68,10 @@ We require that your commit messages match our template. The easiest way to do t
 
     git config commit.template dev/git.commit.template
 
-### Test on Linux
+### Run CI checks locally
 
-Swift Cluster Membership uses XCTest to run tests on both macOS and Linux. While the macOS version of XCTest is able to use the Objective-C runtime to discover tests at execution time, the Linux version is not. For this reason, whenever you add new tests you will want to run a script that generates the hooks needed to run those tests on Linux, or our CI will complain that the tests are not all present on Linux. To do this, merely execute `./scripts/generate_linux_tests.rb` at the root of the package and check the changes it made.
+You can run the Github Actions workflows locally using
+[act](https://github.com/nektos/act). For detailed steps on how to do this please see [https://github.com/swiftlang/github-workflows?tab=readme-ov-file#running-workflows-locally](https://github.com/swiftlang/github-workflows?tab=readme-ov-file#running-workflows-locally).
 
 ## How to contribute your work
 

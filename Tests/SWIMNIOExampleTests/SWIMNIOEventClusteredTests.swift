@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -15,9 +15,10 @@
 import ClusterMembership
 import NIO
 import SWIM
-@testable import SWIMNIOExample
 import SWIMTestKit
 import XCTest
+
+@testable import SWIMNIOExample
 
 // TODO: those tests could be done on embedded event loops probably
 final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
@@ -50,7 +51,9 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         }
         defer { try! first.close().wait() }
 
-        try firstProbe.expectEvent(SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
+        try firstProbe.expectEvent(
+            SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial)
+        )
     }
 
     func test_memberStatusChange_suspect_emittedForDyingNode() throws {
@@ -74,14 +77,20 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         try secondProbe.expectEvent(
             SWIM.MemberStatusChangedEvent(
                 previousStatus: nil,
-                member: SWIM.Member(peer: SWIM.NIOPeer(node: secondNode, channel: EmbeddedChannel()), status: .alive(incarnation: 0), protocolPeriod: 0)
+                member: SWIM.Member(
+                    peer: SWIM.NIOPeer(node: secondNode, channel: EmbeddedChannel()),
+                    status: .alive(incarnation: 0),
+                    protocolPeriod: 0
+                )
             )
         )
 
-        sleep(5) // let them discover each other, since the nodes are slow at retrying and we didn't configure it yet a sleep is here meh
+        sleep(5)  // let them discover each other, since the nodes are slow at retrying and we didn't configure it yet a sleep is here meh
         try! second.close().wait()
 
-        try firstProbe.expectEvent(SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial))
+        try firstProbe.expectEvent(
+            SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial)
+        )
 
         let secondAliveEvent = try firstProbe.expectEvent()
         XCTAssertTrue(secondAliveEvent.isReachabilityChange)
@@ -94,7 +103,10 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         XCTAssertEqual(secondDeadEvent.member.node.withoutUID, secondNode.withoutUID)
     }
 
-    private func bindShell(probe probeHandler: ProbeEventHandler, configure: (inout SWIMNIO.Settings) -> Void = { _ in () }) throws -> Channel {
+    private func bindShell(
+        probe probeHandler: ProbeEventHandler,
+        configure: (inout SWIMNIO.Settings) -> Void = { _ in () }
+    ) throws -> Channel {
         var settings = self.settings
         configure(&settings)
         self.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
@@ -119,7 +131,8 @@ extension ProbeEventHandler {
     @discardableResult
     func expectEvent(
         _ expected: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>? = nil,
-        file: StaticString = (#file), line: UInt = #line
+        file: StaticString = (#file),
+        line: UInt = #line
     ) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
         let got = try self.expectEvent()
 
@@ -153,7 +166,10 @@ final class ProbeEventHandler: ChannelInboundHandler {
         }
     }
 
-    func expectEvent(file: StaticString = #file, line: UInt = #line) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
+    func expectEvent(
+        file: StaticString = #file,
+        line: UInt = #line
+    ) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
         let p = self.loop.makePromise(of: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>.self, file: file, line: line)
         self.loop.execute {
             assert(self.waitingPromise == nil, "Already waiting on an event")

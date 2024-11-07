@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -14,8 +14,9 @@
 
 import ClusterMembership
 import Dispatch
-@testable import SWIM
 import XCTest
+
+@testable import SWIM
 
 final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOriginPeer, CustomStringConvertible {
     var swimNode: Node
@@ -65,7 +66,15 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
         defer { self.semaphore.signal() }
 
         return try await withCheckedThrowingContinuation { continuation in
-            self.messages.append(.ping(payload: payload, origin: pingOrigin, timeout: timeout, sequenceNumber: sequenceNumber, continuation: continuation))
+            self.messages.append(
+                .ping(
+                    payload: payload,
+                    origin: pingOrigin,
+                    timeout: timeout,
+                    sequenceNumber: sequenceNumber,
+                    continuation: continuation
+                )
+            )
         }
     }
 
@@ -80,7 +89,16 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
         defer { self.semaphore.signal() }
 
         return try await withCheckedThrowingContinuation { continuation in
-            self.messages.append(.pingReq(target: target, payload: payload, origin: origin, timeout: timeout, sequenceNumber: sequenceNumber, continuation: continuation))
+            self.messages.append(
+                .pingReq(
+                    target: target,
+                    payload: payload,
+                    origin: origin,
+                    timeout: timeout,
+                    sequenceNumber: sequenceNumber,
+                    continuation: continuation
+                )
+            )
         }
     }
 
@@ -93,7 +111,9 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
         self.semaphore.wait()
         defer { self.semaphore.signal() }
 
-        self.messages.append(.ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber))
+        self.messages.append(
+            .ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber)
+        )
     }
 
     func nack(

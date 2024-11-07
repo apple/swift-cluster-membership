@@ -6,7 +6,7 @@ This library aims to help Swift make ground in a new space: clustered multi-node
 
 With this library we provide reusable runtime agnostic membership protocol implementations which can be adopted in various clustering use-cases.
 
-## Background
+### Background
 
 Cluster membership protocols are a crucial building block for distributed systems, such as computation intensive clusters, schedulers, databases, key-value stores and more. With the announcement of this package, we aim to make building such systems simpler, as they no longer need to rely on external services to handle service membership for them. We would also like to invite the community to collaborate on and develop additional membership protocols.
 
@@ -14,9 +14,9 @@ At their core, membership protocols need to provide an answer for the question "
 
 There are various trade-offs one can take while implementing a membership protocol, and it continues to be an interesting area of research and continued refinement. As such, the cluster-membership package intends to focus not on a single implementation, but serve as a collaboration space for various distributed algorithms in this space.
 
-## 🏊🏾‍♀️🏊🏻‍♀️🏊🏾‍♂️🏊🏼‍♂️ SWIMming with Swift
+### 🏊🏾‍♀️🏊🏻‍♀️🏊🏾‍♂️🏊🏼‍♂️ SWIMming with Swift
 
-### High-level Protocol Description
+#### High-level Protocol Description
 
 > For a more in-depth discussion of the protocol and modifications in this implementation we suggest reading the [SWIM API Documentation](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/Enums/SWIM.html), as well as the associated papers linked below.
 
@@ -45,7 +45,7 @@ The way Swift Cluster Membership implements protocols is by offering "`Instances
 
 The SWIM instance also has built-in support for emitting metrics (using [swift-metrics](https://github.com/apple/swift-metrics)) and can be configured to log details about internal details by passing a [swift-log](https://github.com/apple/swift-log) `Logger`.
 
-### Example: Reusing the SWIM protocol logic implementation
+#### Example: Reusing the SWIM protocol logic implementation
 
 The primary purpose of this library is to share the `SWIM.Instance` implementation across various implementations which need some form of in-process membership service. Implementing a custom runtime is documented in depth in the project’s README (https://github.com/apple/swift-cluster-membership/), so please have a look there if you are interested in implementing SWIM over some different transport.
 

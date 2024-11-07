@@ -5,7 +5,7 @@ Use `swift run` to run the samples.
 ### SWIMNIOSampleCluster
 
 This sample app runs a _single node_ per process, however it is prepared to be easily clustered up. 
-This mode of operation is useful to manually suspend or kill processes and see those issues be picked up by the SWIM implementation.
+This mode of operation is useful to manually suspend or stop processes and see those issues be picked up by the SWIM implementation.
 
 Recommended way to run:
 
@@ -35,7 +35,7 @@ Once the cluster is formed, you'll see messages logged by the `SWIMNIOSampleHand
 
 You can enable debug or trace level logging to inspect more of the details of what is going on internally in the nodes.
 
-To see the failure detection in action, you can kill processes, or "suspend" them for a little while by doing 
+To see the failure detection in action, you can stop processes, or "suspend" them for a little while by doing 
 
 ```bash
 # swift run --package-path Samples SWIMNIOSampleCluster --port 7001

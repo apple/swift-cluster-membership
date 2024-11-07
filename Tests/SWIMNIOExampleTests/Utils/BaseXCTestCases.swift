@@ -6,22 +6,24 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import struct Foundation.Date
-import class Foundation.NSLock
 import Logging
 import NIO
 import NIOCore
 import SWIM
-@testable import SWIMNIOExample
 import SWIMTestKit
 import XCTest
+
+import struct Foundation.Date
+import class Foundation.NSLock
+
+@testable import SWIMNIOExample
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Real Networking Test Case
@@ -45,7 +47,10 @@ class RealClusteredXCTestCase: BaseClusteredXCTestCase {
         self.loop = nil
     }
 
-    func makeClusterNode(name: String? = nil, configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }) -> (SWIMNIOHandler, Channel) {
+    func makeClusterNode(
+        name: String? = nil,
+        configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }
+    ) -> (SWIMNIOHandler, Channel) {
         let port = self.nextPort()
         let name = name ?? "swim-\(port)"
         var settings = SWIMNIO.Settings()
@@ -88,7 +93,10 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
         self.loop = nil
     }
 
-    func makeEmbeddedShell(_ _name: String? = nil, configure: (inout SWIMNIO.Settings) -> Void = { _ in () }) -> SWIMNIOShell {
+    func makeEmbeddedShell(
+        _ _name: String? = nil,
+        configure: (inout SWIMNIO.Settings) -> Void = { _ in () }
+    ) -> SWIMNIOShell {
         var settings = SWIMNIO.Settings()
         configure(&settings)
         let node: Node
@@ -97,7 +105,7 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
         } else {
             let port = self.nextPort()
             let name = _name ?? "swim-\(port)"
-            node = Node(protocol: "test", name: name, host: "127.0.0.1", port: port, uid: .random(in: 1 ..< UInt64.max))
+            node = Node(protocol: "test", name: name, host: "127.0.0.1", port: port, uid: .random(in: 1..<UInt64.max))
         }
 
         if self.captureLogs {
@@ -110,7 +118,7 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
             node: node,
             settings: settings,
             channel: channel,
-            onMemberStatusChange: { _ in () } // TODO: store events so we can inspect them?
+            onMemberStatusChange: { _ in () }  // TODO: store events so we can inspect them?
         )
 
         self._nodes.append(shell.node)
@@ -160,7 +168,7 @@ class BaseClusteredXCTestCase: XCTestCase {
                 do {
                     try await shell.myself.channel.close()
                 } catch {
-                    () // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
+                    ()  // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
                 }
             }
         }
@@ -204,7 +212,9 @@ extension BaseClusteredXCTestCase {
     public func printCapturedLogs(of node: Node) {
         print("------------------------------------- \(node) ------------------------------------------------")
         self.capturedLogs(of: node).printLogs()
-        print("========================================================================================================================")
+        print(
+            "========================================================================================================================"
+        )
     }
 
     public func printAllCapturedLogs() {

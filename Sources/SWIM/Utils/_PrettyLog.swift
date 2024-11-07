@@ -6,17 +6,18 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
+import Logging
+
 import struct Foundation.Calendar
 import struct Foundation.Date
 import class Foundation.DateFormatter
 import struct Foundation.Locale
-import Logging
 
 /// Pretty log formatter which prints log lines in the following multi line format,
 /// listing every metadata element in it's own, `//`-prefixed, line as well as pretty printing connections if set as `Logger.MetadataValue`.
@@ -54,13 +55,15 @@ public struct _SWIMPrettyMetadataLogHandler: LogHandler {
     public var metadata: Logger.Metadata = [:]
     public var logLevel: Logger.Level = .trace
 
-    public func log(level: Logger.Level,
-                    message: Logger.Message,
-                    metadata: Logger.Metadata?,
-                    source: String,
-                    file: String,
-                    function: String,
-                    line: UInt) {
+    public func log(
+        level: Logger.Level,
+        message: Logger.Message,
+        metadata: Logger.Metadata?,
+        source: String,
+        file: String,
+        function: String,
+        line: UInt
+    ) {
         var metadataString: String = ""
         if let metadata = metadata {
             if !metadata.isEmpty {
@@ -89,7 +92,9 @@ public struct _SWIMPrettyMetadataLogHandler: LogHandler {
         let date = self._createFormatter().string(from: Date())
         let file = file.split(separator: "/").last ?? ""
         let line = line
-        print("\(self.CONSOLE_BOLD)\(self.label)\(self.CONSOLE_RESET): [\(date)] [\(level)] [\(file):\(line)] \(message)\(metadataString)")
+        print(
+            "\(self.CONSOLE_BOLD)\(self.label)\(self.CONSOLE_RESET): [\(date)] [\(level)] [\(file):\(line)] \(message)\(metadataString)"
+        )
     }
 
     internal func prettyPrint(metadata: Logger.MetadataValue) -> String {

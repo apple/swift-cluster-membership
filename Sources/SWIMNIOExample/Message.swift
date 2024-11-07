@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,7 +22,12 @@ extension SWIM {
         case ping(replyTo: NIOPeer, payload: GossipPayload<NIOPeer>, sequenceNumber: SWIM.SequenceNumber)
 
         /// "Ping Request" requests a SWIM probe.
-        case pingRequest(target: NIOPeer, replyTo: NIOPeer, payload: GossipPayload<NIOPeer>, sequenceNumber: SWIM.SequenceNumber)
+        case pingRequest(
+            target: NIOPeer,
+            replyTo: NIOPeer,
+            payload: GossipPayload<NIOPeer>,
+            sequenceNumber: SWIM.SequenceNumber
+        )
 
         case response(PingResponse<NIOPeer, NIOPeer>)
 

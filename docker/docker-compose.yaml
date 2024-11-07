@@ -24,17 +24,9 @@ services:
     environment:
       - MAX_ALLOCS_ALLOWED_example=1000
 
-  sanity:
-    <<: *common
-    command: /bin/bash -cl "./scripts/soundness.sh"
-
   unit-tests:
     <<: *common
-    command: /bin/bash -cl "swift test --enable-test-discovery"
-
-  unit-tests-until-failure:
-    <<: *common
-    command: /bin/bash -cl "while swift test --enable-test-discovery; do :; done"
+    command: /bin/bash -cl "swift test"
 
   integration-tests:
     <<: *common
@@ -42,10 +34,8 @@ services:
 
   test:
     <<: *common
-    command: /bin/bash -cl "swift test $${EXPLICIT_TARGET_DEPENDENCY_IMPORT_CHECK-} --enable-test-discovery -Xswiftc -DTESTS_LEAKS && ./scripts/integration_tests.sh"
-#    command: /bin/bash -cl "WARNINGS_AS_ERRORS=yes swift test --enable-test-discovery -Xswiftc -DTESTS_LEAKS && ./scripts/integration_tests.sh"
-
-  # util
+    command: /bin/bash -cl "swift test -Xswiftc -DTESTS_LEAKS && ./scripts/integration_tests.sh"
+    #    command: /bin/bash -cl "WARNINGS_AS_ERRORS=yes swift test -Xswiftc -DTESTS_LEAKS && ./scripts/integration_tests.sh"
 
   shell:
     <<: *common

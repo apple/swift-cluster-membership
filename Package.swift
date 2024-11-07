@@ -1,8 +1,9 @@
-// swift-tools-version:5.7
+// swift-tools-version:5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
-import class Foundation.ProcessInfo
 import PackageDescription
+
+import class Foundation.ProcessInfo
 
 // Workaround: Since we cannot include the flat just as command line options since then it applies to all targets,
 // and ONE of our dependencies currently produces one warning, we have to use this workaround to enable it in _our_
@@ -11,7 +12,7 @@ let globalSwiftSettings: [SwiftSetting]
 if ProcessInfo.processInfo.environment["WARNINGS_AS_ERRORS"] != nil {
     print("WARNINGS_AS_ERRORS enabled, passing `-warnings-as-errors`")
     globalSwiftSettings = [
-        SwiftSetting.unsafeFlags(["-warnings-as-errors"]),
+        SwiftSetting.unsafeFlags(["-warnings-as-errors"])
     ]
 } else {
     globalSwiftSettings = []
@@ -23,8 +24,7 @@ var targets: [PackageDescription.Target] = [
 
     .target(
         name: "ClusterMembership",
-        dependencies: [
-        ]
+        dependencies: []
     ),
 
     .target(
@@ -59,7 +59,7 @@ var targets: [PackageDescription.Target] = [
     .testTarget(
         name: "ClusterMembershipDocumentationTests",
         dependencies: [
-            "SWIM",
+            "SWIM"
         ]
     ),
 
@@ -69,7 +69,7 @@ var targets: [PackageDescription.Target] = [
     .testTarget(
         name: "ClusterMembershipTests",
         dependencies: [
-            "ClusterMembership",
+            "ClusterMembership"
         ]
     ),
 
@@ -101,17 +101,6 @@ var targets: [PackageDescription.Target] = [
     ),
 
     // ==== ------------------------------------------------------------------------------------------------------------
-    // MARK: Integration Tests - `it_` prefixed
-
-    .executableTarget(
-        name: "it_Clustered_swim_suspension_reachability",
-        dependencies: [
-            "SWIM",
-        ],
-        path: "IntegrationTests/tests_01_cluster/it_Clustered_swim_suspension_reachability"
-    ),
-
-    // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Samples are defined in Samples/Package.swift
     // ==== ------------------------------------------------------------------------------------------------------------
 ]
@@ -123,10 +112,8 @@ var dependencies: [Package.Dependency] = [
 
     // ~~~ SSWG APIs ~~~
     .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
-    .package(url: "https://github.com/apple/swift-metrics.git", "2.3.2" ..< "3.0.0"), // since latest
+    .package(url: "https://github.com/apple/swift-metrics.git", "2.3.2"..<"3.0.0"),  // since latest
 
-    // ~~~ SwiftPM Plugins ~~~
-    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
 ]
 
 let products: [PackageDescription.Product] = [

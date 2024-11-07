@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -38,7 +38,10 @@ extension SWIM {
         /// Create new event, representing a change of the member's status from a previous state to its current state.
         public init(previousStatus: SWIM.Status?, member: SWIM.Member<Peer>) {
             if let from = previousStatus, from == .dead {
-                precondition(member.status == .dead, "Change MUST NOT move status 'backwards' from [.dead] state to anything else, but did so, was: \(member)")
+                precondition(
+                    member.status == .dead,
+                    "Change MUST NOT move status 'backwards' from [.dead] state to anything else, but did so, was: \(member)"
+                )
             }
 
             self.previousStatus = previousStatus
@@ -46,11 +49,13 @@ extension SWIM {
 
             switch (self.previousStatus, member.status) {
             case (.dead, .alive),
-                 (.dead, .suspect),
-                 (.dead, .unreachable):
-                fatalError("SWIM.Membership MUST NOT move status 'backwards' from .dead state to anything else, but did so, was: \(self)")
+                (.dead, .suspect),
+                (.dead, .unreachable):
+                fatalError(
+                    "SWIM.Membership MUST NOT move status 'backwards' from .dead state to anything else, but did so, was: \(self)"
+                )
             default:
-                () // ok, all other transitions are valid.
+                ()  // ok, all other transitions are valid.
             }
         }
     }
@@ -73,13 +78,13 @@ extension SWIM.MemberStatusChangedEvent {
         // alive and suspect does NOT affect high-level reachability).
         switch (fromStatus, self.status) {
         case (.alive, .unreachable),
-             (.alive, .dead):
+            (.alive, .dead):
             return true
         case (.suspect, .unreachable),
-             (.suspect, .dead):
+            (.suspect, .dead):
             return true
         case (.unreachable, .alive),
-             (.unreachable, .suspect):
+            (.unreachable, .suspect):
             return true
         default:
             return false

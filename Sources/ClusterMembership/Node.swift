@@ -6,7 +6,7 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -64,10 +64,10 @@ public struct Node: Hashable, Sendable, Comparable, CustomStringConvertible {
     }
 }
 
-public extension Node {
+extension Node {
     // Silly but good enough comparison for deciding "who is lower node"
     // as we only use those for "tie-breakers" any ordering is fine to be honest here.
-    static func < (lhs: Node, rhs: Node) -> Bool {
+    public static func < (lhs: Node, rhs: Node) -> Bool {
         if lhs.protocol == rhs.protocol, lhs.host == rhs.host {
             if lhs.port == rhs.port {
                 return (lhs.uid ?? 0) < (rhs.uid ?? 0)

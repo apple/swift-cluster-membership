@@ -6,15 +6,16 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-@testable import SWIM
 import XCTest
+
+@testable import SWIM
 
 final class SWIMSettingsTests: XCTestCase {
     func test_gossipedEnoughTimes() {
@@ -35,28 +36,28 @@ final class SWIMSettingsTests: XCTestCase {
 
         members = 2
         g.numberOfTimesGossiped = 0
-        for _ in 0 ... 3 {
+        for _ in 0...3 {
             XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
             g.numberOfTimesGossiped += 1
         }
 
         members = 10
         g.numberOfTimesGossiped = 0
-        for _ in 0 ... 9 {
+        for _ in 0...9 {
             XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
             g.numberOfTimesGossiped += 1
         }
 
         members = 50
         g.numberOfTimesGossiped = 0
-        for _ in 0 ... 16 {
+        for _ in 0...16 {
             XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
             g.numberOfTimesGossiped += 1
         }
 
         members = 200
         g.numberOfTimesGossiped = 0
-        for _ in 0 ... 21 {
+        for _ in 0...21 {
             XCTAssertEqual(settings.gossip.gossipedEnoughTimes(g, members: members), false)
             g.numberOfTimesGossiped += 1
         }

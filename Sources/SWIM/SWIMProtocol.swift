@@ -6,20 +6,22 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import Logging
+
+import struct Dispatch.DispatchTime
+
 #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
 import Darwin
 #else
 import Glibc
 #endif
-import struct Dispatch.DispatchTime
-import Logging
 
 /// ## Scalable Weakly-consistent Infection-style Process Group Membership Protocol
 ///
@@ -200,7 +202,10 @@ public protocol SWIMProtocol {
     ///   - response: the response representing this ping's result (i.e. `ack` or `timeout`).
     ///   - pinged: the pinged peer that this response is from
     /// - Returns: `Instance.PingRequestResponseDirective` which must be interpreted by a shell implementation
-    mutating func onPingRequestResponse(_ response: SWIM.PingResponse<Peer, PingRequestOrigin>, pinged: Peer) -> [Instance.PingRequestResponseDirective]
+    mutating func onPingRequestResponse(
+        _ response: SWIM.PingResponse<Peer, PingRequestOrigin>,
+        pinged: Peer
+    ) -> [Instance.PingRequestResponseDirective]
 
     /// MUST be invoked whenever a response to a `pingRequest` (an ack, nack or lack response i.e. a timeout) happens.
     ///

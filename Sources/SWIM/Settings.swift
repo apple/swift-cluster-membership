@@ -6,15 +6,16 @@
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
-// See CONTRIBUTORS.md for the list of Swift Cluster Membership project authors
+// See CONTRIBUTORS.txt for the list of Swift Cluster Membership project authors
 //
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import struct Dispatch.DispatchTime
 import Logging
+
+import struct Dispatch.DispatchTime
 
 #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
 import func Darwin.log2
@@ -68,7 +69,10 @@ extension SWIM {
         /// remaining node it can ask for an indirect probe (since 1 node is ourselves, and 1 node is the potentially suspect node itself).
         public var indirectProbeCount: Int = 3 {
             willSet {
-                precondition(newValue >= 0, "`indirectChecks` MUST be >= 0. It is recommended to have it be no lower than 3.")
+                precondition(
+                    newValue >= 0,
+                    "`indirectChecks` MUST be >= 0. It is recommended to have it be no lower than 3."
+                )
             }
         }
 
@@ -206,6 +210,7 @@ public struct SWIMGossipSettings {
     /// is gossiped only a limited number of times, after which the algorithms
     ///
     /// - parameters:
+    ///   - gossip: the payload
     ///   - n: total number of cluster members (including myself), MUST be >= 1 (or will crash)
     ///
     /// - SeeAlso: SWIM 4.1. Infection-Style Dissemination Component
@@ -277,7 +282,10 @@ public struct SWIMLifeguardSettings {
     /// - SeeAlso: [Lifeguard IV.B. Local Health Aware Suspicion (LHA-Suspicion)](https://arxiv.org/pdf/1707.00788.pdf)
     public var suspicionTimeoutMax: Duration = .seconds(10) {
         willSet {
-            precondition(newValue.nanoseconds >= self.suspicionTimeoutMin.nanoseconds, "`suspicionTimeoutMax` MUST BE >= `suspicionTimeoutMin`")
+            precondition(
+                newValue.nanoseconds >= self.suspicionTimeoutMin.nanoseconds,
+                "`suspicionTimeoutMax` MUST BE >= `suspicionTimeoutMin`"
+            )
         }
     }
 
@@ -313,7 +321,10 @@ public struct SWIMLifeguardSettings {
     /// - SeeAlso: [Lifeguard IV.B. Local Health Aware Suspicion (LHA-Suspicion)](https://arxiv.org/pdf/1707.00788.pdf)
     public var suspicionTimeoutMin: Duration = .seconds(3) {
         willSet {
-            precondition(newValue.nanoseconds <= self.suspicionTimeoutMax.nanoseconds, "`suspicionTimeoutMin` MUST BE <= `suspicionTimeoutMax`")
+            precondition(
+                newValue.nanoseconds <= self.suspicionTimeoutMax.nanoseconds,
+                "`suspicionTimeoutMin` MUST BE <= `suspicionTimeoutMax`"
+            )
         }
     }
 
