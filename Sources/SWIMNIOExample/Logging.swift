@@ -21,43 +21,43 @@ import SWIM
 // MARK: Tracelog: SWIM [tracelog:SWIM]
 
 extension SWIMNIOShell {
-    /// Optional "dump all messages" logging.
-    ///
-    /// Enabled by `SWIM.Settings.traceLogLevel` or `-DTRACELOG_SWIM`
-    func tracelog(
-        _ type: TraceLogType, message: @autoclosure () -> String,
-        file: String = #file, function: String = #function, line: UInt = #line
-    ) {
-        if let level = self.settings.swim.traceLogLevel {
-            self.log.log(
-                level: level,
-                "[\(self.myself.node)] \(type.description) :: \(message())",
-                metadata: self.swim.metadata,
-                file: file, function: function, line: line
-            )
-        }
+  /// Optional "dump all messages" logging.
+  ///
+  /// Enabled by `SWIM.Settings.traceLogLevel` or `-DTRACELOG_SWIM`
+  func tracelog(
+    _ type: TraceLogType, message: @autoclosure () -> String,
+    file: String = #file, function: String = #function, line: UInt = #line
+  ) {
+    if let level = self.settings.swim.traceLogLevel {
+      self.log.log(
+        level: level,
+        "[\(self.myself.node)] \(type.description) :: \(message())",
+        metadata: self.swim.metadata,
+        file: file, function: function, line: line
+      )
+    }
+  }
+
+  internal enum TraceLogType: CustomStringConvertible {
+    case send(to: SWIMAddressablePeer)
+    case reply(to: SWIMAddressablePeer)
+    case receive(pinged: SWIMAddressablePeer?)
+
+    static var receive: TraceLogType {
+      .receive(pinged: nil)
     }
 
-    internal enum TraceLogType: CustomStringConvertible {
-        case send(to: SWIMAddressablePeer)
-        case reply(to: SWIMAddressablePeer)
-        case receive(pinged: SWIMAddressablePeer?)
-
-        static var receive: TraceLogType {
-            .receive(pinged: nil)
-        }
-
-        var description: String {
-            switch self {
-            case .send(let to):
-                return "SEND(to:\(to.swimNode))"
-            case .receive(nil):
-                return "RECV"
-            case .receive(let .some(pinged)):
-                return "RECV(pinged:\(pinged.swimNode))"
-            case .reply(let to):
-                return "REPL(to:\(to.swimNode))"
-            }
-        }
+    var description: String {
+      switch self {
+      case .send(let to):
+        return "SEND(to:\(to.swimNode))"
+      case .receive(nil):
+        return "RECV"
+      case .receive(let .some(pinged)):
+        return "RECV(pinged:\(pinged.swimNode))"
+      case .reply(let to):
+        return "REPL(to:\(to.swimNode))"
+      }
     }
+  }
 }

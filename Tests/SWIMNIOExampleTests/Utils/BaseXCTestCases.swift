@@ -13,217 +13,226 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import struct Foundation.Date
-import class Foundation.NSLock
 import Logging
 import NIO
 import NIOCore
 import SWIM
-@testable import SWIMNIOExample
 import SWIMTestKit
 import Testing
+
+import struct Foundation.Date
+import class Foundation.NSLock
+
+@testable import SWIMNIOExample
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Real Networking Test Case
 
 final class RealClustered {
-    let clustered: Clustered
-    var group: MultiThreadedEventLoopGroup!
-    var loop: EventLoop!
-    
-    /// If `true` automatically captures all logs of all `setUpNode` started systems, and prints them if at least one test failure is encountered.
-    /// If `false`, log capture is disabled and the systems will log messages normally.
-    ///
-    /// - Default: `true`
-    var captureLogs: Bool { true }
+  let clustered: Clustered
+  var group: MultiThreadedEventLoopGroup!
+  var loop: EventLoop!
 
-    /// Enables logging all captured logs, even if the test passed successfully.
-    /// - Default: `false`
-    var alwaysPrintCaptureLogs: Bool { false }
-    
-    init(startingPort: Int) {
-        self.group = MultiThreadedEventLoopGroup(numberOfThreads: 8)
-        self.loop = group.next()
-        self.clustered = .init(startingPort: startingPort)
+  /// If `true` automatically captures all logs of all `setUpNode` started systems, and prints them if at least one test failure is encountered.
+  /// If `false`, log capture is disabled and the systems will log messages normally.
+  ///
+  /// - Default: `true`
+  var captureLogs: Bool { true }
+
+  /// Enables logging all captured logs, even if the test passed successfully.
+  /// - Default: `false`
+  var alwaysPrintCaptureLogs: Bool { false }
+
+  init(startingPort: Int) {
+    self.group = MultiThreadedEventLoopGroup(numberOfThreads: 8)
+    self.loop = group.next()
+    self.clustered = .init(startingPort: startingPort)
+  }
+
+  deinit {
+    try! self.group.syncShutdownGracefully()
+    self.group = nil
+    self.loop = nil
+    Task { [clustered] in
+      await clustered.reset()
+    }
+  }
+
+  func makeClusterNode(
+    name: String? = nil,
+    configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }
+  ) async throws -> (SWIMNIOHandler, Channel) {
+    let port = await clustered.nextPort()
+    let name = name ?? "swim-\(port)"
+    var settings = SWIMNIO.Settings()
+    configureSettings(&settings)
+
+    if self.captureLogs {
+      await clustered.makeLogCapture(name: name, settings: &settings)
     }
 
-    deinit {
-        try! self.group.syncShutdownGracefully()
-        self.group = nil
-        self.loop = nil
-        Task { [clustered] in
-            await clustered.reset()
-        }
-    }
+    let handler = SWIMNIOHandler(settings: settings)
+    let bootstrap = DatagramBootstrap(group: self.group)
+      .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+      .channelInitializer { channel in channel.pipeline.addHandler(handler) }
 
-    func makeClusterNode(
-        name: String? = nil,
-        configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }
-    ) async throws -> (SWIMNIOHandler, Channel) {
-        let port = await clustered.nextPort()
-        let name = name ?? "swim-\(port)"
-        var settings = SWIMNIO.Settings()
-        configureSettings(&settings)
+    let channel = try await bootstrap.bind(host: "127.0.0.1", port: port).get()
 
-        if self.captureLogs {
-            await clustered.makeLogCapture(name: name, settings: &settings)
-        }
+    await clustered.addShell(handler.shell)
+    await clustered.addNode(handler.shell.node)
 
-        let handler = SWIMNIOHandler(settings: settings)
-        let bootstrap = DatagramBootstrap(group: self.group)
-            .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-            .channelInitializer { channel in channel.pipeline.addHandler(handler) }
-
-        let channel = try await bootstrap.bind(host: "127.0.0.1", port: port).get()
-
-        await clustered.addShell(handler.shell)
-        await clustered.addNode(handler.shell.node)
-
-        return (handler, channel)
-    }
+    return (handler, channel)
+  }
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Embedded Networking Test Case
 
 final class EmbeddedClustered {
-    let clustered: Clustered
-    var loop: EmbeddedEventLoop!
-    
-    /// If `true` automatically captures all logs of all `setUpNode` started systems, and prints them if at least one test failure is encountered.
-    /// If `false`, log capture is disabled and the systems will log messages normally.
-    ///
-    /// - Default: `true`
-    var captureLogs: Bool { true }
+  let clustered: Clustered
+  var loop: EmbeddedEventLoop!
 
-    /// Enables logging all captured logs, even if the test passed successfully.
-    /// - Default: `false`
-    var alwaysPrintCaptureLogs: Bool { false }
+  /// If `true` automatically captures all logs of all `setUpNode` started systems, and prints them if at least one test failure is encountered.
+  /// If `false`, log capture is disabled and the systems will log messages normally.
+  ///
+  /// - Default: `true`
+  var captureLogs: Bool { true }
 
-    
-    init(startingPort: Int) {
-        self.loop = EmbeddedEventLoop()
-        self.clustered = .init(startingPort: startingPort)
+  /// Enables logging all captured logs, even if the test passed successfully.
+  /// - Default: `false`
+  var alwaysPrintCaptureLogs: Bool { false }
+
+  init(startingPort: Int) {
+    self.loop = EmbeddedEventLoop()
+    self.clustered = .init(startingPort: startingPort)
+  }
+
+  deinit {
+    try! self.loop.close()
+    self.loop = nil
+    Task { [clustered] in
+      await clustered.reset()
+    }
+  }
+
+  func makeEmbeddedShell(
+    _ _name: String? = nil, configure: (inout SWIMNIO.Settings) -> Void = { _ in () }
+  ) async -> SWIMNIOShell {
+    var settings = SWIMNIO.Settings()
+    configure(&settings)
+    let node: Node
+    if let _node = settings.swim.node {
+      node = _node
+    } else {
+      let port = await clustered.nextPort()
+      let name = _name ?? "swim-\(port)"
+      node = Node(
+        protocol: "test", name: name, host: "127.0.0.2", port: port,
+        uid: .random(in: 1..<UInt64.max))
     }
 
-    deinit {
-        try! self.loop.close()
-        self.loop = nil
-        Task { [clustered] in
-            await clustered.reset()
-        }
+    if self.captureLogs {
+      await clustered.makeLogCapture(name: node.name ?? "swim-\(node.port)", settings: &settings)
     }
 
-    func makeEmbeddedShell(_ _name: String? = nil, configure: (inout SWIMNIO.Settings) -> Void = { _ in () }) async -> SWIMNIOShell {
-        var settings = SWIMNIO.Settings()
-        configure(&settings)
-        let node: Node
-        if let _node = settings.swim.node {
-            node = _node
-        } else {
-            let port = await clustered.nextPort()
-            let name = _name ?? "swim-\(port)"
-            node = Node(protocol: "test", name: name, host: "127.0.0.2", port: port, uid: .random(in: 1 ..< UInt64.max))
-        }
+    let channel = EmbeddedChannel(loop: self.loop)
+    channel.isWritable = true
+    let shell = SWIMNIOShell(
+      node: node,
+      settings: settings,
+      channel: channel,
+      onMemberStatusChange: { _ in () }  // TODO: store events so we can inspect them?
+    )
 
-        if self.captureLogs {
-            await clustered.makeLogCapture(name: node.name ?? "swim-\(node.port)", settings: &settings)
-        }
+    await self.clustered.addNode(shell.node)
+    await self.clustered.addShell(shell)
 
-        let channel = EmbeddedChannel(loop: self.loop)
-        channel.isWritable = true
-        let shell = SWIMNIOShell(
-            node: node,
-            settings: settings,
-            channel: channel,
-            onMemberStatusChange: { _ in () } // TODO: store events so we can inspect them?
-        )
-
-        await self.clustered.addNode(shell.node)
-        await self.clustered.addShell(shell)
-
-        return shell
-    }
+    return shell
+  }
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Base
 // FIXME: Give better naming
 actor Clustered {
-    public internal(set) var _nodes: [Node] = []
-    public internal(set) var _shells: [SWIMNIOShell] = []
-    public internal(set) var _logCaptures: [LogCapture] = []
+  public internal(set) var _nodes: [Node] = []
+  public internal(set) var _shells: [SWIMNIOShell] = []
+  public internal(set) var _logCaptures: [LogCapture] = []
 
-    var _nextPort = 9001
-    
-    // Because tests are parallel now—testing will fail as same ports will occur. For now passing different starting ports.
-    // FIXME: Don't pass starting port probably, come up with better design.
-    init(startingPort: Int = 9001) {
-        self._nextPort = startingPort
-    }
-    
-    func nextPort() -> Int {
-        let port = self._nextPort
-        self._nextPort += 1
-        return port
-    }
+  var _nextPort = 9001
 
-    func configureLogCapture(settings: inout LogCapture.Settings) {
-        // just use defaults
-    }
+  // Because tests are parallel now—testing will fail as same ports will occur. For now passing different starting ports.
+  // FIXME: Don't pass starting port probably, come up with better design.
+  init(startingPort: Int = 9001) {
+    self._nextPort = startingPort
+  }
 
-    func makeLogCapture(name: String, settings: inout SWIMNIO.Settings) {
-        var captureSettings = LogCapture.Settings()
-        self.configureLogCapture(settings: &captureSettings)
-        let capture = LogCapture(settings: captureSettings)
+  func nextPort() -> Int {
+    let port = self._nextPort
+    self._nextPort += 1
+    return port
+  }
 
-        settings.logger = capture.logger(label: name)
+  func configureLogCapture(settings: inout LogCapture.Settings) {
+    // just use defaults
+  }
 
-        self._logCaptures.append(capture)
+  func makeLogCapture(name: String, settings: inout SWIMNIO.Settings) {
+    var captureSettings = LogCapture.Settings()
+    self.configureLogCapture(settings: &captureSettings)
+    let capture = LogCapture(settings: captureSettings)
+
+    settings.logger = capture.logger(label: name)
+
+    self._logCaptures.append(capture)
+  }
+
+  func reset() async {
+    for shell in _shells {
+      do {
+        try await shell.myself.channel.close()
+      } catch {
+        ()  // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
+      }
     }
-    
-    func reset() async {
-        for shell in _shells {
-            do {
-                try await shell.myself.channel.close()
-            } catch {
-                () // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
-            }
-        }
-        self._shells.removeAll()
-        self._nodes.removeAll()
-    }
-    
-    func addShell(_ shell: SWIMNIOShell) {
-        self._shells.append(shell)
-    }
-    
-    func addNode(_ node: Node) {
-        self._nodes.append(node)
-    }
+    self._shells.removeAll()
+    self._nodes.removeAll()
+  }
+
+  func addShell(_ shell: SWIMNIOShell) {
+    self._shells.append(shell)
+  }
+
+  func addNode(_ node: Node) {
+    self._nodes.append(node)
+  }
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Captured Logs
 
 extension Clustered {
-    public func capturedLogs(of node: Node) -> LogCapture {
-        guard let index = self._nodes.firstIndex(of: node) else {
-            fatalError("No such node: [\(node)] in [\(self._nodes)]!")
-        }
-
-        return self._logCaptures[index]
+  public func capturedLogs(of node: Node) -> LogCapture {
+    guard let index = self._nodes.firstIndex(of: node) else {
+      fatalError("No such node: [\(node)] in [\(self._nodes)]!")
     }
 
-    public func printCapturedLogs(of node: Node) {
-        print("------------------------------------- \(node) ------------------------------------------------")
-        self.capturedLogs(of: node).printLogs()
-        print("========================================================================================================================")
-    }
+    return self._logCaptures[index]
+  }
 
-    public func printAllCapturedLogs() {
-        for node in self._nodes {
-            self.printCapturedLogs(of: node)
-        }
+  public func printCapturedLogs(of node: Node) {
+    print(
+      "------------------------------------- \(node) ------------------------------------------------"
+    )
+    self.capturedLogs(of: node).printLogs()
+    print(
+      "========================================================================================================================"
+    )
+  }
+
+  public func printAllCapturedLogs() {
+    for node in self._nodes {
+      self.printCapturedLogs(of: node)
     }
+  }
 }

@@ -15,9 +15,8 @@
 // tag::imports[]
 
 import SWIM
+import Testing
 
 // end::imports[]
-
-import Testing
 
 final class SWIMDocExamples {}

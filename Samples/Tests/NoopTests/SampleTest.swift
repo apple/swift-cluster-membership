@@ -16,7 +16,7 @@ import SWIM
 import XCTest
 
 final class SampleTest: XCTestCase {
-    func test_empty() {
-        // nothing here (so far...)
-    }
+  func test_empty() {
+    // nothing here (so far...)
+  }
 }

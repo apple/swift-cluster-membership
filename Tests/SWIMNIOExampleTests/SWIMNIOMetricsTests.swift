@@ -13,96 +13,102 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-@testable import CoreMetrics
 import Metrics
 import NIO
-@testable import SWIM
-@testable import SWIMNIOExample
 import SWIMTestKit
 import Testing
 
+@testable import CoreMetrics
+@testable import SWIM
+@testable import SWIMNIOExample
+
 @Suite(.serialized)
 final class SWIMNIOMetricsTests {
-    
-    let suite: RealClustered = .init(startingPort: 6001)
-    var testMetrics: TestMetrics!
 
-    init() {
-        self.testMetrics = TestMetrics()
-        MetricsSystem.bootstrapInternal(self.testMetrics)
+  let suite: RealClustered = .init(startingPort: 6001)
+  var testMetrics: TestMetrics!
+
+  init() {
+    self.testMetrics = TestMetrics()
+    MetricsSystem.bootstrapInternal(self.testMetrics)
+  }
+
+  deinit {
+    MetricsSystem.bootstrapInternal(NOOPMetricsHandler.instance)
+  }
+
+  // ==== ------------------------------------------------------------------------------------------------------------
+  // MARK: Metrics tests
+  @Test
+  func test_metrics_emittedByNIOImplementation() async throws {
+    let (firstHandler, _) = try await self.suite.makeClusterNode { settings in
+      settings.swim.metrics.labelPrefix = "first"
+      settings.swim.probeInterval = .milliseconds(100)
+    }
+    _ = try await self.suite.makeClusterNode { settings in
+      settings.swim.metrics.labelPrefix = "second"
+      settings.swim.probeInterval = .milliseconds(100)
+      settings.swim.initialContactPoints = [firstHandler.shell.node]
+    }
+    let (_, thirdChannel) = try await self.suite.makeClusterNode { settings in
+      settings.swim.metrics.labelPrefix = "third"
+      settings.swim.probeInterval = .milliseconds(100)
+      settings.swim.initialContactPoints = [firstHandler.shell.node]
     }
 
-    deinit {
-        MetricsSystem.bootstrapInternal(NOOPMetricsHandler.instance)
+    try await Task.sleep(for: .seconds(1))  // giving it some extra time to report a few metrics (a few round-trip times etc).
+
+    let m: SWIM.Metrics.ShellMetrics = firstHandler.metrics!
+
+    let roundTripTime = try! self.testMetrics.expectTimer(m.pingResponseTime)
+    #expect(roundTripTime.lastValue != nil)  // some roundtrip time should have been reported
+    for rtt in roundTripTime.values {
+      print("  ping rtt recorded: \(TimeAmount.nanoseconds(rtt).prettyDescription)")
     }
 
-    // ==== ------------------------------------------------------------------------------------------------------------
-    // MARK: Metrics tests
-    @Test
-    func test_metrics_emittedByNIOImplementation() async throws {
-        let (firstHandler, _) = try await self.suite.makeClusterNode() { settings in
-            settings.swim.metrics.labelPrefix = "first"
-            settings.swim.probeInterval = .milliseconds(100)
-        }
-        _ = try await self.suite.makeClusterNode() { settings in
-            settings.swim.metrics.labelPrefix = "second"
-            settings.swim.probeInterval = .milliseconds(100)
-            settings.swim.initialContactPoints = [firstHandler.shell.node]
-        }
-        let (_, thirdChannel) = try await self.suite.makeClusterNode() { settings in
-            settings.swim.metrics.labelPrefix = "third"
-            settings.swim.probeInterval = .milliseconds(100)
-            settings.swim.initialContactPoints = [firstHandler.shell.node]
-        }
+    let messageInboundCount = try! self.testMetrics.expectCounter(m.messageInboundCount)
+    let messageInboundBytes = try! self.testMetrics.expectRecorder(m.messageInboundBytes)
+    print("  messageInboundCount = \(messageInboundCount.totalValue)")
+    print("  messageInboundBytes = \(messageInboundBytes.lastValue!)")
+    #expect(messageInboundCount.totalValue > 0)
+    #expect(messageInboundBytes.lastValue! > 0)
 
-        try await Task.sleep(for: .seconds(1)) // giving it some extra time to report a few metrics (a few round-trip times etc).
+    let messageOutboundCount = try! self.testMetrics.expectCounter(m.messageOutboundCount)
+    let messageOutboundBytes = try! self.testMetrics.expectRecorder(m.messageOutboundBytes)
+    print("  messageOutboundCount = \(messageOutboundCount.totalValue)")
+    print("  messageOutboundBytes = \(messageOutboundBytes.lastValue!)")
+    #expect(messageOutboundCount.totalValue > 0)
+    #expect(messageOutboundBytes.lastValue! > 0)
 
-        let m: SWIM.Metrics.ShellMetrics = firstHandler.metrics!
+    thirdChannel.close(promise: nil)
+    try await Task.sleep(for: .seconds(2))
 
-        let roundTripTime = try! self.testMetrics.expectTimer(m.pingResponseTime)
-        #expect(roundTripTime.lastValue != nil) // some roundtrip time should have been reported
-        for rtt in roundTripTime.values {
-            print("  ping rtt recorded: \(TimeAmount.nanoseconds(rtt).prettyDescription)")
-        }
+    let pingRequestResponseTimeAll = try! self.testMetrics.expectTimer(m.pingRequestResponseTimeAll)
+    print("  pingRequestResponseTimeAll = \(pingRequestResponseTimeAll.lastValue!)")
+    #expect(pingRequestResponseTimeAll.lastValue! > 0)
 
-        let messageInboundCount = try! self.testMetrics.expectCounter(m.messageInboundCount)
-        let messageInboundBytes = try! self.testMetrics.expectRecorder(m.messageInboundBytes)
-        print("  messageInboundCount = \(messageInboundCount.totalValue)")
-        print("  messageInboundBytes = \(messageInboundBytes.lastValue!)")
-        #expect(messageInboundCount.totalValue > 0)
-        #expect(messageInboundBytes.lastValue! > 0)
+    let pingRequestResponseTimeFirst = try! self.testMetrics.expectTimer(
+      m.pingRequestResponseTimeFirst)
+    #expect(pingRequestResponseTimeFirst.lastValue == nil)  // because this only counts ACKs, and we get NACKs because the peer is down
 
-        let messageOutboundCount = try! self.testMetrics.expectCounter(m.messageOutboundCount)
-        let messageOutboundBytes = try! self.testMetrics.expectRecorder(m.messageOutboundBytes)
-        print("  messageOutboundCount = \(messageOutboundCount.totalValue)")
-        print("  messageOutboundBytes = \(messageOutboundBytes.lastValue!)")
-        #expect(messageOutboundCount.totalValue > 0)
-        #expect(messageOutboundBytes.lastValue! > 0)
+    let successfulPingProbes = try! self.testMetrics.expectCounter(
+      firstHandler.shell.swim.metrics.successfulPingProbes)
+    print("  successfulPingProbes = \(successfulPingProbes.totalValue)")
+    #expect(successfulPingProbes.totalValue > 1)  // definitely at least one, we joined some nodes
 
-        thirdChannel.close(promise: nil)
-        try await Task.sleep(for: .seconds(2))
+    let failedPingProbes = try! self.testMetrics.expectCounter(
+      firstHandler.shell.swim.metrics.failedPingProbes)
+    print("  failedPingProbes = \(failedPingProbes.totalValue)")
+    #expect(failedPingProbes.totalValue > 1)  // definitely at least one, we detected the down peer
 
-        let pingRequestResponseTimeAll = try! self.testMetrics.expectTimer(m.pingRequestResponseTimeAll)
-        print("  pingRequestResponseTimeAll = \(pingRequestResponseTimeAll.lastValue!)")
-        #expect(pingRequestResponseTimeAll.lastValue! > 0)
+    let successfulPingRequestProbes = try! self.testMetrics.expectCounter(
+      firstHandler.shell.swim.metrics.successfulPingRequestProbes)
+    print("  successfulPingRequestProbes = \(successfulPingRequestProbes.totalValue)")
+    #expect(successfulPingRequestProbes.totalValue > 1)  // definitely at least one, the second peer is alive and .nacks us, so we count that as success
 
-        let pingRequestResponseTimeFirst = try! self.testMetrics.expectTimer(m.pingRequestResponseTimeFirst)
-        #expect(pingRequestResponseTimeFirst.lastValue == nil) // because this only counts ACKs, and we get NACKs because the peer is down
-
-        let successfulPingProbes = try! self.testMetrics.expectCounter(firstHandler.shell.swim.metrics.successfulPingProbes)
-        print("  successfulPingProbes = \(successfulPingProbes.totalValue)")
-        #expect(successfulPingProbes.totalValue > 1) // definitely at least one, we joined some nodes
-
-        let failedPingProbes = try! self.testMetrics.expectCounter(firstHandler.shell.swim.metrics.failedPingProbes)
-        print("  failedPingProbes = \(failedPingProbes.totalValue)")
-        #expect(failedPingProbes.totalValue > 1) // definitely at least one, we detected the down peer
-
-        let successfulPingRequestProbes = try! self.testMetrics.expectCounter(firstHandler.shell.swim.metrics.successfulPingRequestProbes)
-        print("  successfulPingRequestProbes = \(successfulPingRequestProbes.totalValue)")
-        #expect(successfulPingRequestProbes.totalValue > 1) // definitely at least one, the second peer is alive and .nacks us, so we count that as success
-
-        let failedPingRequestProbes = try! self.testMetrics.expectCounter(firstHandler.shell.swim.metrics.failedPingRequestProbes)
-        print("  failedPingRequestProbes = \(failedPingRequestProbes.totalValue)")
-        #expect(failedPingRequestProbes.totalValue == 0) // 0 because the second peer is still responsive to us, even it third is dead
-    }
+    let failedPingRequestProbes = try! self.testMetrics.expectCounter(
+      firstHandler.shell.swim.metrics.failedPingRequestProbes)
+    print("  failedPingRequestProbes = \(failedPingRequestProbes.totalValue)")
+    #expect(failedPingRequestProbes.totalValue == 0)  // 0 because the second peer is still responsive to us, even it third is dead
+  }
 }

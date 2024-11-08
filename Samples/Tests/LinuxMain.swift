@@ -21,11 +21,11 @@ import XCTest
 ///
 
 #if os(Linux) || os(FreeBSD)
-@testable import NoopTests
+  @testable import NoopTests
 
-XCTMain(
+  XCTMain(
     [
-        testCase(SampleTest.allTests),
+      testCase(SampleTest.allTests)
     ]
-)
+  )
 #endif
