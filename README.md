@@ -133,7 +133,7 @@ self.swim.onPingRequest(
 }
 ```
 
-In general this allows for all the tricky "what to do when" to be encapsulated within the protocol instance, and a Shell only has to follow instructions implementing them. The actual implementations will often need to perform some more involved concurrency and networking thasks, like awaiting for a sequence of responses, and handling them in a specific way etc, however the general outline of the protocol is orchestrated by the instance's directives.
+In general this allows for all the tricky "what to do when" to be encapsulated within the protocol instance, and a Shell only has to follow instructions implementing them. The actual implementations will often need to perform some more involved concurrency and networking tasks, like awaiting for a sequence of responses, and handling them in a specific way etc, however the general outline of the protocol is orchestrated by the instance's directives.
 
 For detailed documentation about each of the callbacks, when to invoke them, and how all this fits together, please refer to the [**API Documentation**](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/index.html).
 
@@ -185,7 +185,7 @@ If you are interested in contributing and polishing up the SWIMNIO implementatio
 
 We are generally interested in fostering discussions and implementations of additional membership implementations using a similar "Instance" style.
 
-If you are interested in such algorithms, and have a favourite protocol that you'd like to see implemented, please do not hesitate to reach out heve via issues or the [Swift forums](https://forums.swift.org/c/server).
+If you are interested in such algorithms, and have a favourite protocol that you'd like to see implemented, please do not hesitate to reach out here via issues or the [Swift forums](https://forums.swift.org/c/server).
 
 ## Contributing
 
