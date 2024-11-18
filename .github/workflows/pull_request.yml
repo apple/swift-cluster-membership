@@ -28,3 +28,7 @@ jobs:
     with:
       name: "Samples"
       matrix_linux_command: "cd Samples/ && swift build --explicit-target-dependency-import-check error"
+
+  cxx-interop:
+    name: Cxx interop
+    uses: apple/swift-nio/.github/workflows/cxx_interop.yml@main
