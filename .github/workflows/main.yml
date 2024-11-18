@@ -1,17 +1,12 @@
-name: PR
+name: Main
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 8,20 * * *"
 
 jobs:
-  soundness:
-    name: Soundness
-    uses: swiftlang/github-workflows/.github/workflows/soundness.yml@main
-    with:
-      api_breakage_check_enabled: false
-      license_header_check_project_name: "Swift Cluster Membership"
-
   unit-tests:
     name: Unit tests
     uses: apple/swift-nio/.github/workflows/unit_tests.yml@main
