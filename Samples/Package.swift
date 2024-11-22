@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -7,11 +7,11 @@ var targets: [PackageDescription.Target] = [
     .target(
         name: "SWIMNIOSampleCluster",
         dependencies: [
-            "SWIM",
-            "SWIMNIOExample",
-            "SwiftPrometheus",
-            "Lifecycle",
-            "ArgumentParser",
+            .product(name: "SWIM", package: "swift-cluster-membership"),
+            .product(name: "SWIMNIOExample", package: "swift-cluster-membership"),
+            .product(name: "SwiftPrometheus", package: "SwiftPrometheus"),
+            .product(name: "Lifecycle", package: "swift-service-lifecycle"),
+            .product(name: "ArgumentParser", package: "swift-argument-parser"),
         ],
         path: "Sources/SWIMNIOSampleCluster"
     ),
@@ -22,7 +22,7 @@ var targets: [PackageDescription.Target] = [
     .testTarget(
         name: "NoopTests",
         dependencies: [
-            "SWIM"
+            .product(name: "SWIM", package: "swift-cluster-membership")
         ],
         path: "Tests/NoopTests"
     ),
@@ -42,7 +42,7 @@ var dependencies: [Package.Dependency] = [
 let package = Package(
     name: "swift-cluster-membership-samples",
     platforms: [
-        .macOS(.v10_12)
+        .macOS(.v13)
     ],
     products: [
         .executable(

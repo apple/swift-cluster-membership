@@ -55,7 +55,7 @@ struct SampleSWIMNIONode {
 }
 
 final class SWIMNIOSampleHandler: ChannelInboundHandler {
-    public typealias InboundIn = SWIM.MemberStatusChangedEvent
+    typealias InboundIn = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
 
     let log = Logger(label: "SWIMNIOSample")
 
