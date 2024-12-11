@@ -14,6 +14,7 @@
 
 import ClusterMembership
 import Logging
+import Metrics
 import NIO
 import SWIM
 
