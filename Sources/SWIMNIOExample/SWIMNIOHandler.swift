@@ -13,12 +13,19 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import CoreMetrics
 import Logging
 import NIO
 import NIOFoundationCompat
 import SWIM
 
 import struct Dispatch.DispatchTime
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 /// `ChannelDuplexHandler` responsible for encoding/decoding SWIM messages to/from the `SWIMNIOShell`.
 ///

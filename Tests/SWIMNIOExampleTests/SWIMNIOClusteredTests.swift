@@ -16,6 +16,7 @@ import ClusterMembership
 import Logging
 import NIO
 import SWIM
+import SWIMTestKit
 import XCTest
 
 @testable import SWIMNIOExample

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import CoreMetrics
 import Logging
 
 import struct Dispatch.DispatchTime
