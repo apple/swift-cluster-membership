@@ -23,3 +23,14 @@ jobs:
     with:
       name: "Samples"
       matrix_linux_command: "cd Samples/ && swift build --explicit-target-dependency-import-check error"
+
+  macos-tests:
+    name: macOS tests
+    uses: apple/swift-nio/.github/workflows/macos_tests.yml@main
+    with:
+      build_scheme: "none"  # no defined build schemes
+      macos_xcode_build_enabled: false
+      ios_xcode_build_enabled: false
+      watchos_xcode_build_enabled: false
+      tvos_xcode_build_enabled: false
+      visionos_xcode_build_enabled: false
