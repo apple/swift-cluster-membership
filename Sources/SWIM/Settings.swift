@@ -19,6 +19,8 @@ import struct Dispatch.DispatchTime
 
 #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
 import func Darwin.log2
+#elseif canImport(Musl)
+import Musl
 #else
 import Glibc
 #endif
