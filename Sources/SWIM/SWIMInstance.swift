@@ -20,6 +20,8 @@ import struct Dispatch.DispatchTime
 
 #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
 import Darwin
+#elseif canImport(Musl)
+import Musl
 #else
 import Glibc
 #endif
