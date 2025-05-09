@@ -17,10 +17,14 @@ import Logging
 
 import struct Dispatch.DispatchTime
 
-#if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
-import func Darwin.log2
-#else
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
+#else
+#error("Unsupported platform")
 #endif
 
 // ==== ----------------------------------------------------------------------------------------------------------------
