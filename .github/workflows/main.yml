@@ -49,7 +49,7 @@ jobs:
       ios_xcode_build_enabled: false
       watchos_xcode_build_enabled: false
       tvos_xcode_build_enabled: false
-      visionos_xcode_build_enabled: false<<<<<<< enable_static_sdk_ci
+      visionos_xcode_build_enabled: false
 
   static-sdk:
     name: Static SDK
