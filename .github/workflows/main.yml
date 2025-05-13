@@ -50,3 +50,8 @@ jobs:
       watchos_xcode_build_enabled: false
       tvos_xcode_build_enabled: false
       visionos_xcode_build_enabled: false
+
+  static-sdk:
+    name: Static SDK
+    # Workaround https://github.com/nektos/act/issues/1875
+    uses: apple/swift-nio/.github/workflows/static_sdk.yml@main
