@@ -25,7 +25,7 @@ swift run --package-path Samples SWIMNIOSampleCluster --port 7001
 which spawns a node on `127.0.0.1:7001`, to spawn another node to join it and form a two node cluster you can:
 
 ```bash
-swift run --package-path Samples SWIMNIOSampleCluster --port 7002 --initial-contact-points 127.0.0.1:7001,127.0.0.1:8888
+swift run --package-path Samples SWIMNIOSampleCluster --port 7002 --initial-contact-points 127.0.0.1:7001,127.0.0.1:7003
 
 # you can list multiple peers as contact points like this:
 swift run --package-path Samples SWIMNIOSampleCluster --port 7003 --initial-contact-points 127.0.0.1:7001,127.0.0.1:7002
