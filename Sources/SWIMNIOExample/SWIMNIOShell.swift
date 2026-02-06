@@ -18,8 +18,6 @@ import Metrics
 import NIO
 import SWIM
 
-import struct Dispatch.DispatchTime
-
 /// The SWIM shell is responsible for driving all interactions of the `SWIM.Instance` with the outside world.
 ///
 /// - Warning: Take care to only interact with the shell through `receive...` prefixed functions, as they ensure that
@@ -474,7 +472,7 @@ public final class SWIMNIOShell {
         let firstSuccessPromise = self.eventLoop.makePromise(of: SWIM.PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)
         let pingTimeout = directive.timeout
         let target = directive.target
-        let startedSendingPingRequestsSentAt: DispatchTime = .now()
+        let startedSendingPingRequestsSentAt: ContinuousClock.Instant = .now
 
         await withTaskGroup(of: Void.self) { group in
             for pingRequest in directive.requestDetails {
@@ -492,7 +490,7 @@ public final class SWIMNIOShell {
                             "pingRequest(target: \(target), replyTo: \(self.peer), payload: \(payload), sequenceNumber: \(sequenceNumber))"
                     )
 
-                    let pingRequestSentAt: DispatchTime = .now()
+                    let pingRequestSentAt: ContinuousClock.Instant = .now
                     do {
                         let response = try await peerToPingRequestThrough.pingRequest(
                             target: target,
@@ -503,7 +501,9 @@ public final class SWIMNIOShell {
                         )
 
                         // we only record successes
-                        self.swim.metrics.shell.pingRequestResponseTimeAll.recordInterval(since: pingRequestSentAt)
+                        self.swim.metrics.shell.pingRequestResponseTimeAll.record(
+                            duration: pingRequestSentAt.duration(to: .now)
+                        )
                         self.receiveEveryPingRequestResponse(result: response, pingedPeer: target)
 
                         if case .ack = response {
@@ -543,8 +543,8 @@ public final class SWIMNIOShell {
         firstSuccessPromise.futureResult.whenComplete { result in
             switch result {
             case .success(let response):
-                self.swim.metrics.shell.pingRequestResponseTimeFirst.recordInterval(
-                    since: startedSendingPingRequestsSentAt
+                self.swim.metrics.shell.pingRequestResponseTimeFirst.record(
+                    duration: startedSendingPingRequestsSentAt.duration(to: .now)
                 )
                 self.receivePingRequestResponse(result: response, pingedPeer: target)
 

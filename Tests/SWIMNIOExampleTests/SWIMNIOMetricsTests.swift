@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import Dispatch
 import Metrics
 import NIO
 import SWIMTestKit

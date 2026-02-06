@@ -68,10 +68,10 @@ public final class LogCapture {
         line: UInt = #line,
         column: UInt = #column
     ) throws -> CapturedLogMessage {
-        let startTime = DispatchTime.now()
-        let deadline = startTime.uptimeNanoseconds + UInt64(within.nanoseconds)
+        let startTime = ContinuousClock.now
+        let deadline = startTime.advanced(by: .nanoseconds(within.nanoseconds))
         func timeExceeded() -> Bool {
-            DispatchTime.now().uptimeNanoseconds > deadline
+            ContinuousClock.now > deadline
         }
         while !timeExceeded() {
             let logs = self.logs

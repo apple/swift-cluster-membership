@@ -14,8 +14,6 @@
 
 import ClusterMembership
 
-import struct Dispatch.DispatchTime
-
 extension SWIM {
     /// Incarnation numbers serve as sequence number and used to determine which observation
     /// is "more recent" when comparing gossiped information.

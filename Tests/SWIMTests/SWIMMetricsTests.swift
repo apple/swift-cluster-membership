@@ -13,8 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import Dispatch
-import Metrics
 import SWIMTestKit
 import XCTest
 
@@ -129,7 +127,7 @@ final class SWIMMetricsTests: XCTestCase {
         case .deadImmediately:
             settings.unreachability = .disabled
         }
-        var mockTime = DispatchTime.now()
+        var mockTime = ContinuousClock.now
         settings.timeSourceNow = { mockTime }
         var swim = SWIM.Instance<TestPeer, TestPeer, TestPeer>(settings: settings, myself: self.myself)
 
@@ -158,7 +156,7 @@ final class SWIMMetricsTests: XCTestCase {
                 pingRequestOrigin: nil,
                 pingRequestSequenceNumber: nil
             )
-            mockTime = mockTime + DispatchTimeInterval.seconds(120)
+            mockTime = mockTime.advanced(by: .seconds(120))
             _ = swim.onPeriodicPingTick()
         }
         let (expectedUnreachables1, expectedDeads1): (Int, Int)
@@ -179,7 +177,7 @@ final class SWIMMetricsTests: XCTestCase {
                 pingRequestOrigin: nil,
                 pingRequestSequenceNumber: nil
             )
-            mockTime = mockTime + DispatchTimeInterval.seconds(120)
+            mockTime = mockTime.advanced(by: .seconds(120))
             _ = swim.onPeriodicPingTick()
         }
         let (expectedUnreachables2, expectedDeads2): (Int, Int)

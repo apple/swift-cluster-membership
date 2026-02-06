@@ -19,8 +19,8 @@ if ProcessInfo.processInfo.environment["WARNINGS_AS_ERRORS"] != nil {
 }
 
 let upcomingConcurrencySettings: [SwiftSetting] = [
-  .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
-  .enableUpcomingFeature("InferIsolatedConformances"),
+    .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+    .enableUpcomingFeature("InferIsolatedConformances"),
 ]
 
 var targets: [PackageDescription.Target] = [

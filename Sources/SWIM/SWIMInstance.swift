@@ -16,8 +16,6 @@ import ClusterMembership
 import CoreMetrics
 import Logging
 
-import struct Dispatch.DispatchTime
-
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)
@@ -401,7 +399,7 @@ extension SWIM {
 
             var status = status
             var protocolPeriod = self.protocolPeriod
-            var suspicionStartedAt: DispatchTime?
+            var suspicionStartedAt: ContinuousClock.Instant?
 
             if case .suspect(let incomingIncarnation, let incomingSuspectedBy) = status,
                 case .suspect(let previousIncarnation, let previousSuspectedBy)? = previousStatusOption,
@@ -556,14 +554,14 @@ extension SWIM {
         ///
         /// - Parameter deadline: deadline we want to check if it's expired
         /// - Returns: true if the `now()` time is "past" the deadline
-        public func isExpired(deadline: DispatchTime) -> Bool {
+        public func isExpired(deadline: ContinuousClock.Instant) -> Bool {
             deadline < self.now()
         }
 
         /// Returns the current point in time on this machine.
-        /// - Note: `DispatchTime` is simply a number of nanoseconds since boot on this machine, and thus is not comparable across machines.
+        /// - Note: `ContinuousClock.Instant` is simply a number of nanoseconds since boot on this machine, and thus is not comparable across machines.
         ///   We use it on purpose, as we do not intend to share our local time observations with any other peers.
-        private func now() -> DispatchTime {
+        private func now() -> ContinuousClock.Instant {
             self.settings.timeSourceNow()
         }
 
@@ -841,11 +839,7 @@ extension SWIM.Instance {
                 // proceed with suspicion escalation to .unreachable if the timeout period has been exceeded
                 // We don't use Deadline because tests can override TimeSource
                 guard let suspectSince = suspect.localSuspicionStartedAt,
-                    self.isExpired(
-                        deadline: DispatchTime(
-                            uptimeNanoseconds: suspectSince.uptimeNanoseconds + UInt64(suspicionTimeout.nanoseconds)
-                        )
-                    )
+                    self.isExpired(deadline: suspectSince.advanced(by: suspicionTimeout))
                 else {
                     continue  // skip, this suspect is not timed-out yet
                 }

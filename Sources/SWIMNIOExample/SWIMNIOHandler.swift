@@ -19,8 +19,6 @@ import NIO
 import NIOFoundationCompat
 import SWIM
 
-import struct Dispatch.DispatchTime
-
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
@@ -323,7 +321,7 @@ struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
     let peerAddress: SocketAddress  // FIXME: UID as well...?
     let sequenceNumber: SWIM.SequenceNumber
 
-    let storedAt: DispatchTime = .now()
+    let storedAt: ContinuousClock.Instant = .now
 
     #if DEBUG
     let inResponseTo: SWIM.Message?
@@ -348,8 +346,8 @@ struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
         """
     }
 
-    func nanosecondsSinceCallbackStored(now: DispatchTime = .now()) -> Duration {
-        Duration.nanoseconds(Int(now.uptimeNanoseconds - storedAt.uptimeNanoseconds))
+    func nanosecondsSinceCallbackStored(now: ContinuousClock.Instant = .now) -> Duration {
+        self.storedAt.duration(to: now)
     }
 }
 
