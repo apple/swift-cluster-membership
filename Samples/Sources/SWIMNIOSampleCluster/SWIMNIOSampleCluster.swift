@@ -91,14 +91,17 @@ struct SWIMNIOSampleCluster: AsyncParsableCommand {
                 services.append(node)
             }
 
-            // create nodes, append each
-            let serviceGroup = ServiceGroup(
-                services: services,
-                gracefulShutdownSignals: [.sigterm, .sigint],
-                cancellationSignals: [],
+            let config = ServiceGroupConfiguration(
+                services: services.map {
+                    .init(
+                        service: $0,
+                        successTerminationBehavior: .ignore,
+                        failureTerminationBehavior: .cancelGroup
+                    )
+                },
                 logger: Logger(label: "swim-sample")
             )
-
+            let serviceGroup = ServiceGroup(configuration: config)
             try await serviceGroup.run()
         }
 
