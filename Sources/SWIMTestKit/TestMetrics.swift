@@ -382,5 +382,5 @@ public final class TestTimer: TestMetric, TimerHandler, Equatable {
 
 public enum TestMetricsError: Error {
     case missingMetric(label: String, dimensions: [(String, String)])
-    case illegalMetricType(metric: Any, expected: String)
+    case illegalMetricType(metric: any Sendable, expected: String)
 }

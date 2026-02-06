@@ -108,7 +108,7 @@ public final class SWIMNIOShell: Sendable {
 
     /// Start a *single* timer, to run the passed task after given delay.
     @discardableResult
-    private func schedule(delay: Duration, _ task: @escaping () -> Void) -> SWIMCancellable {
+    private func schedule(delay: Duration, _ task: @escaping @Sendable () -> Void) -> SWIMCancellable {
         self.eventLoop.assertInEventLoop()
 
         let scheduled: Scheduled<Void> = self.eventLoop.scheduleTask(in: delay.toNIO) { () in task() }

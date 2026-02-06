@@ -295,7 +295,7 @@ extension SWIMNIOHandler {
 /// Used to a command to the channel pipeline to write the message,
 /// and install a reply handler for the specific sequence number associated with the message (along with a timeout)
 /// when a callback is provided.
-public struct SWIMNIOWriteCommand {
+public struct SWIMNIOWriteCommand: Sendable {
     /// SWIM message to be written.
     public let message: SWIM.Message
     /// Address of recipient peer where the message should be written to.
@@ -304,14 +304,14 @@ public struct SWIMNIOWriteCommand {
     /// If the `replyCallback` is set, what timeout should be set for a reply to come back from the peer.
     public let replyTimeout: NIO.TimeAmount
     /// Callback to be invoked (calling into the SWIMNIOShell) when a reply to this message arrives.
-    public let replyCallback: ((Result<SWIM.Message, Error>) -> Void)?
+    public let replyCallback: (@Sendable (Result<SWIM.Message, Error>) -> Void)?
 
     /// Create a write command.
     public init(
         message: SWIM.Message,
         to recipient: Node,
         replyTimeout: TimeAmount,
-        replyCallback: ((Result<SWIM.Message, Error>) -> Void)?
+        replyCallback: (@Sendable (Result<SWIM.Message, Error>) -> Void)?
     ) {
         self.message = message
         self.recipient = try! .init(ipAddress: recipient.host, port: recipient.port)  // try!-safe since the host/port is always safe
