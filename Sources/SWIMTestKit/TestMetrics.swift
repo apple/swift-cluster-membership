@@ -312,32 +312,36 @@ public final class TestRecorder: TestMetric, RecorderHandler, Equatable, Sendabl
 public final class TestTimer: TestMetric, TimerHandler, Equatable {
     public let id: String
     public let label: String
-    public let displayUnit: Mutex<TimeUnit?>
+    public var displayUnit: TimeUnit? { self._storage.withLock { $0.displayUnit } }
     public let dimensions: [(String, String)]
 
     public var key: TestMetrics.FullKey {
         .init(label: self.label, dimensions: self.dimensions)
     }
 
-    private let _values = Mutex([(Date, Int64)]())
+    private let _storage = Mutex(Storage())
+
+    struct Storage {
+        var displayUnit: TimeUnit? = nil
+        var values = [(Date, Int64)]()
+    }
 
     init(label: String, dimensions: [(String, String)]) {
         self.id = UUID().uuidString
         self.label = label
-        self.displayUnit = Mutex(nil)
         self.dimensions = dimensions
     }
 
     public func preferDisplayUnit(_ unit: TimeUnit) {
-        self.displayUnit.withLock {
-            $0 = unit
+        self._storage.withLock {
+            $0.displayUnit = unit
         }
     }
 
     func retrieveValueInPreferredUnit(atIndex i: Int) -> Double {
-        self._values.withLock {
-            let value = $0[i].1
-            guard let displayUnit = self.displayUnit.withLock({ $0 }) else {
+        self._storage.withLock {
+            let value = $0.values[i].1
+            guard let displayUnit = $0.displayUnit else {
                 return Double(value)
             }
             return Double(value) / Double(displayUnit.scaleFromNanoseconds)
@@ -345,27 +349,27 @@ public final class TestTimer: TestMetric, TimerHandler, Equatable {
     }
 
     public func recordNanoseconds(_ duration: Int64) {
-        self._values.withLock {
-            $0.append((Date(), duration))
+        self._storage.withLock {
+            $0.values.append((Date(), duration))
         }
         print("recording \(duration) in \(self.label)\(self.dimensions.map { "\($0):\($1)" })")
     }
 
     public var lastValue: Int64? {
-        self._values.withLock {
-            $0.last?.1
+        self._storage.withLock {
+            $0.values.last?.1
         }
     }
 
     public var values: [Int64] {
-        self._values.withLock {
-            $0.map { $0.1 }
+        self._storage.withLock {
+            $0.values.map { $0.1 }
         }
     }
 
     public var last: (Date, Int64)? {
-        self._values.withLock {
-            $0.last
+        self._storage.withLock {
+            $0.values.last
         }
     }
 
