@@ -12,52 +12,37 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Logging
 import NIO
+import Synchronization
 import XCTest
 
 import struct Foundation.Date
-import class Foundation.NSLock
-
-@testable import Logging
 
 /// Testing only utility: Captures all log statements for later inspection.
-public final class LogCapture {
-    private var _logs: [CapturedLogMessage] = []
-    private let lock = NSLock()
+public final class LogCapture: Sendable {
+    private let _logs: Mutex<[CapturedLogMessage]> = Mutex([])
 
     let settings: Settings
-    private var captureLabel: String = ""
+    private let captureLabel: Mutex<String> = Mutex("")
 
     public init(settings: Settings = .init()) {
         self.settings = settings
     }
 
     public func logger(label: String) -> Logger {
-        self.lock.lock()
-        defer {
-            self.lock.unlock()
+        self.captureLabel.withLock { $0 = label }
+        return Logger(label: "LogCapture(\(label))") { _ in
+            LogCaptureLogHandler(label: label, self)
         }
-
-        self.captureLabel = label
-        return Logger(label: "LogCapture(\(label))", LogCaptureLogHandler(label: label, self))
     }
 
     func append(_ log: CapturedLogMessage) {
-        self.lock.lock()
-        defer {
-            self.lock.unlock()
-        }
-
-        self._logs.append(log)
+        self._logs.withLock { $0.append(log) }
     }
 
     public var logs: [CapturedLogMessage] {
-        self.lock.lock()
-        defer {
-            self.lock.unlock()
-        }
-
-        return self._logs
+        self._logs.withLock { $0 }
     }
 
     @discardableResult
@@ -92,7 +77,7 @@ public final class LogCapture {
 }
 
 extension LogCapture {
-    public struct Settings {
+    public struct Settings: Sendable {
         public init() {}
 
         public var minimumLogLevel: Logger.Level = .trace
@@ -164,7 +149,7 @@ extension LogCapture {
             let file = log.file.split(separator: "/").last ?? ""
             let line = log.line
             print(
-                "[\(self.captureLabel)][\(date)] [\(file):\(line)]\(node) [\(log.level)] \(log.message)\(metadataString)"
+                "[\(self.captureLabel.withLock { $0 })][\(date)] [\(file):\(line)]\(node) [\(log.level)] \(log.message)\(metadataString)"
             )
         }
     }
@@ -199,7 +184,7 @@ extension LogCapture {
     }
 }
 
-public struct CapturedLogMessage {
+public struct CapturedLogMessage: Sendable {
     public let date: Date
     public let level: Logger.Level
     public var message: Logger.Message
@@ -225,6 +210,7 @@ struct LogCaptureLogHandler: LogHandler {
         level: Logger.Level,
         message: Logger.Message,
         metadata: Logger.Metadata?,
+        source: String,
         file: String,
         function: String,
         line: UInt

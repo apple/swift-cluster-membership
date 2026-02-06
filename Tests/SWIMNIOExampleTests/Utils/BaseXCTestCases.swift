@@ -21,7 +21,6 @@ import SWIMTestKit
 import XCTest
 
 import struct Foundation.Date
-import class Foundation.NSLock
 
 @testable import SWIMNIOExample
 
