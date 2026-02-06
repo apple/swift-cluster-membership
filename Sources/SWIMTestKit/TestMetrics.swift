@@ -27,12 +27,11 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import CoreMetrics
+import Metrics
+import SWIM
 import Synchronization
 import XCTest
-
-@testable import CoreMetrics
-@testable import Metrics
-@testable import SWIM
 
 /// Taken directly from swift-metrics's own test package.
 ///
