@@ -70,7 +70,7 @@ extension SWIM {
         /// Metrics to be filled in by respective SWIM shell implementations.
         public let shell: ShellMetrics
 
-        public struct ShellMetrics {
+        public struct ShellMetrics: Sendable {
             // ==== ----------------------------------------------------------------------------------------------------
             // MARK: Probe metrics
 

@@ -40,19 +40,20 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
     var log: Logger {
         self.settings.logger
     }
+    private struct Storage {
+        // initialized in channelActive
+        var shell: SWIMNIOShell?
+        var metrics: SWIM.Metrics.ShellMetrics?
+        var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void] = [:]
+    }
 
-    // initialized in channelActive
-    private let _shell: Mutex<SWIMNIOShell?> = .init(nil)
-    private let _metrics: Mutex<SWIM.Metrics.ShellMetrics?> = .init(nil)
+    private let _storage: Mutex<Storage> = Mutex(Storage())
 
-    var shell: SWIMNIOShell { self._shell.withLock { $0 }! }
-    var metrics: SWIM.Metrics.ShellMetrics? { self._metrics.withLock { $0 } }
-
-    private let pendingReplyCallbacks: Mutex<[PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void]>
+    var shell: SWIMNIOShell { self._storage.withLock { $0.shell }! }
+    var metrics: SWIM.Metrics.ShellMetrics? { self._storage.withLock { $0.metrics } }
 
     public init(settings: SWIMNIO.Settings) {
         self.settings = settings
-        self.pendingReplyCallbacks = Mutex([:])
     }
 
     public func channelActive(context: ChannelHandlerContext) {
@@ -85,10 +86,10 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
                 }
             }
         )
-        self._shell.withLock {
-            $0 = shell
+        self._storage.withLock {
+            $0.shell = shell
+            $0.metrics = shell.swim.metrics.shell
         }
-        self._metrics.withLock { $0 = shell.swim.withLock { $0.metrics.shell } }
 
         self.log.trace(
             "Channel active",
@@ -99,7 +100,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
     }
 
     public func channelUnregistered(context: ChannelHandlerContext) {
-        self._shell.withLock { $0?.receiveShutdown() }
+        self._storage.withLock { $0.shell?.receiveShutdown() }
         context.fireChannelUnregistered()
     }
 
@@ -138,7 +139,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
                 #endif
 
                 let timeoutTask = context.eventLoop.scheduleTask(in: writeCommand.replyTimeout) {
-                    if let callback = self.pendingReplyCallbacks.withLock({ $0.removeValue(forKey: callbackKey) }) {
+                    if let callback = self._storage.withLock({ $0.pendingReplyCallbacks.removeValue(forKey: callbackKey) }) {
                         callback(
                             .failure(
                                 SWIMNIOTimeoutError(
@@ -155,11 +156,11 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
                     "Store callback: \(callbackKey)",
                     metadata: [
                         "message": "\(writeCommand.message)",
-                        "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.withLock { $0.map { "\($0)" } }),
+                        "pending/callbacks": Logger.MetadataValue.array(self._storage.withLock { $0.pendingReplyCallbacks.map { "\($0)" } }),
                     ]
                 )
-                self.pendingReplyCallbacks.withLock {
-                    $0[callbackKey] = { reply in
+                self._storage.withLock {
+                    $0.pendingReplyCallbacks[callbackKey] = { reply in
                         timeoutTask.cancel()  // when we trigger the callback, we should also cancel the timeout task
                         replyCallback(reply)  // successful reply received
                     }
@@ -217,34 +218,32 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
                 )
                 #endif
 
-                self.pendingReplyCallbacks.withLock { pendingReplyCallbacks in
-                    if let index = pendingReplyCallbacks.index(forKey: callbackKey) {
-                        let (storedKey, callback) = pendingReplyCallbacks.remove(at: index)
+                self._storage.withLock { storage in
+                    if let index = storage.pendingReplyCallbacks.index(forKey: callbackKey) {
+                        let (storedKey, callback) = storage.pendingReplyCallbacks.remove(at: index)
                         // TODO: UIDs of nodes matter
                         self.log.trace(
                             "Received response, key: \(callbackKey); Invoking callback...",
                             metadata: [
-                                "pending/callbacks": Logger.MetadataValue.array(pendingReplyCallbacks.map { "\($0)" })
+                                "pending/callbacks": Logger.MetadataValue.array(storage.pendingReplyCallbacks.map { "\($0)" })
                             ]
                         )
-                        self._metrics.withLock {
-                            $0?.pingResponseTime.recordNanoseconds(
-                                storedKey.nanosecondsSinceCallbackStored().nanoseconds
-                            )
-                        }
+                        storage.metrics?.pingResponseTime.recordNanoseconds(
+                            storedKey.nanosecondsSinceCallbackStored().nanoseconds
+                        )
                         callback(.success(message))
                     } else {
                         self.log.trace(
                             "No callback for \(callbackKey); It may have been removed due to a timeout already.",
                             metadata: [
-                                "pending callbacks": Logger.MetadataValue.array(pendingReplyCallbacks.map { "\($0)" })
+                                "pending callbacks": Logger.MetadataValue.array(storage.pendingReplyCallbacks.map { "\($0)" })
                             ]
                         )
                     }
                 }
             } else {
                 // deliver to the shell ------------------------------
-                self._shell.withLock { $0?.receiveMessage(message: message) }
+                self.shell.receiveMessage(message: message)
             }
         } catch {
             self.log.error(
@@ -263,7 +262,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
             "Error caught: \(error)",
             metadata: [
                 "nio/channel": "\(context.channel)",
-                "swim/shell": "\(self._shell.withLock { $0 }, orElse: "nil")",
+                "swim/shell": "\(self.shell, orElse: "nil")",
                 "error": "\(error)",
             ]
         )
@@ -280,9 +279,9 @@ extension SWIMNIOHandler {
             throw MissingDataError("No data to read")
         }
 
-        self._metrics.withLock {
-            $0?.messageOutboundCount.increment()
-            $0?.messageOutboundBytes.record(data.count)
+        self._storage.withLock {
+            $0.metrics?.messageOutboundCount.increment()
+            $0.metrics?.messageOutboundBytes.record(data.count)
         }
 
         let decoder = SWIMNIODefaultDecoder()
@@ -294,9 +293,9 @@ extension SWIMNIOHandler {
         let encoder = SWIMNIODefaultEncoder()
         let data = try encoder.encode(message)
 
-        self._metrics.withLock {
-            $0?.messageInboundCount.increment()
-            $0?.messageInboundBytes.record(data.count)
+        self._storage.withLock {
+            $0.metrics?.messageInboundCount.increment()
+            $0.metrics?.messageInboundBytes.record(data.count)
         }
 
         let buffer = data.withUnsafeBytes { bytes -> ByteBuffer in

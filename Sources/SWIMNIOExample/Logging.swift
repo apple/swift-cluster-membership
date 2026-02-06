@@ -36,7 +36,7 @@ extension SWIMNIOShell {
             self.log.log(
                 level: level,
                 "[\(self.myself.node)] \(type.description) :: \(message())",
-                metadata: self.swim.withLock { $0.metadata },
+                metadata: self.swim.metadata,
                 file: file,
                 function: function,
                 line: line
