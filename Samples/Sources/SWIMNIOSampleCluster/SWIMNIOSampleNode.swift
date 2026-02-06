@@ -17,10 +17,12 @@ import Logging
 import NIO
 import SWIM
 import SWIMNIOExample
+import ServiceLifecycle
 
-struct SampleSWIMNIONode {
+struct SampleSWIMNIONode: Service {
+
     let port: Int
-    var settings: SWIMNIO.Settings
+    let settings: SWIMNIO.Settings
 
     let group: EventLoopGroup
 
@@ -30,25 +32,30 @@ struct SampleSWIMNIONode {
         self.group = group
     }
 
-    func start() {
-        let bootstrap = DatagramBootstrap(group: group)
-            .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-            .channelInitializer { channel in
-                channel.pipeline
-                    .addHandler(SWIMNIOHandler(settings: self.settings)).flatMap {
-                        channel.pipeline.addHandler(SWIMNIOSampleHandler())
-                    }
+    func run() async throws {
+        try await withGracefulShutdownHandler {
+            let bootstrap = DatagramBootstrap(group: group)
+                .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+                .channelInitializer { channel in
+                    channel.pipeline
+                        .addHandler(SWIMNIOHandler(settings: self.settings)).flatMap {
+                            channel.pipeline.addHandler(SWIMNIOSampleHandler())
+                        }
+                }
+
+            let channel =
+                try await bootstrap
+                .bind(host: "127.0.0.1", port: port)
+                .get()
+            do {
+                self.settings.logger.info("Bound to: \(channel)")
+                try await channel.closeFuture.get()
+            } catch {
+                self.settings.logger.error("Error: \(error)")
             }
 
-        bootstrap.bind(host: "127.0.0.1", port: port).whenComplete { result in
-            switch result {
-            case .success(let res):
-                self.settings.logger.info("Bound to: \(res)")
-                ()
-            case .failure(let error):
-                self.settings.logger.error("Error: \(error)")
-                ()
-            }
+        } onGracefulShutdown: {
+            try? group.syncShutdownGracefully()
         }
     }
 
