@@ -42,10 +42,13 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
     }
 
     // initialized in channelActive
-    let shell: Mutex<SWIMNIOShell?> = .init(nil)
-    let metrics: Mutex<SWIM.Metrics.ShellMetrics?> = .init(nil)
+    private let _shell: Mutex<SWIMNIOShell?> = .init(nil)
+    private let _metrics: Mutex<SWIM.Metrics.ShellMetrics?> = .init(nil)
 
-    let pendingReplyCallbacks: Mutex<[PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void]>
+    var shell: SWIMNIOShell { self._shell.withLock { $0 }! }
+    var metrics: SWIM.Metrics.ShellMetrics? { self._metrics.withLock { $0 } }
+
+    private let pendingReplyCallbacks: Mutex<[PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void]>
 
     public init(settings: SWIMNIO.Settings) {
         self.settings = settings
@@ -82,10 +85,10 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
                 }
             }
         )
-        self.shell.withLock {
+        self._shell.withLock {
             $0 = shell
         }
-        self.metrics.withLock { $0 = shell.swim.withLock { $0.metrics.shell } }
+        self._metrics.withLock { $0 = shell.swim.withLock { $0.metrics.shell } }
 
         self.log.trace(
             "Channel active",
@@ -96,7 +99,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
     }
 
     public func channelUnregistered(context: ChannelHandlerContext) {
-        self.shell.withLock { $0?.receiveShutdown() }
+        self._shell.withLock { $0?.receiveShutdown() }
         context.fireChannelUnregistered()
     }
 
@@ -224,7 +227,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
                                 "pending/callbacks": Logger.MetadataValue.array(pendingReplyCallbacks.map { "\($0)" })
                             ]
                         )
-                        self.metrics.withLock {
+                        self._metrics.withLock {
                             $0?.pingResponseTime.recordNanoseconds(
                                 storedKey.nanosecondsSinceCallbackStored().nanoseconds
                             )
@@ -241,7 +244,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
                 }
             } else {
                 // deliver to the shell ------------------------------
-                self.shell.withLock { $0?.receiveMessage(message: message) }
+                self._shell.withLock { $0?.receiveMessage(message: message) }
             }
         } catch {
             self.log.error(
@@ -260,7 +263,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
             "Error caught: \(error)",
             metadata: [
                 "nio/channel": "\(context.channel)",
-                "swim/shell": "\(self.shell.withLock { $0 }, orElse: "nil")",
+                "swim/shell": "\(self._shell.withLock { $0 }, orElse: "nil")",
                 "error": "\(error)",
             ]
         )
@@ -277,9 +280,9 @@ extension SWIMNIOHandler {
             throw MissingDataError("No data to read")
         }
 
-        self.metrics.withLock {
-            $0?.messageInboundCount.increment()
-            $0?.messageInboundBytes.record(data.count)
+        self._metrics.withLock {
+            $0?.messageOutboundCount.increment()
+            $0?.messageOutboundBytes.record(data.count)
         }
 
         let decoder = SWIMNIODefaultDecoder()
@@ -291,7 +294,7 @@ extension SWIMNIOHandler {
         let encoder = SWIMNIODefaultEncoder()
         let data = try encoder.encode(message)
 
-        self.metrics.withLock {
+        self._metrics.withLock {
             $0?.messageInboundCount.increment()
             $0?.messageInboundBytes.record(data.count)
         }

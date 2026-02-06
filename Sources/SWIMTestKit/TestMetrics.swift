@@ -46,33 +46,37 @@ public final class TestMetrics: MetricsFactory, Sendable {
         let dimensions: [(String, String)]
     }
 
-    private let counters = Mutex([FullKey: CounterHandler]())
-    private let recorders = Mutex([FullKey: RecorderHandler]())
-    private let timers = Mutex([FullKey: TimerHandler]())
+    private struct Storage {
+        var counters = [FullKey: CounterHandler]()
+        var recorders = [FullKey: RecorderHandler]()
+        var timers = [FullKey: TimerHandler]()
+    }
+
+    private let _storage: Mutex<Storage> = Mutex(Storage())
 
     public init() {
         // nothing to do
     }
 
     public func makeCounter(label: String, dimensions: [(String, String)]) -> CounterHandler {
-        self.counters.withLock { counters in
-            self.make(label: label, dimensions: dimensions, registry: &counters, maker: TestCounter.init)
+        self._storage.withLock { storage in
+            self.make(label: label, dimensions: dimensions, registry: &storage.counters, maker: TestCounter.init)
         }
     }
 
     public func makeRecorder(label: String, dimensions: [(String, String)], aggregate: Bool) -> RecorderHandler {
-        self.recorders.withLock { recorders in
+        self._storage.withLock { storage in
             let maker = { (label: String, dimensions: [(String, String)]) -> RecorderHandler in
                 TestRecorder(label: label, dimensions: dimensions, aggregate: aggregate)
             }
 
-            return self.make(label: label, dimensions: dimensions, registry: &recorders, maker: maker)
+            return self.make(label: label, dimensions: dimensions, registry: &storage.recorders, maker: maker)
         }
     }
 
     public func makeTimer(label: String, dimensions: [(String, String)]) -> TimerHandler {
-        self.timers.withLock { timers in
-            self.make(label: label, dimensions: dimensions, registry: &timers, maker: TestTimer.init)
+        self._storage.withLock { storage in
+            self.make(label: label, dimensions: dimensions, registry: &storage.timers, maker: TestTimer.init)
         }
     }
 
@@ -89,19 +93,19 @@ public final class TestMetrics: MetricsFactory, Sendable {
 
     public func destroyCounter(_ handler: CounterHandler) {
         if let testCounter = handler as? TestCounter {
-            _ = self.counters.withLock { $0.removeValue(forKey: testCounter.key) }
+            _ = self._storage.withLock { $0.counters.removeValue(forKey: testCounter.key) }
         }
     }
 
     public func destroyRecorder(_ handler: RecorderHandler) {
         if let testRecorder = handler as? TestRecorder {
-            _ = self.recorders.withLock { $0.removeValue(forKey: testRecorder.key) }
+            _ = self._storage.withLock { $0.recorders.removeValue(forKey: testRecorder.key) }
         }
     }
 
     public func destroyTimer(_ handler: TimerHandler) {
         if let testTimer = handler as? TestTimer {
-            _ = self.timers.withLock { $0.removeValue(forKey: testTimer.key) }
+            _ = self._storage.withLock { $0.timers.removeValue(forKey: testTimer.key) }
         }
     }
 }
@@ -133,19 +137,20 @@ extension TestMetrics {
     }
 
     public func expectCounter(_ label: String, _ dimensions: [(String, String)] = []) throws -> TestCounter {
-        let counter: CounterHandler = try self.counters.withLock {
-            if let c: CounterHandler = $0[.init(label: label, dimensions: dimensions)] {
-                return c
+        try self._storage.withLock { storage in
+            let counter: CounterHandler
+            if let c: CounterHandler = storage.counters[.init(label: label, dimensions: dimensions)] {
+                counter = c
             } else {
                 throw TestMetricsError.missingMetric(label: label, dimensions: [])
             }
-        }
 
-        guard let testCounter = counter as? TestCounter else {
-            throw TestMetricsError.illegalMetricType(metric: counter, expected: "\(TestCounter.self)")
-        }
+            guard let testCounter = counter as? TestCounter else {
+                throw TestMetricsError.illegalMetricType(metric: counter, expected: "\(TestCounter.self)")
+            }
 
-        return testCounter
+            return testCounter
+        }
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -167,14 +172,16 @@ extension TestMetrics {
     }
 
     public func expectRecorder(_ label: String, _ dimensions: [(String, String)] = []) throws -> TestRecorder {
-        guard let counter = self.recorders.withLock({ $0[.init(label: label, dimensions: dimensions)] }) else {
-            throw TestMetricsError.missingMetric(label: label, dimensions: [])
-        }
-        guard let testRecorder = counter as? TestRecorder else {
-            throw TestMetricsError.illegalMetricType(metric: counter, expected: "\(TestRecorder.self)")
-        }
+        try self._storage.withLock { storage in
+            guard let counter = storage.recorders[.init(label: label, dimensions: dimensions)] else {
+                throw TestMetricsError.missingMetric(label: label, dimensions: [])
+            }
+            guard let testRecorder = counter as? TestRecorder else {
+                throw TestMetricsError.illegalMetricType(metric: counter, expected: "\(TestRecorder.self)")
+            }
 
-        return testRecorder
+            return testRecorder
+        }
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -185,14 +192,16 @@ extension TestMetrics {
     }
 
     public func expectTimer(_ label: String, _ dimensions: [(String, String)] = []) throws -> TestTimer {
-        guard let counter = self.timers.withLock({ $0[.init(label: label, dimensions: dimensions)] }) else {
-            throw TestMetricsError.missingMetric(label: label, dimensions: [])
-        }
-        guard let testTimer = counter as? TestTimer else {
-            throw TestMetricsError.illegalMetricType(metric: counter, expected: "\(TestTimer.self)")
-        }
+        try self._storage.withLock { storage in
+            guard let counter = storage.timers[.init(label: label, dimensions: dimensions)] else {
+                throw TestMetricsError.missingMetric(label: label, dimensions: [])
+            }
+            guard let testTimer = counter as? TestTimer else {
+                throw TestMetricsError.illegalMetricType(metric: counter, expected: "\(TestTimer.self)")
+            }
 
-        return testTimer
+            return testTimer
+        }
     }
 }
 
