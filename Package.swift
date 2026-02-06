@@ -90,7 +90,7 @@ var targets: [PackageDescription.Target] = [
     ),
 
     // NOT FOR PUBLIC CONSUMPTION.
-    .testTarget(
+    .target(
         name: "SWIMTestKit",
         dependencies: [
             "SWIM",
@@ -106,13 +106,13 @@ var targets: [PackageDescription.Target] = [
 ]
 
 var dependencies: [Package.Dependency] = [
-    .package(url: "https://github.com/apple/swift-nio.git", from: "2.19.0"),
-    .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.8.0"),
-    .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.5.1"),
+    .package(url: "https://github.com/apple/swift-nio.git", from: "2.94.0"),
+    .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.36.0"),
+    .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.32.0"),
 
     // ~~~ SSWG APIs ~~~
-    .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
-    .package(url: "https://github.com/apple/swift-metrics.git", "2.3.2"..<"3.0.0"),  // since latest
+    .package(url: "https://github.com/apple/swift-log.git", from: "1.9.0"),
+    .package(url: "https://github.com/apple/swift-metrics.git", "2.7.0"..<"3.0.0"),  // since latest
 
 ]
 
