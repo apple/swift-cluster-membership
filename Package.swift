@@ -1,4 +1,4 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.2
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -17,6 +17,11 @@ if ProcessInfo.processInfo.environment["WARNINGS_AS_ERRORS"] != nil {
 } else {
     globalSwiftSettings = []
 }
+
+let upcomingConcurrencySettings: [SwiftSetting] = [
+  .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+  .enableUpcomingFeature("InferIsolatedConformances"),
+]
 
 var targets: [PackageDescription.Target] = [
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -134,10 +139,10 @@ let products: [PackageDescription.Product] = [
 var package = Package(
     name: "swift-cluster-membership",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16),
-        .tvOS(.v16),
-        .watchOS(.v9),
+        .macOS(.v26),
+        .iOS(.v26),
+        .tvOS(.v26),
+        .watchOS(.v26),
     ],
     products: products,
 
@@ -146,6 +151,7 @@ var package = Package(
     targets: targets.map { target in
         var swiftSettings = target.swiftSettings ?? []
         swiftSettings.append(contentsOf: globalSwiftSettings)
+        swiftSettings.append(contentsOf: upcomingConcurrencySettings)
         if !swiftSettings.isEmpty {
             target.swiftSettings = swiftSettings
         }
