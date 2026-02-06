@@ -131,7 +131,7 @@ class EmbeddedClusteredXCTestCase: BaseClusteredXCTestCase {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Base
 
-class BaseClusteredXCTestCase: XCTestCase {
+class BaseClusteredXCTestCase: XCTestCase, @unchecked Sendable {
     public internal(set) var _nodes: [Node] = []
     public internal(set) var _shells: [SWIMNIOShell] = []
     public internal(set) var _logCaptures: [LogCapture] = []

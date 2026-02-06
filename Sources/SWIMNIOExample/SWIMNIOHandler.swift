@@ -18,6 +18,7 @@ import Logging
 import NIO
 import NIOFoundationCompat
 import SWIM
+import Synchronization
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -64,18 +65,24 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
             self.settings.swim.node
             ?? Node(protocol: "udp", host: hostIP, port: hostPort, uid: .random(in: 0..<UInt64.max))
         settings.swim.node = node
+        let loop = context.eventLoop
+        let boundCtx = NIOLoopBound(context, eventLoop: loop)
+        let boundSelf = NIOLoopBound(self, eventLoop: loop)
         self.shell = SWIMNIOShell(
             node: node,
             settings: settings,
             channel: context.channel,
             onMemberStatusChange: { change in
-                context.eventLoop.execute {
-                    let wrapped = self.wrapInboundOut(change)
-                    context.fireChannelRead(wrapped)
+                loop.execute {
+                    let ctx = boundCtx.value
+                    let me = boundSelf.value
+
+                    let wrapped = me.wrapInboundOut(change)
+                    ctx.fireChannelRead(wrapped)
                 }
             }
         )
-        self.metrics = self.shell.swim.metrics.shell
+        self.metrics = self.shell.swim.withLock { $0.metrics.shell }
 
         self.log.trace(
             "Channel active",

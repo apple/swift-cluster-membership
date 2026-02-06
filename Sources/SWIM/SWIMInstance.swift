@@ -1160,7 +1160,7 @@ extension SWIM.Instance {
     ///
     /// Only a single `target` peer is used, however it may be pinged "through" a few other members.
     /// The amount of fan-out in pingRequests is configurable by `swim.indirectProbeCount`.
-    public struct SendPingRequestDirective {
+    public struct SendPingRequestDirective: Sendable {
         /// Target that the should be probed by the `requestDetails.memberToPingRequestThrough` peers.
         public let target: Peer
         /// Timeout to be used for all the ping requests about to be sent.
@@ -1169,7 +1169,7 @@ extension SWIM.Instance {
         public let requestDetails: [PingRequestDetail]
 
         /// Describes a specific ping request to be made.
-        public struct PingRequestDetail {
+        public struct PingRequestDetail: Sendable {
             /// Marks the peer the `pingRequest` should be sent to.
             public let peerToPingRequestThrough: Peer
             /// Additional gossip to carry with the `pingRequest`

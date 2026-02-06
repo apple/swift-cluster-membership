@@ -16,6 +16,7 @@ import ClusterMembership
 import Metrics
 import NIO
 import SWIMTestKit
+internal import Synchronization
 import XCTest
 
 @testable import CoreMetrics
@@ -91,23 +92,23 @@ final class SWIMNIOMetricsTests: RealClusteredXCTestCase {
         XCTAssertNil(pingRequestResponseTimeFirst.lastValue)  // because this only counts ACKs, and we get NACKs because the peer is down
 
         let successfulPingProbes = try! self.testMetrics.expectCounter(
-            firstHandler.shell.swim.metrics.successfulPingProbes
+            firstHandler.shell.swim.withLock { $0.metrics.successfulPingProbes }
         )
         print("  successfulPingProbes = \(successfulPingProbes.totalValue)")
         XCTAssertGreaterThan(successfulPingProbes.totalValue, 1)  // definitely at least one, we joined some nodes
 
-        let failedPingProbes = try! self.testMetrics.expectCounter(firstHandler.shell.swim.metrics.failedPingProbes)
+        let failedPingProbes = try! self.testMetrics.expectCounter(firstHandler.shell.swim.withLock { $0.metrics.failedPingProbes })
         print("  failedPingProbes = \(failedPingProbes.totalValue)")
         XCTAssertGreaterThan(failedPingProbes.totalValue, 1)  // definitely at least one, we detected the down peer
 
         let successfulPingRequestProbes = try! self.testMetrics.expectCounter(
-            firstHandler.shell.swim.metrics.successfulPingRequestProbes
+            firstHandler.shell.swim.withLock { $0.metrics.successfulPingRequestProbes }
         )
         print("  successfulPingRequestProbes = \(successfulPingRequestProbes.totalValue)")
         XCTAssertGreaterThan(successfulPingRequestProbes.totalValue, 1)  // definitely at least one, the second peer is alive and .nacks us, so we count that as success
 
         let failedPingRequestProbes = try! self.testMetrics.expectCounter(
-            firstHandler.shell.swim.metrics.failedPingRequestProbes
+            firstHandler.shell.swim.withLock { $0.metrics.failedPingRequestProbes }
         )
         print("  failedPingRequestProbes = \(failedPingRequestProbes.totalValue)")
         XCTAssertEqual(failedPingRequestProbes.totalValue, 0)  // 0 because the second peer is still responsive to us, even it third is dead

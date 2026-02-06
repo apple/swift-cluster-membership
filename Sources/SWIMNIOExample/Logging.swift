@@ -16,6 +16,7 @@ import ClusterMembership
 import Logging
 import NIO
 import SWIM
+import Synchronization
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Tracelog: SWIM [tracelog:SWIM]
@@ -35,7 +36,7 @@ extension SWIMNIOShell {
             self.log.log(
                 level: level,
                 "[\(self.myself.node)] \(type.description) :: \(message())",
-                metadata: self.swim.metadata,
+                metadata: self.swim.withLock { $0.metadata },
                 file: file,
                 function: function,
                 line: line
