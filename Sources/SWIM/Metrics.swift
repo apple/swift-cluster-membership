@@ -18,7 +18,7 @@ extension SWIM {
     /// Object containing all metrics a SWIM instance and shell should be reporting.
     ///
     /// - SeeAlso: `SWIM.Metrics.Shell` for metrics that a specific implementation should emit
-    public struct Metrics {
+    public struct Metrics: Sendable {
         // ==== --------------------------------------------------------------------------------------------------------
         // MARK: Membership
 

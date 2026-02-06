@@ -27,7 +27,7 @@ import Synchronization
 /// - SeeAlso: `SWIM.Instance` for detailed documentation about the SWIM protocol implementation.
 public final class SWIMNIOShell: Sendable {
 
-    private struct Storage {
+    private struct Storage: Sendable {
         var swim: SWIM.Instance<SWIM.NIOPeer, SWIM.NIOPeer, SWIM.NIOPeer>
         /// Cancellable of the periodicPingTimer (if it was kicked off)
         var nextPeriodicTickCancellable: SWIMCancellable?

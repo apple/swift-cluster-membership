@@ -41,12 +41,12 @@ public final class TestMetrics: MetricsFactory, Sendable {
     public typealias Label = String
     public typealias Dimensions = String
 
-    public struct FullKey {
+    public struct FullKey: Sendable {
         let label: Label
         let dimensions: [(String, String)]
     }
 
-    private struct Storage {
+    private struct Storage: Sendable {
         var counters = [FullKey: CounterHandler]()
         var recorders = [FullKey: RecorderHandler]()
         var timers = [FullKey: TimerHandler]()

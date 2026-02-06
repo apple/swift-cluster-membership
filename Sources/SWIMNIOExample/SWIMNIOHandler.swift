@@ -40,11 +40,11 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
     var log: Logger {
         self.settings.logger
     }
-    private struct Storage {
+    private struct Storage: Sendable {
         // initialized in channelActive
         var shell: SWIMNIOShell?
         var metrics: SWIM.Metrics.ShellMetrics?
-        var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void] = [:]
+        var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: @Sendable (Result<SWIM.Message, Error>) -> Void] = [:]
     }
 
     private let _storage: Mutex<Storage> = Mutex(Storage())

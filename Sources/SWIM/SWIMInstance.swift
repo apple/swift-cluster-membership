@@ -36,7 +36,7 @@ extension SWIM {
         Peer: SWIMPeer,
         PingOrigin: SWIMPingOriginPeer,
         PingRequestOrigin: SWIMPingRequestOriginPeer
-    >: SWIMProtocol {
+    >: SWIMProtocol, Sendable {
         /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
