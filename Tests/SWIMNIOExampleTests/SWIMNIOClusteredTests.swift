@@ -124,7 +124,7 @@ struct SWIMNIOClusteredTests {
             settings.swim.initialContactPoints = [fourth.shell.node]
         }
 
-        for tryhandler in [first, second, third, fourth, fifth] {
+        for handler in [first, second, third, fourth, fifth] {
             do {
                 try await self.realClustered.capturedLogs(of: handler.shell.node)
                     .log(
@@ -170,7 +170,7 @@ struct SWIMNIOClusteredTests {
             ]
         }
 
-        for tryhandler in [first, second, third, fourth, fifth] {
+        for handler in [first, second, third, fourth, fifth] {
             do {
                 try await self.realClustered.capturedLogs(of: handler.shell.node)
                     .log(
@@ -210,7 +210,7 @@ struct SWIMNIOClusteredTests {
             settings.swim.probeInterval = .milliseconds(500)
         }
 
-        for tryhandler in [first, second, third, fourth, fifth] {
+        for handler in [first, second, third, fourth, fifth] {
             do {
                 try await self.realClustered.capturedLogs(of: handler.shell.node)
                     .log(
@@ -225,7 +225,7 @@ struct SWIMNIOClusteredTests {
         try await firstChannel.close().get()
 
         // The first node is shut down; it won't emit further logs.
-        for tryhandler in [second, third, fourth, fifth] {
+        for handler in [second, third, fourth, fifth] {
             do {
                 try await self.realClustered.capturedLogs(of: handler.shell.node)
                     .log(
