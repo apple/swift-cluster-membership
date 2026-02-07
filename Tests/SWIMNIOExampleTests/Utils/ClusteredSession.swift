@@ -181,7 +181,7 @@ final class ClusteredSession: Sendable {
     deinit {
         self._storage.withLock { storage in
             Task { [shells = storage.shells] in
-                await withTaskGroup { group in
+                await withTaskGroup(of: Void.self) { group in
                     for shell in shells {
                         group.addTask {
                             do {
