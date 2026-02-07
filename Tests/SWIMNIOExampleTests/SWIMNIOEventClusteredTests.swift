@@ -16,33 +16,33 @@ import ClusterMembership
 import NIO
 import SWIM
 import SWIMTestKit
-import XCTest
+import Synchronization
+import Testing
 
 @testable import SWIMNIOExample
 
 // TODO: those tests could be done on embedded event loops probably
-final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
+@Suite(.serialized)
+final class SWIMNIOEventClusteredTests {
     var settings: SWIMNIO.Settings = SWIMNIO.Settings(swim: .init())
     lazy var myselfNode = Node(protocol: "udp", host: "127.0.0.1", port: 7001, uid: 1111)
     lazy var myselfPeer = SWIM.NIOPeer(node: myselfNode, channel: EmbeddedChannel())
     lazy var myselfMemberAliveInitial = SWIM.Member(peer: myselfPeer, status: .alive(incarnation: 0), protocolPeriod: 0)
 
     var group: MultiThreadedEventLoopGroup!
+    let embeddedClustered = EmbeddedClustered()
 
-    override func setUp() {
-        super.setUp()
-
+    init() {
         self.settings.node = self.myselfNode
-
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
     }
 
-    override func tearDown() {
+    deinit {
         try! self.group.syncShutdownGracefully()
         self.group = nil
-        super.tearDown()
     }
 
+    @Test
     func test_memberStatusChange_alive_emittedForMyself() throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
 
@@ -56,6 +56,7 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         )
     }
 
+    @Test
     func test_memberStatusChange_suspect_emittedForDyingNode() throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
         let secondProbe = ProbeEventHandler(loop: group.next())
@@ -93,14 +94,14 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
         )
 
         let secondAliveEvent = try firstProbe.expectEvent()
-        XCTAssertTrue(secondAliveEvent.isReachabilityChange)
-        XCTAssertTrue(secondAliveEvent.status.isAlive)
-        XCTAssertEqual(secondAliveEvent.member.node.withoutUID, secondNode.withoutUID)
+        #expect(secondAliveEvent.isReachabilityChange)
+        #expect(secondAliveEvent.status.isAlive)
+        #expect(secondAliveEvent.member.node.withoutUID == secondNode.withoutUID)
 
         let secondDeadEvent = try firstProbe.expectEvent()
-        XCTAssertTrue(secondDeadEvent.isReachabilityChange)
-        XCTAssertTrue(secondDeadEvent.status.isDead)
-        XCTAssertEqual(secondDeadEvent.member.node.withoutUID, secondNode.withoutUID)
+        #expect(secondDeadEvent.isReachabilityChange)
+        #expect(secondDeadEvent.status.isDead)
+        #expect(secondDeadEvent.member.node.withoutUID == secondNode.withoutUID)
     }
 
     private func bindShell(
@@ -109,9 +110,9 @@ final class SWIMNIOEventClusteredTests: EmbeddedClusteredXCTestCase {
     ) throws -> Channel {
         var settings = self.settings
         configure(&settings)
-        self.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
+        self.embeddedClustered.session.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
 
-        self._nodes.append(settings.node!)
+        self.embeddedClustered.session._storage.withLock { $0.nodes.append(settings.node!) }
         return try DatagramBootstrap(group: self.group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in
@@ -132,12 +133,13 @@ extension ProbeEventHandler {
     func expectEvent(
         _ expected: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>? = nil,
         file: StaticString = (#file),
-        line: UInt = #line
+        line: UInt = #line,
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
         let got = try self.expectEvent()
 
         if let expected = expected {
-            XCTAssertEqual(got, expected, file: file, line: line)
+            #expect(got == expected, sourceLocation: sourceLocation)
         }
 
         return got
@@ -168,7 +170,8 @@ final class ProbeEventHandler: ChannelInboundHandler {
 
     func expectEvent(
         file: StaticString = #file,
-        line: UInt = #line
+        line: UInt = #line,
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
         let p = self.loop.makePromise(of: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>.self, file: file, line: line)
         self.loop.execute {
