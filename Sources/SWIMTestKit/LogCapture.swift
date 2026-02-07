@@ -49,13 +49,13 @@ public final class LogCapture: Sendable {
     }
 
     @discardableResult
-    public func awaitLog(
+    public func log(
         grep: String,
         within: TimeAmount = .seconds(10),
         file: StaticString = #file,
         line: UInt = #line,
         column: UInt = #column
-    ) throws -> CapturedLogMessage {
+    ) async throws -> CapturedLogMessage {
         let startTime = ContinuousClock.now
         let deadline = startTime.advanced(by: .nanoseconds(within.nanoseconds))
         func timeExceeded() -> Bool {
@@ -67,7 +67,7 @@ public final class LogCapture: Sendable {
                 return log  // ok, found it!
             }
 
-            sleep(1)
+            try await Task.sleep(for: .seconds(1))
         }
 
         throw LogCaptureError(
@@ -110,7 +110,7 @@ extension LogCapture {
                 }
 
                 metadata.removeValue(forKey: "label")
-                self.settings.ignoredMetadata.forEach { ignoreKey in
+                for ignoreKey in self.settings.ignoredMetadata {
                     metadata.removeValue(forKey: ignoreKey)
                 }
                 if !metadata.isEmpty {

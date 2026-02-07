@@ -465,7 +465,7 @@ extension SWIM {
         private mutating func resetGossipPayloads(member: SWIM.Member<Peer>) {
             // seems we gained a new member, and we need to reset gossip counts in order to ensure it also receive information about all nodes
             // TODO: this would be a good place to trigger a full state sync, to speed up convergence; see https://github.com/apple/swift-cluster-membership/issues/37
-            self.members.forEach { self.addToGossip(member: $0) }
+            for member in self.members { self.addToGossip(member: member) }
         }
 
         mutating func incrementProtocolPeriod() {

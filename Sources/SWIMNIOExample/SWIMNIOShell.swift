@@ -196,7 +196,7 @@ public final class SWIMNIOShell: Sendable {
                 payload: payload,
                 sequenceNumber: sequenceNumber
             )
-            directives.forEach { directive in
+            for directive in directives {
                 switch directive {
                 case .gossipProcessed(let gossipDirective):
                     self.handleGossipPayloadProcessedDirective(gossipDirective)
@@ -250,7 +250,7 @@ public final class SWIMNIOShell: Sendable {
                 payload: payload,
                 sequenceNumber: sequenceNumber
             )
-            directives.forEach { directive in
+            for directive in directives {
                 switch directive {
                 case .gossipProcessed(let gossipDirective):
                     self.handleGossipPayloadProcessedDirective(gossipDirective)
@@ -311,7 +311,7 @@ public final class SWIMNIOShell: Sendable {
                 pingRequestSequenceNumber: pingRequestSequenceNumber
             )
             // optionally debug log all directives here
-            directives.forEach { directive in
+            for directive in directives {
                 switch directive {
                 case .gossipProcessed(let gossipDirective):
                     self.handleGossipPayloadProcessedDirective(gossipDirective)
@@ -380,8 +380,8 @@ public final class SWIMNIOShell: Sendable {
                 result,
                 pinged: pingedPeer
             )
-            directives.forEach {
-                switch $0 {
+            for directive in directives {
+                switch directive {
                 case .gossipProcessed(let gossipDirective):
                     self.handleGossipPayloadProcessedDirective(gossipDirective)
 

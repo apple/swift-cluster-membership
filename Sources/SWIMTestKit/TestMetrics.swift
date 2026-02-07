@@ -115,7 +115,7 @@ public final class TestMetrics: MetricsFactory, Sendable {
 extension TestMetrics.FullKey: Hashable {
     public func hash(into hasher: inout Hasher) {
         self.label.hash(into: &hasher)
-        self.dimensions.forEach { dim in
+        for dim in self.dimensions {
             dim.0.hash(into: &hasher)
             dim.1.hash(into: &hasher)
         }

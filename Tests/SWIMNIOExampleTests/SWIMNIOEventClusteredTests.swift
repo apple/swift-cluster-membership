@@ -43,21 +43,25 @@ final class SWIMNIOEventClusteredTests {
     }
 
     @Test
-    func test_memberStatusChange_alive_emittedForMyself() throws {
+    func test_memberStatusChange_alive_emittedForMyself() async throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
 
         let first = try bindShell(probe: firstProbe) { settings in
             settings.node = self.myselfNode
         }
-        defer { try! first.close().wait() }
-
-        try firstProbe.expectEvent(
-            SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial)
-        )
+        do {
+            try await firstProbe.expectEvent(
+                SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial)
+            )
+            try await first.close().get()
+        } catch {
+            try await first.close().get()
+            throw error
+        }
     }
 
     @Test
-    func test_memberStatusChange_suspect_emittedForDyingNode() throws {
+    func test_memberStatusChange_suspect_emittedForDyingNode() async throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
         let secondProbe = ProbeEventHandler(loop: group.next())
 
@@ -72,36 +76,42 @@ final class SWIMNIOEventClusteredTests {
             settings.node = self.myselfNode
             settings.swim.initialContactPoints = [secondNode.withoutUID]
         }
-        defer { try! first.close().wait() }
 
-        // wait for second probe to become alive:
-        try secondProbe.expectEvent(
-            SWIM.MemberStatusChangedEvent(
-                previousStatus: nil,
-                member: SWIM.Member(
-                    peer: SWIM.NIOPeer(node: secondNode, channel: EmbeddedChannel()),
-                    status: .alive(incarnation: 0),
-                    protocolPeriod: 0
+        do {
+            // wait for second probe to become alive:
+            try await secondProbe.expectEvent(
+                SWIM.MemberStatusChangedEvent(
+                    previousStatus: nil,
+                    member: SWIM.Member(
+                        peer: SWIM.NIOPeer(node: secondNode, channel: EmbeddedChannel()),
+                        status: .alive(incarnation: 0),
+                        protocolPeriod: 0
+                    )
                 )
             )
-        )
 
-        sleep(5)  // let them discover each other, since the nodes are slow at retrying and we didn't configure it yet a sleep is here meh
-        try! second.close().wait()
+            try await Task.sleep(for: .seconds(5))  // let them discover each other, since the nodes are slow at retrying and we didn't configure it yet a sleep is here meh
+            try await second.close().get()
 
-        try firstProbe.expectEvent(
-            SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial)
-        )
+            try await firstProbe.expectEvent(
+                SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial)
+            )
 
-        let secondAliveEvent = try firstProbe.expectEvent()
-        #expect(secondAliveEvent.isReachabilityChange)
-        #expect(secondAliveEvent.status.isAlive)
-        #expect(secondAliveEvent.member.node.withoutUID == secondNode.withoutUID)
+            let secondAliveEvent = try await firstProbe.expectEvent()
+            #expect(secondAliveEvent.isReachabilityChange)
+            #expect(secondAliveEvent.status.isAlive)
+            #expect(secondAliveEvent.member.node.withoutUID == secondNode.withoutUID)
 
-        let secondDeadEvent = try firstProbe.expectEvent()
-        #expect(secondDeadEvent.isReachabilityChange)
-        #expect(secondDeadEvent.status.isDead)
-        #expect(secondDeadEvent.member.node.withoutUID == secondNode.withoutUID)
+            let secondDeadEvent = try await firstProbe.expectEvent()
+            #expect(secondDeadEvent.isReachabilityChange)
+            #expect(secondDeadEvent.status.isDead)
+            #expect(secondDeadEvent.member.node.withoutUID == secondNode.withoutUID)
+
+            try await first.close().get()
+        } catch {
+            try await first.close().get()
+            throw error
+        }
     }
 
     private func bindShell(
@@ -115,7 +125,7 @@ final class SWIMNIOEventClusteredTests {
         self.embeddedClustered.session._storage.withLock { $0.nodes.append(settings.node!) }
         return try DatagramBootstrap(group: self.group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-            .channelInitializer { channel in
+            .channelInitializer { [settings] channel in
 
                 let swimHandler = SWIMNIOHandler(settings: settings)
                 return channel.pipeline.addHandler(swimHandler).flatMap { _ in
@@ -135,8 +145,8 @@ extension ProbeEventHandler {
         file: StaticString = (#file),
         line: UInt = #line,
         sourceLocation: SourceLocation = #_sourceLocation
-    ) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
-        let got = try self.expectEvent()
+    ) async throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
+        let got = try await self.expectEvent()
 
         if let expected = expected {
             #expect(got == expected, sourceLocation: sourceLocation)
@@ -146,25 +156,31 @@ extension ProbeEventHandler {
     }
 }
 
-final class ProbeEventHandler: ChannelInboundHandler {
+final class ProbeEventHandler: ChannelInboundHandler, Sendable {
     typealias InboundIn = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
 
-    var events: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>] = []
-    var waitingPromise: EventLoopPromise<SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>>?
-    var loop: EventLoop
+    struct Storage: Sendable {
+        var events: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>] = []
+        var waitingPromise: EventLoopPromise<SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>>?
+        var loop: EventLoop
+    }
+
+    let storage: Mutex<Storage>
 
     init(loop: EventLoop) {
-        self.loop = loop
+        self.storage = Mutex(Storage(loop: loop))
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let change = self.unwrapInboundIn(data)
-        self.events.append(change)
+        self.storage.withLock { storage in
+            storage.events.append(change)
 
-        if let probePromise = self.waitingPromise {
-            let event = self.events.removeFirst()
-            probePromise.succeed(event)
-            self.waitingPromise = nil
+            if let probePromise = storage.waitingPromise {
+                let event = storage.events.removeFirst()
+                probePromise.succeed(event)
+                storage.waitingPromise = nil
+            }
         }
     }
 
@@ -172,17 +188,22 @@ final class ProbeEventHandler: ChannelInboundHandler {
         file: StaticString = #file,
         line: UInt = #line,
         sourceLocation: SourceLocation = #_sourceLocation
-    ) throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
-        let p = self.loop.makePromise(of: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>.self, file: file, line: line)
-        self.loop.execute {
-            assert(self.waitingPromise == nil, "Already waiting on an event")
-            if !self.events.isEmpty {
-                let event = self.events.removeFirst()
-                p.succeed(event)
-            } else {
-                self.waitingPromise = p
+    ) async throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
+        let p = self.storage.withLock { $0.loop.makePromise(of: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>.self, file: file, line: line) }
+        self.storage
+            .withLock { $0.loop }
+            .execute {
+                self.storage
+                    .withLock { storage in
+                        assert(storage.waitingPromise == nil, "Already waiting on an event")
+                        if !storage.events.isEmpty {
+                            let event = storage.events.removeFirst()
+                            p.succeed(event)
+                        } else {
+                            storage.waitingPromise = p
+                        }
+                    }
             }
-        }
-        return try p.futureResult.wait()
+        return try await p.futureResult.get()
     }
 }

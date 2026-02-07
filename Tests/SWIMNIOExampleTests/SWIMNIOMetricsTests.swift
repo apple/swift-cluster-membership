@@ -40,7 +40,7 @@ final class SWIMNIOMetricsTests {
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Metrics tests
     @Test
-    func test_metrics_emittedByNIOImplementation() throws {
+    func test_metrics_emittedByNIOImplementation() async throws {
         let (firstHandler, _) = self.realClustered.makeClusterNode { settings in
             settings.swim.metrics.labelPrefix = "first"
             settings.swim.probeInterval = .milliseconds(100)
@@ -56,7 +56,7 @@ final class SWIMNIOMetricsTests {
             settings.swim.initialContactPoints = [firstHandler.shell.node]
         }
 
-        sleep(1)  // giving it some extra time to report a few metrics (a few round-trip times etc).
+        try await Task.sleep(for: .seconds(1))  // giving it some extra time to report a few metrics (a few round-trip times etc).
 
         let m: SWIM.Metrics.ShellMetrics = firstHandler.metrics!
 
@@ -81,7 +81,7 @@ final class SWIMNIOMetricsTests {
         #expect(messageOutboundBytes.lastValue! > 0)
 
         thirdChannel.close(promise: nil)
-        sleep(2)
+        try await Task.sleep(for: .seconds(2))
 
         let pingRequestResponseTimeAll = try! self.testMetrics.expectTimer(m.pingRequestResponseTimeAll)
         print("  pingRequestResponseTimeAll = \(pingRequestResponseTimeAll.lastValue!)")
