@@ -15,9 +15,12 @@
 import Logging
 import NIO
 import Synchronization
-import XCTest
+import Testing
 
+import struct Foundation.Calendar
 import struct Foundation.Date
+import class Foundation.DateFormatter
+import struct Foundation.Locale
 
 /// Testing only utility: Captures all log statements for later inspection.
 public final class LogCapture: Sendable {
@@ -97,18 +100,6 @@ extension LogCapture {
 /// ### Warning
 /// This handler uses locks for each and every operation.
 extension LogCapture {
-    public func printIfFailed(_ testRun: XCTestRun?) {
-        if let failureCount = testRun?.failureCount, failureCount > 0 {
-            print(
-                "------------------------------------------------------------------------------------------------------------------------"
-            )
-            self.printLogs()
-            print(
-                "========================================================================================================================"
-            )
-        }
-    }
-
     public func printLogs() {
         for log in self.logs {
             var metadataString: String = ""
@@ -282,7 +273,8 @@ extension LogCapture {
         failTest: Bool = true,
         file: StaticString = #file,
         line: UInt = #line,
-        column: UInt = #column
+        column: UInt = #column,
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws -> CapturedLogMessage {
         precondition(
             prefix != nil || message != nil || grep != nil || level != nil || level != nil || expectedFile != nil,
@@ -365,7 +357,7 @@ extension LogCapture {
                 in captured logs at \(file):\(line)
                 """
             if failTest {
-                XCTFail(message, file: (file), line: line)
+                Issue.record("\(message)", sourceLocation: sourceLocation)
             }
 
             throw LogCaptureError(message: message, file: file, line: line, column: column)

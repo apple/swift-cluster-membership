@@ -31,7 +31,9 @@ import CoreMetrics
 import Metrics
 import SWIM
 import Synchronization
-import XCTest
+
+import struct Foundation.Date
+import struct Foundation.UUID
 
 /// Taken directly from swift-metrics's own test package.
 ///

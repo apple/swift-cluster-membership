@@ -14,7 +14,6 @@
 
 import ClusterMembership
 import Synchronization
-import XCTest
 
 @testable import SWIM
 
