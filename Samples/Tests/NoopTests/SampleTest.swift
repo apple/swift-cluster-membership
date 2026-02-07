@@ -13,9 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 import SWIM
-import XCTest
+import Testing
 
-final class SampleTest: XCTestCase {
+struct SampleTest {
+    @Test
     func test_empty() {
         // nothing here (so far...)
     }
