@@ -27,10 +27,10 @@ import struct Foundation.Date
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Real Networking Test Case
 
-final class RealClustered {
+struct RealClustered {
     let session: ClusteredSession
-    var group: MultiThreadedEventLoopGroup!
-    var loop: EventLoop!
+    let group: MultiThreadedEventLoopGroup
+    let loop: EventLoop
 
     init(
         session: ClusteredSession = .shared,
@@ -39,12 +39,6 @@ final class RealClustered {
         self.session = session
         self.group = group
         self.loop = group.next()
-    }
-
-    deinit {
-        try! self.group.syncShutdownGracefully()
-        self.group = nil
-        self.loop = nil
     }
 
     func makeClusterNode(
@@ -83,9 +77,9 @@ final class RealClustered {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Embedded Networking Test Case
 
-final class EmbeddedClustered {
+struct EmbeddedClustered {
     let session: ClusteredSession
-    var loop: EmbeddedEventLoop!
+    let loop: EmbeddedEventLoop
 
     init(
         session: ClusteredSession = .shared,
@@ -93,11 +87,6 @@ final class EmbeddedClustered {
     ) {
         self.session = session
         self.loop = loop
-    }
-
-    deinit {
-        try! self.loop.close()
-        self.loop = nil
     }
 
     func makeEmbeddedShell(
