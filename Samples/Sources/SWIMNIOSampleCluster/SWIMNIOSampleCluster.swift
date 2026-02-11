@@ -104,8 +104,6 @@ struct SWIMNIOSampleCluster: AsyncParsableCommand {
             let serviceGroup = ServiceGroup(configuration: config)
             try await serviceGroup.run()
         }
-
-        try await self.run()
     }
 
     private func parseLogLevel() -> Logger.Level {

@@ -33,28 +33,29 @@ struct SampleSWIMNIONode: Service {
     }
 
     func run() async throws {
-        try await withGracefulShutdownHandler {
-            let bootstrap = DatagramBootstrap(group: group)
-                .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-                .channelInitializer { channel in
-                    channel.pipeline
-                        .addHandler(SWIMNIOHandler(settings: self.settings)).flatMap {
-                            channel.pipeline.addHandler(SWIMNIOSampleHandler())
-                        }
-                }
+        let bootstrap = DatagramBootstrap(group: group)
+            .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+            .channelInitializer { channel in
+                channel.pipeline
+                    .addHandler(SWIMNIOHandler(settings: self.settings)).flatMap {
+                        channel.pipeline.addHandler(SWIMNIOSampleHandler())
+                    }
+            }
 
-            let channel =
-                try await bootstrap
-                .bind(host: "127.0.0.1", port: port)
-                .get()
+        let channel =
+            try await bootstrap
+            .bind(host: "127.0.0.1", port: port)
+            .get()
+
+        await withGracefulShutdownHandler {
             do {
                 self.settings.logger.info("Bound to: \(channel)")
                 try await channel.closeFuture.get()
             } catch {
                 self.settings.logger.error("Error: \(error)")
             }
-
         } onGracefulShutdown: {
+            channel.close(promise: nil)
             try? group.syncShutdownGracefully()
         }
     }
