@@ -18,12 +18,14 @@ import Logging
 
 import struct Dispatch.DispatchTime
 
-#if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
+#if canImport(Darwin)
 import Darwin
+#elseif canImport(Glibc)
+import Glibc
 #elseif canImport(Musl)
 import Musl
 #else
-import Glibc
+#error("Unsupported platform")
 #endif
 
 extension SWIM {
