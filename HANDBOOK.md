@@ -31,10 +31,13 @@ Tests have `LogCapture` installed are able to capture all logs "per node" and la
 If you need to investigate test logs without the test failing, you can enable them like so:
 
 ```swift
-final class SWIMNIOClusteredTests: RealClusteredXCTestCase {
+final class SWIMNIOClusteredTests {
 
-    override var alwaysPrintCaptureLogs: Bool {
-        true
+    @Test
+    func test() {
+            try await withRealClusteredTestScope(alwaysPrintCaptureLogs: true) { cluster in
+                // ...
+            }
     }
     
     // ... 

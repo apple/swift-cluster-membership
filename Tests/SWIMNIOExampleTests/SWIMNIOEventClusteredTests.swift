@@ -30,7 +30,6 @@ final class SWIMNIOEventClusteredTests {
     lazy var myselfMemberAliveInitial = SWIM.Member(peer: myselfPeer, status: .alive(incarnation: 0), protocolPeriod: 0)
 
     var group: MultiThreadedEventLoopGroup!
-    let embeddedClustered = EmbeddedClustered()
 
     init() {
         self.settings.node = self.myselfNode
@@ -46,7 +45,7 @@ final class SWIMNIOEventClusteredTests {
     func test_memberStatusChange_alive_emittedForMyself() async throws {
         let firstProbe = ProbeEventHandler(loop: group.next())
 
-        let first = try bindShell(probe: firstProbe) { settings in
+        let first = try await bindShell(probe: firstProbe) { settings in
             settings.node = self.myselfNode
         }
         do {
@@ -68,11 +67,11 @@ final class SWIMNIOEventClusteredTests {
         let secondNodePort = 7002
         let secondNode = Node(protocol: "udp", host: "127.0.0.1", port: secondNodePort, uid: 222_222)
 
-        let second = try bindShell(probe: secondProbe) { settings in
+        let second = try await bindShell(probe: secondProbe) { settings in
             settings.node = secondNode
         }
 
-        let first = try bindShell(probe: firstProbe) { settings in
+        let first = try await bindShell(probe: firstProbe) { settings in
             settings.node = self.myselfNode
             settings.swim.initialContactPoints = [secondNode.withoutUID]
         }
@@ -117,21 +116,24 @@ final class SWIMNIOEventClusteredTests {
     private func bindShell(
         probe probeHandler: ProbeEventHandler,
         configure: (inout SWIMNIO.Settings) -> Void = { _ in () }
-    ) throws -> Channel {
-        var settings = self.settings
-        configure(&settings)
-        self.embeddedClustered.session.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
+    ) async throws -> Channel {
+        try await withEmbeddedClusteredTestScope { cluster in
+            var settings = self.settings
+            configure(&settings)
+            await cluster.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
 
-        self.embeddedClustered.session._storage.withLock { $0.nodes.append(settings.node!) }
-        return try DatagramBootstrap(group: self.group)
-            .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-            .channelInitializer { [settings] channel in
-
-                let swimHandler = SWIMNIOHandler(settings: settings)
-                return channel.pipeline.addHandler(swimHandler).flatMap { _ in
-                    channel.pipeline.addHandler(probeHandler)
+            await cluster.appendNode(settings.node!)
+            return try await DatagramBootstrap(group: self.group)
+                .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+                .channelInitializer { [settings] channel in
+                    let swimHandler = SWIMNIOHandler(settings: settings)
+                    return channel.pipeline.addHandler(swimHandler).flatMap { _ in
+                        channel.pipeline.addHandler(probeHandler)
+                    }
                 }
-            }.bind(host: settings.node!.host, port: settings.node!.port).wait()
+                .bind(host: settings.node!.host, port: settings.node!.port)
+                .get()
+        }
     }
 }
 
