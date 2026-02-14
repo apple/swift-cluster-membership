@@ -31,9 +31,9 @@ actor RealCluster {
     private let loop: EventLoop
 
     fileprivate init(
-        captureLogs: Bool = true,
-        alwaysPrintCaptureLogs: Bool = false,
-        group: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 8)
+        group: MultiThreadedEventLoopGroup,
+        captureLogs: Bool,
+        alwaysPrintCaptureLogs: Bool,
     ) {
         self.storage = TestClusterStorage(
             captureLogs: captureLogs,
@@ -89,9 +89,9 @@ actor EmbeddedCluster {
     private let loop: EmbeddedEventLoop
 
     fileprivate init(
-        captureLogs: Bool = true,
-        alwaysPrintCaptureLogs: Bool = false,
-        loop: EmbeddedEventLoop = EmbeddedEventLoop()
+        loop: EmbeddedEventLoop,
+        captureLogs: Bool,
+        alwaysPrintCaptureLogs: Bool,
     ) {
         self.storage = TestClusterStorage(
             captureLogs: captureLogs,
@@ -268,11 +268,16 @@ fileprivate actor PortGenerator {
 ///
 
 func withRealClusteredTestScope<T>(
+    group: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 8),
     captureLogs: Bool = true,
     alwaysPrintCaptureLogs: Bool = false,
     _ body: (RealCluster) async throws -> T
 ) async rethrows -> T {
-    let cluster = RealCluster(captureLogs: captureLogs, alwaysPrintCaptureLogs: alwaysPrintCaptureLogs)
+    let cluster = RealCluster(
+        group: group,
+        captureLogs: captureLogs,
+        alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+    )
     do {
         let result = try await body(cluster)
         await cluster.shutdown(testFailed: false)
@@ -284,11 +289,16 @@ func withRealClusteredTestScope<T>(
 }
 
 func withEmbeddedClusteredTestScope<T>(
+    loop: EmbeddedEventLoop = EmbeddedEventLoop(),
     captureLogs: Bool = true,
     alwaysPrintCaptureLogs: Bool = false,
     _ body: (EmbeddedCluster) async throws -> T,
 ) async rethrows -> T {
-    let cluster = EmbeddedCluster(captureLogs: captureLogs, alwaysPrintCaptureLogs: alwaysPrintCaptureLogs)
+    let cluster = EmbeddedCluster(
+        loop: loop,
+        captureLogs: captureLogs,
+        alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+    )
     do {
         let result = try await body(cluster)
         await cluster.shutdown(testFailed: false)
