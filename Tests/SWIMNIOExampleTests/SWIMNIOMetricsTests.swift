@@ -41,16 +41,16 @@ final class SWIMNIOMetricsTests {
     @Test
     func test_metrics_emittedByNIOImplementation() async throws {
         try await withRealClusteredTestScope { cluster in
-            let (firstHandler, _) = await cluster.makeClusterNode { settings in
+            let (firstHandler, _) = try await cluster.makeClusterNode { settings in
                 settings.swim.metrics.labelPrefix = "first"
                 settings.swim.probeInterval = .milliseconds(100)
             }
-            _ = await cluster.makeClusterNode { settings in
+            _ = try await cluster.makeClusterNode { settings in
                 settings.swim.metrics.labelPrefix = "second"
                 settings.swim.probeInterval = .milliseconds(100)
                 settings.swim.initialContactPoints = [firstHandler.shell.node]
             }
-            let (_, thirdChannel) = await cluster.makeClusterNode { settings in
+            let (_, thirdChannel) = try await cluster.makeClusterNode { settings in
                 settings.swim.metrics.labelPrefix = "third"
                 settings.swim.probeInterval = .milliseconds(100)
                 settings.swim.initialContactPoints = [firstHandler.shell.node]

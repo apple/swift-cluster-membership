@@ -43,97 +43,100 @@ final class SWIMNIOEventClusteredTests {
 
     @Test
     func test_memberStatusChange_alive_emittedForMyself() async throws {
-        let firstProbe = ProbeEventHandler(loop: group.next())
+        try await withEmbeddedClusteredTestScope { cluster in
+            let firstProbe = ProbeEventHandler(loop: group.next())
 
-        let first = try await bindShell(probe: firstProbe) { settings in
-            settings.node = self.myselfNode
-        }
-        do {
-            try await firstProbe.expectEvent(
-                SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial)
-            )
-            try await first.close().get()
-        } catch {
-            try await first.close().get()
-            throw error
+            let first = try await bindShell(probe: firstProbe, cluster: cluster) { settings in
+                settings.node = self.myselfNode
+            }
+            do {
+                try await firstProbe.expectEvent(
+                    SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial)
+                )
+                try await first.close().get()
+            } catch {
+                try await first.close().get()
+                throw error
+            }
         }
     }
 
     @Test
     func test_memberStatusChange_suspect_emittedForDyingNode() async throws {
-        let firstProbe = ProbeEventHandler(loop: group.next())
-        let secondProbe = ProbeEventHandler(loop: group.next())
+        try await withEmbeddedClusteredTestScope { cluster in
+            let firstProbe = ProbeEventHandler(loop: group.next())
+            let secondProbe = ProbeEventHandler(loop: group.next())
 
-        let secondNodePort = 7002
-        let secondNode = Node(protocol: "udp", host: "127.0.0.1", port: secondNodePort, uid: 222_222)
+            let secondNodePort = 7002
+            let secondNode = Node(protocol: "udp", host: "127.0.0.1", port: secondNodePort, uid: 222_222)
 
-        let second = try await bindShell(probe: secondProbe) { settings in
-            settings.node = secondNode
-        }
+            let second = try await bindShell(probe: secondProbe, cluster: cluster) { settings in
+                settings.node = secondNode
+            }
 
-        let first = try await bindShell(probe: firstProbe) { settings in
-            settings.node = self.myselfNode
-            settings.swim.initialContactPoints = [secondNode.withoutUID]
-        }
+            let first = try await bindShell(probe: firstProbe, cluster: cluster) { settings in
+                settings.node = self.myselfNode
+                settings.swim.initialContactPoints = [secondNode.withoutUID]
+            }
 
-        do {
-            // wait for second probe to become alive:
-            try await secondProbe.expectEvent(
-                SWIM.MemberStatusChangedEvent(
-                    previousStatus: nil,
-                    member: SWIM.Member(
-                        peer: SWIM.NIOPeer(node: secondNode, channel: EmbeddedChannel()),
-                        status: .alive(incarnation: 0),
-                        protocolPeriod: 0
+            do {
+                // wait for second probe to become alive:
+                try await secondProbe.expectEvent(
+                    SWIM.MemberStatusChangedEvent(
+                        previousStatus: nil,
+                        member: SWIM.Member(
+                            peer: SWIM.NIOPeer(node: secondNode, channel: EmbeddedChannel()),
+                            status: .alive(incarnation: 0),
+                            protocolPeriod: 0
+                        )
                     )
                 )
-            )
 
-            try await Task.sleep(for: .seconds(5))  // let them discover each other, since the nodes are slow at retrying and we didn't configure it yet a sleep is here meh
-            try await second.close().get()
+                try await Task.sleep(for: .seconds(5))  // let them discover each other, since the nodes are slow at retrying and we didn't configure it yet a sleep is here meh
+                try await second.close().get()
 
-            try await firstProbe.expectEvent(
-                SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial)
-            )
+                try await firstProbe.expectEvent(
+                    SWIM.MemberStatusChangedEvent(previousStatus: nil, member: self.myselfMemberAliveInitial)
+                )
 
-            let secondAliveEvent = try await firstProbe.expectEvent()
-            #expect(secondAliveEvent.isReachabilityChange)
-            #expect(secondAliveEvent.status.isAlive)
-            #expect(secondAliveEvent.member.node.withoutUID == secondNode.withoutUID)
+                let secondAliveEvent = try await firstProbe.expectEvent()
+                #expect(secondAliveEvent.isReachabilityChange)
+                #expect(secondAliveEvent.status.isAlive)
+                #expect(secondAliveEvent.member.node.withoutUID == secondNode.withoutUID)
 
-            let secondDeadEvent = try await firstProbe.expectEvent()
-            #expect(secondDeadEvent.isReachabilityChange)
-            #expect(secondDeadEvent.status.isDead)
-            #expect(secondDeadEvent.member.node.withoutUID == secondNode.withoutUID)
+                let secondDeadEvent = try await firstProbe.expectEvent()
+                #expect(secondDeadEvent.isReachabilityChange)
+                #expect(secondDeadEvent.status.isDead)
+                #expect(secondDeadEvent.member.node.withoutUID == secondNode.withoutUID)
 
-            try await first.close().get()
-        } catch {
-            try await first.close().get()
-            throw error
+                try await first.close().get()
+            } catch {
+                try await first.close().get()
+                throw error
+            }
         }
     }
 
     private func bindShell(
         probe probeHandler: ProbeEventHandler,
+        cluster: EmbeddedCluster,
         configure: (inout SWIMNIO.Settings) -> Void = { _ in () }
     ) async throws -> Channel {
-        try await withEmbeddedClusteredTestScope { cluster in
-            var settings = self.settings
-            configure(&settings)
-            await cluster.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
+        var settings = self.settings
+        configure(&settings)
+        await cluster.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
 
-            await cluster.appendNode(settings.node!)
-            return try await DatagramBootstrap(group: self.group)
-                .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-                .channelInitializer { [settings] channel in
-                    let swimHandler = SWIMNIOHandler(settings: settings)
-                    return channel.pipeline.addHandler(swimHandler).flatMap { _ in
-                        channel.pipeline.addHandler(probeHandler)
-                    }
+        await cluster.appendNode(settings.node!)
+        return try await DatagramBootstrap(group: self.group)
+            .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
+            .channelInitializer { [settings] channel in
+                let swimHandler = SWIMNIOHandler(settings: settings)
+                return channel.pipeline.addHandler(swimHandler).flatMap { _ in
+                    channel.pipeline.addHandler(probeHandler)
                 }
-                .bind(host: settings.node!.host, port: settings.node!.port)
-                .get()
-        }
+            }
+            .bind(host: settings.node!.host, port: settings.node!.port)
+            .get()
     }
 }
 

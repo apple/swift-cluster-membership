@@ -53,7 +53,7 @@ actor RealCluster {
     func makeClusterNode(
         name: String? = nil,
         configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }
-    ) async -> (SWIMNIOHandler, Channel) {
+    ) async throws -> (SWIMNIOHandler, Channel) {
         let port = await PortGenerator.shared.nextPort()
         let name = name ?? "swim-\(port)"
         var settings = SWIMNIO.Settings()
@@ -68,7 +68,7 @@ actor RealCluster {
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .channelInitializer { channel in channel.pipeline.addHandler(handler) }
 
-        let channel = try! await bootstrap.bind(host: "127.0.0.1", port: port).get()
+        let channel = try await bootstrap.bind(host: "127.0.0.1", port: port).get()
 
         self.storage.shells.append(handler.shell)
         self.storage.nodes.append(handler.shell.node)
