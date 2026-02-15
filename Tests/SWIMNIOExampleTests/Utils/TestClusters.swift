@@ -32,19 +32,23 @@ actor RealCluster {
 
     fileprivate init(
         group: MultiThreadedEventLoopGroup,
-        captureLogs: Bool,
-        alwaysPrintCaptureLogs: Bool,
+        captureLogs: Bool
     ) {
         self.storage = TestClusterStorage(
-            captureLogs: captureLogs,
-            alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+            captureLogs: captureLogs
         )
         self.group = group
         self.loop = group.next()
     }
 
-    fileprivate func shutdown(testFailed: Bool) async {
-        await self.storage.clean(testFailed: testFailed)
+    fileprivate func shutdown(
+        testFailed: Bool,
+        alwaysPrintCaptureLogs: Bool
+    ) async {
+        await self.storage.clean(
+            testFailed: testFailed,
+            alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+        )
 
         self.storage.nodes.removeAll()
         self.storage.shells.removeAll()
@@ -54,7 +58,7 @@ actor RealCluster {
         name: String? = nil,
         configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }
     ) async throws -> (SWIMNIOHandler, Channel) {
-        let port = await PortGenerator.shared.nextPort()
+        let port = await TestPortAllocator.shared.nextPort()
         let name = name ?? "swim-\(port)"
         var settings = SWIMNIO.Settings()
         configureSettings(&settings)
@@ -90,18 +94,22 @@ actor EmbeddedCluster {
 
     fileprivate init(
         loop: EmbeddedEventLoop,
-        captureLogs: Bool,
-        alwaysPrintCaptureLogs: Bool,
+        captureLogs: Bool
     ) {
         self.storage = TestClusterStorage(
-            captureLogs: captureLogs,
-            alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+            captureLogs: captureLogs
         )
         self.loop = loop
     }
 
-    fileprivate func shutdown(testFailed: Bool) async {
-        await self.storage.clean(testFailed: testFailed)
+    fileprivate func shutdown(
+        testFailed: Bool,
+        alwaysPrintCaptureLogs: Bool
+    ) async {
+        await self.storage.clean(
+            testFailed: testFailed,
+            alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+        )
 
         self.storage.nodes.removeAll()
         self.storage.shells.removeAll()
@@ -117,7 +125,7 @@ actor EmbeddedCluster {
         if let _node = settings.swim.node {
             node = _node
         } else {
-            let port = await PortGenerator.shared.nextPort()
+            let port = await TestPortAllocator.shared.nextPort()
             let name = _name ?? "swim-\(port)"
             node = Node(protocol: "test", name: name, host: "127.0.0.1", port: port, uid: .random(in: 1..<UInt64.max))
         }
@@ -173,19 +181,17 @@ struct TestClusterStorage: Sendable {
     ///
     /// - Default: `true`
     let captureLogs: Bool
-    /// Enables logging all captured logs, even if the test passed successfully.
-    /// - Default: `false`
-    let alwaysPrintCaptureLogs: Bool
 
     init(
-        captureLogs: Bool = true,
-        alwaysPrintCaptureLogs: Bool = false
+        captureLogs: Bool = true
     ) {
         self.captureLogs = captureLogs
-        self.alwaysPrintCaptureLogs = alwaysPrintCaptureLogs
     }
 
-    func clean(testFailed: Bool) async {
+    /// Function to manually clean nodes and shells, and print logs based on coditions.
+    /// - testFailed—notifies if test failed or not
+    /// - alwaysPrintCaptureLogs—enables logging all captured logs, even if the test passed successfully. Default: `false`
+    func clean(testFailed: Bool, alwaysPrintCaptureLogs: Bool = false) async {
         await withTaskGroup(of: Void.self) { group in
             for shell in self.shells {
                 group.addTask {
@@ -200,7 +206,7 @@ struct TestClusterStorage: Sendable {
             await group.waitForAll()
         }
 
-        if self.captureLogs, self.alwaysPrintCaptureLogs || testFailed {
+        if self.captureLogs, alwaysPrintCaptureLogs || testFailed {
             self.printAllCapturedLogs()
         }
     }
@@ -245,9 +251,9 @@ extension TestClusterStorage {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Shared, concurrency-safe port allocator for tests,
 
-fileprivate actor PortGenerator {
+fileprivate actor TestPortAllocator {
 
-    static let shared = PortGenerator()
+    static let shared = TestPortAllocator()
 
     var _nextPort = 9001
 
@@ -275,15 +281,20 @@ func withRealClusteredTestScope<T>(
 ) async rethrows -> T {
     let cluster = RealCluster(
         group: group,
-        captureLogs: captureLogs,
-        alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+        captureLogs: captureLogs
     )
     do {
         let result = try await body(cluster)
-        await cluster.shutdown(testFailed: false)
+        await cluster.shutdown(
+            testFailed: false,
+            alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+        )
         return result
     } catch {
-        await cluster.shutdown(testFailed: true)
+        await cluster.shutdown(
+            testFailed: true,
+            alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+        )
         throw error
     }
 }
@@ -296,15 +307,20 @@ func withEmbeddedClusteredTestScope<T>(
 ) async rethrows -> T {
     let cluster = EmbeddedCluster(
         loop: loop,
-        captureLogs: captureLogs,
-        alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+        captureLogs: captureLogs
     )
     do {
         let result = try await body(cluster)
-        await cluster.shutdown(testFailed: false)
+        await cluster.shutdown(
+            testFailed: false,
+            alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+        )
         return result
     } catch {
-        await cluster.shutdown(testFailed: true)
+        await cluster.shutdown(
+            testFailed: true,
+            alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
+        )
         throw error
     }
 }
