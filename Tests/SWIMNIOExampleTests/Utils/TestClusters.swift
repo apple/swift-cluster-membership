@@ -307,7 +307,7 @@ func withEmbeddedClusteredTestScope<T>(
     loop: EmbeddedEventLoop = EmbeddedEventLoop(),
     captureLogs: Bool = true,
     alwaysPrintCaptureLogs: Bool = false,
-    _ body: (sending EmbeddedCluster) async throws -> T,
+    _ body: (sending EmbeddedCluster) async throws -> T
 ) async rethrows -> T {
     let cluster = EmbeddedCluster(
         loop: loop,
