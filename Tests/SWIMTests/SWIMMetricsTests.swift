@@ -20,6 +20,7 @@ import Testing
 @testable import CoreMetrics
 @testable import SWIM
 
+@Suite(.serialized)
 final class SWIMMetricsTests {
     let myselfNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7001, uid: 1111)
     let secondNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7002, uid: 2222)
