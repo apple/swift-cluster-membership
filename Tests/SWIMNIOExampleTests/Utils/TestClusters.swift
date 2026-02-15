@@ -57,7 +57,7 @@ actor RealCluster {
 
     func makeClusterNode(
         name: String? = nil,
-        configure configureSettings: (inout SWIMNIO.Settings) -> Void = { _ in () }
+        configure configureSettings: @Sendable (inout SWIMNIO.Settings) -> Void = { _ in () }
     ) async throws -> (SWIMNIOHandler, Channel) {
         let port = await TestPortAllocator.shared.nextPort()
         let name = name ?? "swim-\(port)"
@@ -121,7 +121,7 @@ actor EmbeddedCluster {
 
     func makeEmbeddedShell(
         _ _name: String? = nil,
-        configure: (inout SWIMNIO.Settings) -> Void = { _ in () }
+        configure: @Sendable (inout SWIMNIO.Settings) -> Void = { _ in () }
     ) async -> SWIMNIOShell {
         var settings = SWIMNIO.Settings()
         configure(&settings)
@@ -281,7 +281,7 @@ func withRealClusteredTestScope<T>(
     group: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 8),
     captureLogs: Bool = true,
     alwaysPrintCaptureLogs: Bool = false,
-    _ body: (RealCluster) async throws -> T
+    _ body: (sending RealCluster) async throws -> T
 ) async rethrows -> T {
     let cluster = RealCluster(
         group: group,
@@ -307,7 +307,7 @@ func withEmbeddedClusteredTestScope<T>(
     loop: EmbeddedEventLoop = EmbeddedEventLoop(),
     captureLogs: Bool = true,
     alwaysPrintCaptureLogs: Bool = false,
-    _ body: (EmbeddedCluster) async throws -> T,
+    _ body: (sending EmbeddedCluster) async throws -> T,
 ) async rethrows -> T {
     let cluster = EmbeddedCluster(
         loop: loop,

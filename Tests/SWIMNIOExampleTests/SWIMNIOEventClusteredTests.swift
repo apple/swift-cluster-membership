@@ -46,8 +46,8 @@ final class SWIMNIOEventClusteredTests {
         try await withEmbeddedClusteredTestScope { cluster in
             let firstProbe = ProbeEventHandler(loop: group.next())
 
-            let first = try await bindShell(probe: firstProbe, cluster: cluster) { settings in
-                settings.node = self.myselfNode
+            let first = try await bindShell(probe: firstProbe, cluster: cluster) { [myselfNode] settings in
+                settings.node = myselfNode
             }
             do {
                 try await firstProbe.expectEvent(
@@ -74,8 +74,8 @@ final class SWIMNIOEventClusteredTests {
                 settings.node = secondNode
             }
 
-            let first = try await bindShell(probe: firstProbe, cluster: cluster) { settings in
-                settings.node = self.myselfNode
+            let first = try await bindShell(probe: firstProbe, cluster: cluster) { [myselfNode] settings in
+                settings.node = myselfNode
                 settings.swim.initialContactPoints = [secondNode.withoutUID]
             }
 
@@ -120,7 +120,7 @@ final class SWIMNIOEventClusteredTests {
     private func bindShell(
         probe probeHandler: ProbeEventHandler,
         cluster: EmbeddedCluster,
-        configure: (inout SWIMNIO.Settings) -> Void = { _ in () }
+        configure: @Sendable (inout SWIMNIO.Settings) -> Void = { _ in () }
     ) async throws -> Channel {
         var settings = self.settings
         configure(&settings)
