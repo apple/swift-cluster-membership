@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Cluster Membership open source project
 //
-// Copyright (c) 2018-2022 Apple Inc. and the Swift Cluster Membership project authors
+// Copyright (c) 2018-2026 Apple Inc. and the Swift Cluster Membership project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
