@@ -41,6 +41,9 @@ actor RealCluster {
         self.loop = group.next()
     }
 
+    /// Function to manually shutdown and clean, and print logs base on codition
+    /// - testFailed—notifies if test failed or not
+    /// - alwaysPrintCaptureLogs—enables logging all captured logs, even if the test passed successfully
     fileprivate func shutdown(
         testFailed: Bool,
         alwaysPrintCaptureLogs: Bool
@@ -50,8 +53,6 @@ actor RealCluster {
             alwaysPrintCaptureLogs: alwaysPrintCaptureLogs
         )
 
-        self.storage.nodes.removeAll()
-        self.storage.shells.removeAll()
     }
 
     func makeClusterNode(
@@ -102,6 +103,9 @@ actor EmbeddedCluster {
         self.loop = loop
     }
 
+    /// Function to manually shutdown and clean, and print logs base on codition
+    /// - testFailed—notifies if test failed or not
+    /// - alwaysPrintCaptureLogs—enables logging all captured logs, even if the test passed successfully
     fileprivate func shutdown(
         testFailed: Bool,
         alwaysPrintCaptureLogs: Bool
@@ -188,7 +192,7 @@ struct TestClusterStorage: Sendable {
         self.captureLogs = captureLogs
     }
 
-    /// Function to manually clean nodes and shells, and print logs based on coditions.
+    /// Function to manually clean channels, and print logs based on coditions.
     /// - testFailed—notifies if test failed or not
     /// - alwaysPrintCaptureLogs—enables logging all captured logs, even if the test passed successfully. Default: `false`
     func clean(testFailed: Bool, alwaysPrintCaptureLogs: Bool = false) async {
