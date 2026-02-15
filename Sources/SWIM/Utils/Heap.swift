@@ -28,22 +28,22 @@ internal enum HeapType {
     case maxHeap
     case minHeap
 
-    public func comparator<T: Comparable>(type: T.Type) -> (T, T) -> Bool {
+    public func comparator<T: Comparable & Sendable>(type: T.Type) -> @Sendable (T, T) -> Bool {
         switch self {
         case .maxHeap:
-            return (>)
+            return { $0 > $1 }
         case .minHeap:
-            return (<)
+            return { $0 < $1 }
         }
     }
 }
 
 /// Slightly modified version of SwiftNIO's Heap, by exposing the comparator.
-internal struct Heap<T: Equatable> {
+internal struct Heap<T: Equatable & Sendable> {
     internal private(set) var storage: ContiguousArray<T> = []
-    private let comparator: (T, T) -> Bool
+    private let comparator: @Sendable (T, T) -> Bool
 
-    init(of type: T.Type = T.self, comparator: @escaping (T, T) -> Bool) {
+    init(of type: T.Type = T.self, comparator: @escaping @Sendable (T, T) -> Bool) {
         self.comparator = comparator
     }
 
@@ -235,7 +235,7 @@ extension Heap: CustomDebugStringConvertible {
     }
 }
 
-struct HeapIterator<T: Equatable>: IteratorProtocol {
+struct HeapIterator<T: Equatable & Sendable>: IteratorProtocol {
     typealias Element = T
 
     private var heap: Heap<T>

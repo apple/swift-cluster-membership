@@ -1,19 +1,18 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 var targets: [PackageDescription.Target] = [
-    .target(
+    .executableTarget(
         name: "SWIMNIOSampleCluster",
         dependencies: [
             .product(name: "SWIM", package: "swift-cluster-membership"),
             .product(name: "SWIMNIOExample", package: "swift-cluster-membership"),
-            .product(name: "SwiftPrometheus", package: "SwiftPrometheus"),
-            .product(name: "Lifecycle", package: "swift-service-lifecycle"),
+            .product(name: "Prometheus", package: "swift-prometheus"),
+            .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
             .product(name: "ArgumentParser", package: "swift-argument-parser"),
-        ],
-        path: "Sources/SWIMNIOSampleCluster"
+        ]
     ),
 
     /* --- tests --- */
@@ -34,27 +33,18 @@ var dependencies: [Package.Dependency] = [
 
     // ~~~~~~~ only for samples ~~~~~~~
 
-    .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "1.0.0-alpha"),
-    .package(url: "https://github.com/MrLotU/SwiftPrometheus.git", from: "1.0.0-alpha"),
-    .package(url: "https://github.com/apple/swift-argument-parser", from: "0.2.0"),
+    .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.9.0"),
+    .package(url: "https://github.com/swift-server/swift-prometheus", from: "2.2.0"),
+    .package(url: "https://github.com/apple/swift-argument-parser", from: "1.7.0"),
 ]
 
 let package = Package(
     name: "swift-cluster-membership-samples",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v15)
     ],
-    products: [
-        .executable(
-            name: "SWIMNIOSampleCluster",
-            targets: ["SWIMNIOSampleCluster"]
-        )
-
-    ],
-
+    products: [],
     dependencies: dependencies,
-
     targets: targets,
-
     cxxLanguageStandard: .cxx11
 )
