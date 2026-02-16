@@ -18,6 +18,8 @@ import SWIMTestKit
 import Synchronization
 import Testing
 
+import struct Foundation.UUID
+
 @testable import CoreMetrics
 @testable import SWIM
 
@@ -36,6 +38,7 @@ final class SWIMMetricsTests {
     var fifth: TestPeer!
 
     let testMetrics: TestMetrics = TestMetrics()
+    let metricsLabelPrefix = "swim-tests-\(UUID().uuidString)"
 
     init() {
         self.myself = TestPeer(node: self.myselfNode)
@@ -67,6 +70,7 @@ final class SWIMMetricsTests {
     @Test
     func test_members_becoming_suspect() {
         var settings = SWIM.Settings()
+        settings.metrics.labelPrefix = self.metricsLabelPrefix
         settings.unreachability = .enabled
         var swim = SWIM.Instance<TestPeer, TestPeer, TestPeer>(settings: settings, myself: self.myself)
 
@@ -124,6 +128,7 @@ final class SWIMMetricsTests {
 
     func shared_members(mode: DowningMode) {
         var settings = SWIM.Settings()
+        settings.metrics.labelPrefix = self.metricsLabelPrefix
         switch mode {
         case .unreachableFirst:
             settings.unreachability = .enabled
@@ -213,7 +218,8 @@ final class SWIMMetricsTests {
 
     @Test
     func test_lha_adjustment() {
-        let settings = SWIM.Settings()
+        var settings = SWIM.Settings()
+        settings.metrics.labelPrefix = self.metricsLabelPrefix
         var swim = SWIM.Instance<TestPeer, TestPeer, TestPeer>(settings: settings, myself: self.myself)
 
         _ = swim.addMember(self.second, status: .alive(incarnation: 0))
