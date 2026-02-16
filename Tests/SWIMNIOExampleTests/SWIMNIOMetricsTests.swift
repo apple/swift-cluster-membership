@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import Metrics
+import MetricsTestKit
 import NIO
 import SWIMTestKit
 import Synchronization
@@ -25,10 +25,9 @@ import Testing
 
 @Suite(.serialized)
 final class SWIMNIOMetricsTests {
-    var testMetrics: TestMetrics!
+    let testMetrics: TestMetrics = TestMetrics()
 
     init() {
-        self.testMetrics = TestMetrics()
         MetricsSystem.bootstrapInternal(self.testMetrics)
     }
 

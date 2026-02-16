@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
+import MetricsTestKit
 import SWIMTestKit
 import Synchronization
 import Testing
@@ -34,7 +35,7 @@ final class SWIMMetricsTests {
     var fourth: TestPeer!
     var fifth: TestPeer!
 
-    var testMetrics: TestMetrics!
+    let testMetrics: TestMetrics = TestMetrics()
 
     init() {
         self.myself = TestPeer(node: self.myselfNode)
@@ -43,7 +44,6 @@ final class SWIMMetricsTests {
         self.fourth = TestPeer(node: self.fourthNode)
         self.fifth = TestPeer(node: self.fifthNode)
 
-        self.testMetrics = TestMetrics()
         MetricsSystem.bootstrapInternal(self.testMetrics)
     }
 
