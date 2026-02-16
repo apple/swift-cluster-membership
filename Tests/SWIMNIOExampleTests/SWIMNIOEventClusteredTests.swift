@@ -194,10 +194,9 @@ final class ProbeEventHandler: ChannelInboundHandler, Sendable {
         line: UInt = #line,
         sourceLocation: SourceLocation = #_sourceLocation
     ) async throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
-        let p = self.storage.withLock { $0.loop.makePromise(of: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>.self, file: file, line: line) }
-        self.storage
-            .withLock { $0.loop }
-            .execute {
+        try await self.storage.withLock { storage in
+            let p = storage.loop.makePromise(of: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>.self, file: file, line: line)
+            storage.loop.execute {
                 self.storage
                     .withLock { storage in
                         assert(storage.waitingPromise == nil, "Already waiting on an event")
@@ -209,6 +208,9 @@ final class ProbeEventHandler: ChannelInboundHandler, Sendable {
                         }
                     }
             }
-        return try await p.futureResult.get()
+            return p
+        }
+        .futureResult
+        .get()
     }
 }
