@@ -14,15 +14,17 @@
 
 import ArgumentParser
 import ClusterMembership
-import Lifecycle
 import Logging
 import Metrics
 import NIO
 import Prometheus
 import SWIM
 import SWIMNIOExample
+import ServiceLifecycle
 
-struct SWIMNIOSampleCluster: ParsableCommand {
+@main
+struct SWIMNIOSampleCluster: AsyncParsableCommand {
+
     @Option(name: .shortAndLong, help: "The number of nodes to start, defaults to: 1")
     var count: Int?
 
@@ -38,33 +40,25 @@ struct SWIMNIOSampleCluster: ParsableCommand {
     @Option(help: "Configures log level")
     var logLevel: String = "info"
 
-    mutating func run() throws {
+    func run() async throws {
         LoggingSystem.bootstrap(_SWIMPrettyMetadataLogHandler.init)
         let group = MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount)
-
         // Uncomment this if you'd like to see metrics displayed in the command line periodically;
         // This bootstraps and uses the Prometheus metrics backend to report metrics periodically by printing them to the stdout (console).
         //
         // Note though that this will be a bit noisy, since logs are also emitted to the stdout by default, however it's a nice way
         // to learn and explore what the metrics are and how they behave when toying around with a local cluster.
-        //        let prom = PrometheusClient()
-        //        MetricsSystem.bootstrap(prom)
+        //        let prom = PrometheusCollectorRegistry()
+        //        MetricsSystem.bootstrap(PrometheusMetricsFactory(registry: prom))
         //
         //        group.next().scheduleRepeatedTask(initialDelay: .seconds(1), delay: .seconds(10)) { _ in
-        //             prom.collect { (string: String) in
-        //                 print("")
-        //                 print("")
-        //                 print(string)
-        //             }
+        //            let metrics = prom.emitToString()
+        //            print("")
+        //            print("")
+        //            print(metrics)
         //        }
-
-        let lifecycle = ServiceLifecycle()
-        lifecycle.registerShutdown(
-            label: "eventLoopGroup",
-            .sync(group.syncShutdownGracefully)
-        )
-
         var settings = SWIMNIO.Settings()
+
         if count == nil || count == 1 {
             let nodePort = self.port ?? 7001
             settings.logger = Logger(label: "swim-\(nodePort)")
@@ -73,15 +67,15 @@ struct SWIMNIOSampleCluster: ParsableCommand {
 
             settings.swim.initialContactPoints = self.parseContactPoints()
 
-            let node = SampleSWIMNIONode(port: nodePort, settings: settings, group: group)
-            lifecycle.register(
-                label: "swim-\(nodePort)",
-                start: .sync { node.start() },
-                shutdown: .sync {}
+            let node = SampleSWIMNIONode(
+                port: nodePort,
+                settings: settings,
+                group: group
             )
-
+            try await node.run()
         } else {
             let basePort = port ?? 7001
+            var services: [any Service] = []
             for i in 1...(count ?? 1) {
                 let nodePort = basePort + i
 
@@ -94,15 +88,22 @@ struct SWIMNIOSampleCluster: ParsableCommand {
                     group: group
                 )
 
-                lifecycle.register(
-                    label: "swim\(nodePort)",
-                    start: .sync { node.start() },
-                    shutdown: .sync {}
-                )
+                services.append(node)
             }
-        }
 
-        try lifecycle.startAndWait()
+            let config = ServiceGroupConfiguration(
+                services: services.map {
+                    .init(
+                        service: $0,
+                        successTerminationBehavior: .ignore,
+                        failureTerminationBehavior: .cancelGroup
+                    )
+                },
+                logger: Logger(label: "swim-sample")
+            )
+            let serviceGroup = ServiceGroup(configuration: config)
+            try await serviceGroup.run()
+        }
     }
 
     private func parseLogLevel() -> Logger.Level {
@@ -127,5 +128,3 @@ struct SWIMNIOSampleCluster: ParsableCommand {
         return Set(contactPoints)
     }
 }
-
-SWIMNIOSampleCluster.main()

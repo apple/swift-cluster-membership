@@ -1,4 +1,4 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -90,13 +90,13 @@ var targets: [PackageDescription.Target] = [
     ),
 
     // NOT FOR PUBLIC CONSUMPTION.
-    .testTarget(
+    .target(
         name: "SWIMTestKit",
         dependencies: [
             "SWIM",
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "Logging", package: "swift-log"),
-            .product(name: "Metrics", package: "swift-metrics"),
+            .product(name: "MetricsTestKit", package: "swift-metrics"),
         ]
     ),
 
@@ -106,13 +106,13 @@ var targets: [PackageDescription.Target] = [
 ]
 
 var dependencies: [Package.Dependency] = [
-    .package(url: "https://github.com/apple/swift-nio.git", from: "2.19.0"),
-    .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.8.0"),
-    .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.5.1"),
+    .package(url: "https://github.com/apple/swift-nio.git", from: "2.94.0"),
+    .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.36.0"),
+    .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.32.0"),
 
     // ~~~ SSWG APIs ~~~
-    .package(url: "https://github.com/apple/swift-log.git", from: "1.4.0"),
-    .package(url: "https://github.com/apple/swift-metrics.git", "2.3.2"..<"3.0.0"),  // since latest
+    .package(url: "https://github.com/apple/swift-log.git", from: "1.9.0"),
+    .package(url: "https://github.com/apple/swift-metrics.git", "2.8.0"..<"3.0.0"),  // since latest
 
 ]
 
@@ -134,10 +134,10 @@ let products: [PackageDescription.Product] = [
 var package = Package(
     name: "swift-cluster-membership",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16),
-        .tvOS(.v16),
-        .watchOS(.v9),
+        .macOS(.v15),
+        .iOS(.v18),
+        .tvOS(.v18),
+        .watchOS(.v11),
     ],
     products: products,
 

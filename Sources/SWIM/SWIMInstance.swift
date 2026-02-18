@@ -16,8 +16,6 @@ import ClusterMembership
 import CoreMetrics
 import Logging
 
-import struct Dispatch.DispatchTime
-
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)
@@ -38,7 +36,7 @@ extension SWIM {
         Peer: SWIMPeer,
         PingOrigin: SWIMPingOriginPeer,
         PingRequestOrigin: SWIMPingRequestOriginPeer
-    >: SWIMProtocol {
+    >: SWIMProtocol, Sendable {
         /// The settings currently in use by this instance.
         public let settings: SWIM.Settings
 
@@ -401,7 +399,7 @@ extension SWIM {
 
             var status = status
             var protocolPeriod = self.protocolPeriod
-            var suspicionStartedAt: DispatchTime?
+            var suspicionStartedAt: ContinuousClock.Instant?
 
             if case .suspect(let incomingIncarnation, let incomingSuspectedBy) = status,
                 case .suspect(let previousIncarnation, let previousSuspectedBy)? = previousStatusOption,
@@ -467,7 +465,7 @@ extension SWIM {
         private mutating func resetGossipPayloads(member: SWIM.Member<Peer>) {
             // seems we gained a new member, and we need to reset gossip counts in order to ensure it also receive information about all nodes
             // TODO: this would be a good place to trigger a full state sync, to speed up convergence; see https://github.com/apple/swift-cluster-membership/issues/37
-            self.members.forEach { self.addToGossip(member: $0) }
+            for member in self.members { self.addToGossip(member: member) }
         }
 
         mutating func incrementProtocolPeriod() {
@@ -556,14 +554,14 @@ extension SWIM {
         ///
         /// - Parameter deadline: deadline we want to check if it's expired
         /// - Returns: true if the `now()` time is "past" the deadline
-        public func isExpired(deadline: DispatchTime) -> Bool {
+        public func isExpired(deadline: ContinuousClock.Instant) -> Bool {
             deadline < self.now()
         }
 
         /// Returns the current point in time on this machine.
-        /// - Note: `DispatchTime` is simply a number of nanoseconds since boot on this machine, and thus is not comparable across machines.
+        /// - Note: `ContinuousClock.Instant` is simply a number of nanoseconds since boot on this machine, and thus is not comparable across machines.
         ///   We use it on purpose, as we do not intend to share our local time observations with any other peers.
-        private func now() -> DispatchTime {
+        private func now() -> ContinuousClock.Instant {
             self.settings.timeSourceNow()
         }
 
@@ -841,11 +839,7 @@ extension SWIM.Instance {
                 // proceed with suspicion escalation to .unreachable if the timeout period has been exceeded
                 // We don't use Deadline because tests can override TimeSource
                 guard let suspectSince = suspect.localSuspicionStartedAt,
-                    self.isExpired(
-                        deadline: DispatchTime(
-                            uptimeNanoseconds: suspectSince.uptimeNanoseconds + UInt64(suspicionTimeout.nanoseconds)
-                        )
-                    )
+                    self.isExpired(deadline: suspectSince.advanced(by: suspicionTimeout))
                 else {
                     continue  // skip, this suspect is not timed-out yet
                 }
@@ -1166,7 +1160,7 @@ extension SWIM.Instance {
     ///
     /// Only a single `target` peer is used, however it may be pinged "through" a few other members.
     /// The amount of fan-out in pingRequests is configurable by `swim.indirectProbeCount`.
-    public struct SendPingRequestDirective {
+    public struct SendPingRequestDirective: Sendable {
         /// Target that the should be probed by the `requestDetails.memberToPingRequestThrough` peers.
         public let target: Peer
         /// Timeout to be used for all the ping requests about to be sent.
@@ -1175,7 +1169,7 @@ extension SWIM.Instance {
         public let requestDetails: [PingRequestDetail]
 
         /// Describes a specific ping request to be made.
-        public struct PingRequestDetail {
+        public struct PingRequestDetail: Sendable {
             /// Marks the peer the `pingRequest` should be sent to.
             public let peerToPingRequestThrough: Peer
             /// Additional gossip to carry with the `pingRequest`

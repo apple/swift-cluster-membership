@@ -12,66 +12,53 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Logging
 import NIO
-import XCTest
+import Synchronization
 
+import struct Foundation.Calendar
 import struct Foundation.Date
-import class Foundation.NSLock
-
-@testable import Logging
+import class Foundation.DateFormatter
+import struct Foundation.Locale
 
 /// Testing only utility: Captures all log statements for later inspection.
-public final class LogCapture {
-    private var _logs: [CapturedLogMessage] = []
-    private let lock = NSLock()
+public final class LogCapture: Sendable {
+    private let _logs: Mutex<[CapturedLogMessage]> = Mutex([])
 
     let settings: Settings
-    private var captureLabel: String = ""
+    private let captureLabel: Mutex<String> = Mutex("")
 
     public init(settings: Settings = .init()) {
         self.settings = settings
     }
 
     public func logger(label: String) -> Logger {
-        self.lock.lock()
-        defer {
-            self.lock.unlock()
+        self.captureLabel.withLock { $0 = label }
+        return Logger(label: "LogCapture(\(label))") { _ in
+            LogCaptureLogHandler(label: label, self)
         }
-
-        self.captureLabel = label
-        return Logger(label: "LogCapture(\(label))", LogCaptureLogHandler(label: label, self))
     }
 
     func append(_ log: CapturedLogMessage) {
-        self.lock.lock()
-        defer {
-            self.lock.unlock()
-        }
-
-        self._logs.append(log)
+        self._logs.withLock { $0.append(log) }
     }
 
     public var logs: [CapturedLogMessage] {
-        self.lock.lock()
-        defer {
-            self.lock.unlock()
-        }
-
-        return self._logs
+        self._logs.withLock { $0 }
     }
 
     @discardableResult
-    public func awaitLog(
+    public func log(
         grep: String,
         within: TimeAmount = .seconds(10),
         file: StaticString = #file,
         line: UInt = #line,
         column: UInt = #column
-    ) throws -> CapturedLogMessage {
-        let startTime = DispatchTime.now()
-        let deadline = startTime.uptimeNanoseconds + UInt64(within.nanoseconds)
+    ) async throws -> CapturedLogMessage {
+        let startTime = ContinuousClock.now
+        let deadline = startTime.advanced(by: .nanoseconds(within.nanoseconds))
         func timeExceeded() -> Bool {
-            DispatchTime.now().uptimeNanoseconds > deadline
+            ContinuousClock.now > deadline
         }
         while !timeExceeded() {
             let logs = self.logs
@@ -79,7 +66,7 @@ public final class LogCapture {
                 return log  // ok, found it!
             }
 
-            sleep(1)
+            try await Task.sleep(for: .seconds(1))
         }
 
         throw LogCaptureError(
@@ -92,7 +79,7 @@ public final class LogCapture {
 }
 
 extension LogCapture {
-    public struct Settings {
+    public struct Settings: Sendable {
         public init() {}
 
         public var minimumLogLevel: Logger.Level = .trace
@@ -112,18 +99,6 @@ extension LogCapture {
 /// ### Warning
 /// This handler uses locks for each and every operation.
 extension LogCapture {
-    public func printIfFailed(_ testRun: XCTestRun?) {
-        if let failureCount = testRun?.failureCount, failureCount > 0 {
-            print(
-                "------------------------------------------------------------------------------------------------------------------------"
-            )
-            self.printLogs()
-            print(
-                "========================================================================================================================"
-            )
-        }
-    }
-
     public func printLogs() {
         for log in self.logs {
             var metadataString: String = ""
@@ -134,7 +109,7 @@ extension LogCapture {
                 }
 
                 metadata.removeValue(forKey: "label")
-                self.settings.ignoredMetadata.forEach { ignoreKey in
+                for ignoreKey in self.settings.ignoredMetadata {
                     metadata.removeValue(forKey: ignoreKey)
                 }
                 if !metadata.isEmpty {
@@ -164,7 +139,7 @@ extension LogCapture {
             let file = log.file.split(separator: "/").last ?? ""
             let line = log.line
             print(
-                "[\(self.captureLabel)][\(date)] [\(file):\(line)]\(node) [\(log.level)] \(log.message)\(metadataString)"
+                "[\(self.captureLabel.withLock { $0 })][\(date)] [\(file):\(line)]\(node) [\(log.level)] \(log.message)\(metadataString)"
             )
         }
     }
@@ -199,7 +174,7 @@ extension LogCapture {
     }
 }
 
-public struct CapturedLogMessage {
+public struct CapturedLogMessage: Sendable {
     public let date: Date
     public let level: Logger.Level
     public var message: Logger.Message
@@ -225,6 +200,7 @@ struct LogCaptureLogHandler: LogHandler {
         level: Logger.Level,
         message: Logger.Message,
         metadata: Logger.Metadata?,
+        source: String,
         file: String,
         function: String,
         line: UInt
@@ -280,140 +256,140 @@ struct LogCaptureLogHandler: LogHandler {
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Should matchers
-
-extension LogCapture {
-    /// Asserts that a message matching the query requirements was captures *already* (without waiting for it to appear)
-    ///
-    /// - Parameter message: can be surrounded like `*what*` to query as a "contains" rather than an == on the captured logs.
-    @discardableResult
-    public func shouldContain(
-        prefix: String? = nil,
-        message: String? = nil,
-        grep: String? = nil,
-        at level: Logger.Level? = nil,
-        expectedFile: String? = nil,
-        expectedLine: Int = -1,
-        failTest: Bool = true,
-        file: StaticString = #file,
-        line: UInt = #line,
-        column: UInt = #column
-    ) throws -> CapturedLogMessage {
-        precondition(
-            prefix != nil || message != nil || grep != nil || level != nil || level != nil || expectedFile != nil,
-            "At least one query parameter must be not `nil`!"
-        )
-
-        let found = self.logs.lazy
-            .filter { log in
-                if let expected = message {
-                    if expected.first == "*", expected.last == "*" {
-                        return "\(log.message)".contains(expected.dropFirst().dropLast())
-                    } else {
-                        return expected == "\(log.message)"
-                    }
-                } else {
-                    return true
-                }
-            }.filter { log in
-                if let expected = prefix {
-                    return "\(log.message)".starts(with: expected)
-                } else {
-                    return true
-                }
-            }.filter { log in
-                if let expected = grep {
-                    return "\(log)".contains(expected)
-                } else {
-                    return true
-                }
-            }.filter { log in
-                if let expected = level {
-                    return log.level == expected
-                } else {
-                    return true
-                }
-            }.filter { log in
-                if let expected = expectedFile {
-                    return expected == "\(log.file)"
-                } else {
-                    return true
-                }
-            }.filter { log in
-                if expectedLine > -1 {
-                    return log.line == expectedLine
-                } else {
-                    return true
-                }
-            }.first
-
-        if let found = found {
-            return found
-        } else {
-            let query = [
-                prefix.map {
-                    "prefix: \"\($0)\""
-                },
-                message.map {
-                    "message: \"\($0)\""
-                },
-                grep.map {
-                    "grep: \"\($0)\""
-                },
-                level.map {
-                    "level: \($0)"
-                } ?? "",
-                expectedFile.map {
-                    "expectedFile: \"\($0)\""
-                },
-                (expectedLine > -1 ? Optional(expectedLine) : nil).map {
-                    "expectedLine: \($0)"
-                },
-            ].compactMap {
-                $0
-            }
-            .joined(separator: ", ")
-
-            let message = """
-                Did not find expected log, matching query: 
-                    [\(query)]
-                in captured logs at \(file):\(line)
-                """
-            if failTest {
-                XCTFail(message, file: (file), line: line)
-            }
-
-            throw LogCaptureError(message: message, file: file, line: line, column: column)
-        }
-    }
-
-    public func grep(_ string: String, metadata metadataQuery: [String: String] = [:]) -> [CapturedLogMessage] {
-        self.logs.filter {
-            guard "\($0)".contains(string) else {
-                // mismatch, exclude it
-                return false
-            }
-
-            if metadataQuery.isEmpty {
-                return true
-            }
-
-            let metas = $0.metadata ?? [:]
-            for (queryKey, queryValue) in metadataQuery {
-                if let value = metas[queryKey] {
-                    if queryValue != "\(value)" {
-                        // mismatch, exclude it
-                        return false
-                    }  // ok, continue checking other keys
-                } else {
-                    // key did not exist
-                    return false
-                }
-            }
-
-            return true
-        }
-    }
-}
+// FIXME: Not used at the moment and relies on swift testing, do simple throwing?
+//extension LogCapture {
+//    /// Asserts that a message matching the query requirements was captures *already* (without waiting for it to appear)
+//    ///
+//    /// - Parameter message: can be surrounded like `*what*` to query as a "contains" rather than an == on the captured logs.
+//    @discardableResult
+//    public func shouldContain(
+//        prefix: String? = nil,
+//        message: String? = nil,
+//        grep: String? = nil,
+//        at level: Logger.Level? = nil,
+//        expectedFile: String? = nil,
+//        expectedLine: Int = -1,
+//        failTest: Bool = true,
+//        file: StaticString = #file,
+//        line: UInt = #line,
+//        column: UInt = #column
+//    ) throws -> CapturedLogMessage {
+//        precondition(
+//            prefix != nil || message != nil || grep != nil || level != nil || level != nil || expectedFile != nil,
+//            "At least one query parameter must be not `nil`!"
+//        )
+//
+//        let found = self.logs.lazy
+//            .filter { log in
+//                if let expected = message {
+//                    if expected.first == "*", expected.last == "*" {
+//                        return "\(log.message)".contains(expected.dropFirst().dropLast())
+//                    } else {
+//                        return expected == "\(log.message)"
+//                    }
+//                } else {
+//                    return true
+//                }
+//            }.filter { log in
+//                if let expected = prefix {
+//                    return "\(log.message)".starts(with: expected)
+//                } else {
+//                    return true
+//                }
+//            }.filter { log in
+//                if let expected = grep {
+//                    return "\(log)".contains(expected)
+//                } else {
+//                    return true
+//                }
+//            }.filter { log in
+//                if let expected = level {
+//                    return log.level == expected
+//                } else {
+//                    return true
+//                }
+//            }.filter { log in
+//                if let expected = expectedFile {
+//                    return expected == "\(log.file)"
+//                } else {
+//                    return true
+//                }
+//            }.filter { log in
+//                if expectedLine > -1 {
+//                    return log.line == expectedLine
+//                } else {
+//                    return true
+//                }
+//            }.first
+//
+//        if let found = found {
+//            return found
+//        } else {
+//            let query = [
+//                prefix.map {
+//                    "prefix: \"\($0)\""
+//                },
+//                message.map {
+//                    "message: \"\($0)\""
+//                },
+//                grep.map {
+//                    "grep: \"\($0)\""
+//                },
+//                level.map {
+//                    "level: \($0)"
+//                } ?? "",
+//                expectedFile.map {
+//                    "expectedFile: \"\($0)\""
+//                },
+//                (expectedLine > -1 ? Optional(expectedLine) : nil).map {
+//                    "expectedLine: \($0)"
+//                },
+//            ].compactMap {
+//                $0
+//            }
+//            .joined(separator: ", ")
+//
+//            let message = """
+//                Did not find expected log, matching query:
+//                    [\(query)]
+//                in captured logs at \(file):\(line)
+//                """
+//            if failTest {
+//                Issue.record("\(message)", sourceLocation: sourceLocation)
+//            }
+//
+//            throw LogCaptureError(message: message, file: file, line: line, column: column)
+//        }
+//    }
+//
+//    public func grep(_ string: String, metadata metadataQuery: [String: String] = [:]) -> [CapturedLogMessage] {
+//        self.logs.filter {
+//            guard "\($0)".contains(string) else {
+//                // mismatch, exclude it
+//                return false
+//            }
+//
+//            if metadataQuery.isEmpty {
+//                return true
+//            }
+//
+//            let metas = $0.metadata ?? [:]
+//            for (queryKey, queryValue) in metadataQuery {
+//                if let value = metas[queryKey] {
+//                    if queryValue != "\(value)" {
+//                        // mismatch, exclude it
+//                        return false
+//                    }  // ok, continue checking other keys
+//                } else {
+//                    // key did not exist
+//                    return false
+//                }
+//            }
+//
+//            return true
+//        }
+//    }
+//}
 
 internal struct LogCaptureError: Error, CustomStringConvertible {
     let message: String
