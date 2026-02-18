@@ -28,7 +28,7 @@ jobs:
       samples-matrix: '${{ steps.generate-matrix.outputs.samples-matrix }}'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
       - id: generate-matrix
