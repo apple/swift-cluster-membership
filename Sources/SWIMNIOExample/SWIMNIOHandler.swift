@@ -18,8 +18,7 @@ import Logging
 import NIO
 import NIOFoundationCompat
 import SWIM
-
-import struct Dispatch.DispatchTime
+import Synchronization
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -31,7 +30,7 @@ import Foundation
 ///
 /// It is designed to work with `DatagramBootstrap`s, and the contained shell can send messages by writing `SWIMNIOSWIMNIOWriteCommand`
 /// data into the channel which this handler converts into outbound `AddressedEnvelope<ByteBuffer>` elements.
-public final class SWIMNIOHandler: ChannelDuplexHandler {
+public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
     public typealias InboundIn = AddressedEnvelope<ByteBuffer>
     public typealias InboundOut = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
     public typealias OutboundIn = SWIMNIOWriteCommand
@@ -41,16 +40,20 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
     var log: Logger {
         self.settings.logger
     }
+    private struct Storage: Sendable {
+        // initialized in channelActive
+        var shell: SWIMNIOShell?
+        var metrics: SWIM.Metrics.ShellMetrics?
+        var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: @Sendable (Result<SWIM.Message, Error>) -> Void] = [:]
+    }
 
-    // initialized in channelActive
-    var shell: SWIMNIOShell!
-    var metrics: SWIM.Metrics.ShellMetrics?
+    private let _storage: Mutex<Storage> = Mutex(Storage())
 
-    var pendingReplyCallbacks: [PendingResponseCallbackIdentifier: (Result<SWIM.Message, Error>) -> Void]
+    var shell: SWIMNIOShell { self._storage.withLock { $0.shell }! }
+    var metrics: SWIM.Metrics.ShellMetrics? { self._storage.withLock { $0.metrics } }
 
     public init(settings: SWIMNIO.Settings) {
         self.settings = settings
-        self.pendingReplyCallbacks = [:]
     }
 
     public func channelActive(context: ChannelHandlerContext) {
@@ -66,18 +69,27 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
             self.settings.swim.node
             ?? Node(protocol: "udp", host: hostIP, port: hostPort, uid: .random(in: 0..<UInt64.max))
         settings.swim.node = node
-        self.shell = SWIMNIOShell(
+        let loop = context.eventLoop
+        let boundCtx = NIOLoopBound(context, eventLoop: loop)
+        let boundSelf = NIOLoopBound(self, eventLoop: loop)
+        let shell = SWIMNIOShell(
             node: node,
             settings: settings,
             channel: context.channel,
             onMemberStatusChange: { change in
-                context.eventLoop.execute {
-                    let wrapped = self.wrapInboundOut(change)
-                    context.fireChannelRead(wrapped)
+                loop.execute {
+                    let ctx = boundCtx.value
+                    let me = boundSelf.value
+
+                    let wrapped = me.wrapInboundOut(change)
+                    ctx.fireChannelRead(wrapped)
                 }
             }
         )
-        self.metrics = self.shell.swim.metrics.shell
+        self._storage.withLock {
+            $0.shell = shell
+            $0.metrics = shell.swim.metrics.shell
+        }
 
         self.log.trace(
             "Channel active",
@@ -88,7 +100,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
     }
 
     public func channelUnregistered(context: ChannelHandlerContext) {
-        self.shell.receiveShutdown()
+        self._storage.withLock { $0.shell?.receiveShutdown() }
         context.fireChannelUnregistered()
     }
 
@@ -127,7 +139,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                 #endif
 
                 let timeoutTask = context.eventLoop.scheduleTask(in: writeCommand.replyTimeout) {
-                    if let callback = self.pendingReplyCallbacks.removeValue(forKey: callbackKey) {
+                    if let callback = self._storage.withLock({ $0.pendingReplyCallbacks.removeValue(forKey: callbackKey) }) {
                         callback(
                             .failure(
                                 SWIMNIOTimeoutError(
@@ -144,12 +156,14 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                     "Store callback: \(callbackKey)",
                     metadata: [
                         "message": "\(writeCommand.message)",
-                        "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" }),
+                        "pending/callbacks": Logger.MetadataValue.array(self._storage.withLock { $0.pendingReplyCallbacks.map { "\($0)" } }),
                     ]
                 )
-                self.pendingReplyCallbacks[callbackKey] = { reply in
-                    timeoutTask.cancel()  // when we trigger the callback, we should also cancel the timeout task
-                    replyCallback(reply)  // successful reply received
+                self._storage.withLock {
+                    $0.pendingReplyCallbacks[callbackKey] = { reply in
+                        timeoutTask.cancel()  // when we trigger the callback, we should also cancel the timeout task
+                        replyCallback(reply)  // successful reply received
+                    }
                 }
             }
 
@@ -204,26 +218,28 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
                 )
                 #endif
 
-                if let index = self.pendingReplyCallbacks.index(forKey: callbackKey) {
-                    let (storedKey, callback) = self.pendingReplyCallbacks.remove(at: index)
-                    // TODO: UIDs of nodes matter
-                    self.log.trace(
-                        "Received response, key: \(callbackKey); Invoking callback...",
-                        metadata: [
-                            "pending/callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" })
-                        ]
-                    )
-                    self.metrics?.pingResponseTime.recordNanoseconds(
-                        storedKey.nanosecondsSinceCallbackStored().nanoseconds
-                    )
-                    callback(.success(message))
-                } else {
-                    self.log.trace(
-                        "No callback for \(callbackKey); It may have been removed due to a timeout already.",
-                        metadata: [
-                            "pending callbacks": Logger.MetadataValue.array(self.pendingReplyCallbacks.map { "\($0)" })
-                        ]
-                    )
+                self._storage.withLock { storage in
+                    if let index = storage.pendingReplyCallbacks.index(forKey: callbackKey) {
+                        let (storedKey, callback) = storage.pendingReplyCallbacks.remove(at: index)
+                        // TODO: UIDs of nodes matter
+                        self.log.trace(
+                            "Received response, key: \(callbackKey); Invoking callback...",
+                            metadata: [
+                                "pending/callbacks": Logger.MetadataValue.array(storage.pendingReplyCallbacks.map { "\($0)" })
+                            ]
+                        )
+                        storage.metrics?.pingResponseTime.recordNanoseconds(
+                            storedKey.nanosecondsSinceCallbackStored().nanoseconds
+                        )
+                        callback(.success(message))
+                    } else {
+                        self.log.trace(
+                            "No callback for \(callbackKey); It may have been removed due to a timeout already.",
+                            metadata: [
+                                "pending callbacks": Logger.MetadataValue.array(storage.pendingReplyCallbacks.map { "\($0)" })
+                            ]
+                        )
+                    }
                 }
             } else {
                 // deliver to the shell ------------------------------
@@ -263,8 +279,10 @@ extension SWIMNIOHandler {
             throw MissingDataError("No data to read")
         }
 
-        self.metrics?.messageInboundCount.increment()
-        self.metrics?.messageInboundBytes.record(data.count)
+        self._storage.withLock {
+            $0.metrics?.messageOutboundCount.increment()
+            $0.metrics?.messageOutboundBytes.record(data.count)
+        }
 
         let decoder = SWIMNIODefaultDecoder()
         decoder.userInfo[.channelUserInfoKey] = channel
@@ -275,8 +293,10 @@ extension SWIMNIOHandler {
         let encoder = SWIMNIODefaultEncoder()
         let data = try encoder.encode(message)
 
-        self.metrics?.messageOutboundCount.increment()
-        self.metrics?.messageOutboundBytes.record(data.count)
+        self._storage.withLock {
+            $0.metrics?.messageInboundCount.increment()
+            $0.metrics?.messageInboundBytes.record(data.count)
+        }
 
         let buffer = data.withUnsafeBytes { bytes -> ByteBuffer in
             var buffer = allocator.buffer(capacity: data.count)
@@ -290,7 +310,7 @@ extension SWIMNIOHandler {
 /// Used to a command to the channel pipeline to write the message,
 /// and install a reply handler for the specific sequence number associated with the message (along with a timeout)
 /// when a callback is provided.
-public struct SWIMNIOWriteCommand {
+public struct SWIMNIOWriteCommand: Sendable {
     /// SWIM message to be written.
     public let message: SWIM.Message
     /// Address of recipient peer where the message should be written to.
@@ -299,14 +319,14 @@ public struct SWIMNIOWriteCommand {
     /// If the `replyCallback` is set, what timeout should be set for a reply to come back from the peer.
     public let replyTimeout: NIO.TimeAmount
     /// Callback to be invoked (calling into the SWIMNIOShell) when a reply to this message arrives.
-    public let replyCallback: ((Result<SWIM.Message, Error>) -> Void)?
+    public let replyCallback: (@Sendable (Result<SWIM.Message, Error>) -> Void)?
 
     /// Create a write command.
     public init(
         message: SWIM.Message,
         to recipient: Node,
         replyTimeout: TimeAmount,
-        replyCallback: ((Result<SWIM.Message, Error>) -> Void)?
+        replyCallback: (@Sendable (Result<SWIM.Message, Error>) -> Void)?
     ) {
         self.message = message
         self.recipient = try! .init(ipAddress: recipient.host, port: recipient.port)  // try!-safe since the host/port is always safe
@@ -323,7 +343,7 @@ struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
     let peerAddress: SocketAddress  // FIXME: UID as well...?
     let sequenceNumber: SWIM.SequenceNumber
 
-    let storedAt: DispatchTime = .now()
+    let storedAt: ContinuousClock.Instant = .now
 
     #if DEBUG
     let inResponseTo: SWIM.Message?
@@ -348,8 +368,8 @@ struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
         """
     }
 
-    func nanosecondsSinceCallbackStored(now: DispatchTime = .now()) -> Duration {
-        Duration.nanoseconds(Int(now.uptimeNanoseconds - storedAt.uptimeNanoseconds))
+    func nanosecondsSinceCallbackStored(now: ContinuousClock.Instant = .now) -> Duration {
+        self.storedAt.duration(to: now)
     }
 }
 

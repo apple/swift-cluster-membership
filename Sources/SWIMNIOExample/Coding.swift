@@ -16,8 +16,11 @@ import ClusterMembership
 import NIO
 import SWIM
 
-import class Foundation.JSONDecoder
-import class Foundation.JSONEncoder
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 typealias SWIMNIODefaultEncoder = JSONEncoder
 typealias SWIMNIODefaultDecoder = JSONDecoder
@@ -112,7 +115,7 @@ extension CodingUserInfoKey {
 }
 
 extension SWIM.NIOPeer: Codable {
-    public init(from decoder: Decoder) throws {
+    public nonisolated init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let node = try container.decode(Node.self)
         guard let channel = decoder.userInfo[.channelUserInfoKey] as? Channel else {

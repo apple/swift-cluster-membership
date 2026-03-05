@@ -14,8 +14,6 @@
 
 import ClusterMembership
 
-import struct Dispatch.DispatchTime
-
 extension SWIM {
     /// Incarnation numbers serve as sequence number and used to determine which observation
     /// is "more recent" when comparing gossiped information.
@@ -118,7 +116,7 @@ extension SWIM {
     /// A piece of "gossip" about a specific member of the cluster.
     ///
     /// A gossip will only be spread a limited number of times, as configured by `settings.gossip.gossipedEnoughTimes(_:members:)`.
-    public struct Gossip<Peer: SWIMPeer>: Equatable {
+    public struct Gossip<Peer: SWIMPeer>: Equatable, Sendable {
         /// The specific member (including status) that this gossip is about.
         ///
         /// A change in member status implies a new gossip must be created and the count for the rumor mongering must be reset.
