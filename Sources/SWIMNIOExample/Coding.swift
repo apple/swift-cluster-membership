@@ -16,8 +16,11 @@ import ClusterMembership
 import NIO
 import SWIM
 
-import class Foundation.JSONDecoder
-import class Foundation.JSONEncoder
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 typealias SWIMNIODefaultEncoder = JSONEncoder
 typealias SWIMNIODefaultDecoder = JSONDecoder

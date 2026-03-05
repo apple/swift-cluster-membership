@@ -13,12 +13,17 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import Foundation
 import NIO
 import SWIM
 import Testing
 
 @testable import SWIMNIOExample
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 final class CodingTests {
     lazy var nioPeer: SWIM.NIOPeer = SWIM.NIOPeer(

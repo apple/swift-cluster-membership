@@ -18,10 +18,14 @@ import SWIMTestKit
 import Synchronization
 import Testing
 
-import struct Foundation.UUID
-
 @testable import CoreMetrics
 @testable import SWIM
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 @Suite(.serialized)
 final class SWIMMetricsTests {

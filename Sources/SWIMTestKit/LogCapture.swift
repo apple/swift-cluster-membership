@@ -16,10 +16,11 @@ import Logging
 import NIO
 import Synchronization
 
-import struct Foundation.Calendar
-import struct Foundation.Date
-import class Foundation.DateFormatter
-import struct Foundation.Locale
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 /// Testing only utility: Captures all log statements for later inspection.
 public final class LogCapture: Sendable {

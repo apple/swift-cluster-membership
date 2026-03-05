@@ -14,10 +14,11 @@
 
 import Logging
 
-import struct Foundation.Calendar
-import struct Foundation.Date
-import class Foundation.DateFormatter
-import struct Foundation.Locale
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 /// Pretty log formatter which prints log lines in the following multi line format,
 /// listing every metadata element in it's own, `//`-prefixed, line as well as pretty printing connections if set as `Logger.MetadataValue`.

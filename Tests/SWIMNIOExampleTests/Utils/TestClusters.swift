@@ -19,9 +19,13 @@ import NIOCore
 import SWIM
 import SWIMTestKit
 
-import struct Foundation.Date
-
 @testable import SWIMNIOExample
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Real Networking Test Case Cluster
