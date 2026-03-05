@@ -136,7 +136,7 @@ extension LogCapture {
                     metadataString = String(metadataString.dropLast(1))
                 }
             }
-            let date = Self._createFormatter().string(from: log.date)
+            let date = log.date.formatted(Self.dateFormat)
             let file = log.file.split(separator: "/").last ?? ""
             let line = log.line
             print(
@@ -145,13 +145,15 @@ extension LogCapture {
         }
     }
 
-    public static func _createFormatter() -> DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "y-MM-dd H:m:ss.SSSS"
-        formatter.locale = Locale(identifier: "en_US")
-        formatter.calendar = Calendar(identifier: .gregorian)
-        return formatter
-    }
+    private static let dateFormat = Date.ISO8601FormatStyle(
+        dateSeparator: .dash,
+        dateTimeSeparator: .space,
+        timeZone: .current
+    )
+    .year()
+    .month()
+    .day()
+    .time(includingFractionalSeconds: true)
 
     internal func prettyPrint(metadata: Logger.MetadataValue) -> String {
         let CONSOLE_RESET = "\u{001B}[0;0m"

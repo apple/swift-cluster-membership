@@ -90,7 +90,7 @@ public struct _SWIMPrettyMetadataLogHandler: LogHandler {
                 metadataString = String(metadataString.dropLast(1))
             }
         }
-        let date = self._createFormatter().string(from: Date())
+        let date = Date().formatted(Self.dateFormat)
         let file = file.split(separator: "/").last ?? ""
         let line = line
         print(
@@ -116,11 +116,13 @@ public struct _SWIMPrettyMetadataLogHandler: LogHandler {
         return valueDescription
     }
 
-    private func _createFormatter() -> DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "y-MM-dd H:m:ss.SSSS"
-        formatter.locale = Locale(identifier: "en_US")
-        formatter.calendar = Calendar(identifier: .gregorian)
-        return formatter
-    }
+    private static let dateFormat = Date.ISO8601FormatStyle(
+        dateSeparator: .dash,
+        dateTimeSeparator: .space,
+        timeZone: .current
+    )
+    .year()
+    .month()
+    .day()
+    .time(includingFractionalSeconds: true)
 }
