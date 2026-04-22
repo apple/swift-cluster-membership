@@ -90,14 +90,15 @@ var targets: [PackageDescription.Target] = [
     ),
 
     // NOT FOR PUBLIC CONSUMPTION.
-    .testTarget(
+    .target(
         name: "SWIMTestKit",
         dependencies: [
             "SWIM",
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "Logging", package: "swift-log"),
             .product(name: "Metrics", package: "swift-metrics"),
-        ]
+        ],
+        path: "Tests/SWIMTestKit"
     ),
 
     // ==== ------------------------------------------------------------------------------------------------------------

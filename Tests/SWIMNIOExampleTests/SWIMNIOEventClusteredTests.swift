@@ -144,7 +144,7 @@ extension ProbeEventHandler {
     }
 }
 
-final class ProbeEventHandler: ChannelInboundHandler {
+final class ProbeEventHandler: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
 
     var events: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>] = []
