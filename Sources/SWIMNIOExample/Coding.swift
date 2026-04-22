@@ -111,7 +111,7 @@ extension CodingUserInfoKey {
     static let channelUserInfoKey = CodingUserInfoKey(rawValue: "nio_peer_channel")!
 }
 
-extension SWIM.NIOPeer: @preconcurrency Codable {
+extension SWIM.NIOPeer: @preconcurrency Decodable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let node = try container.decode(Node.self)
@@ -120,7 +120,9 @@ extension SWIM.NIOPeer: @preconcurrency Codable {
         }
         self.init(node: node, channel: channel)
     }
+}
 
+extension SWIM.NIOPeer: Encodable {
     public nonisolated func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(self.node)

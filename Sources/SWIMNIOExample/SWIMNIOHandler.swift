@@ -31,7 +31,7 @@ import Foundation
 ///
 /// It is designed to work with `DatagramBootstrap`s, and the contained shell can send messages by writing `SWIMNIOSWIMNIOWriteCommand`
 /// data into the channel which this handler converts into outbound `AddressedEnvelope<ByteBuffer>` elements.
-public final class SWIMNIOHandler: ChannelDuplexHandler {
+public final class SWIMNIOHandler: ChannelDuplexHandler, @unchecked Sendable {
     public typealias InboundIn = AddressedEnvelope<ByteBuffer>
     public typealias InboundOut = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
     public typealias OutboundIn = SWIMNIOWriteCommand
@@ -66,6 +66,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler {
             self.settings.swim.node
             ?? Node(protocol: "udp", host: hostIP, port: hostPort, uid: .random(in: 0..<UInt64.max))
         settings.swim.node = node
+        nonisolated(unsafe) let context = context
         self.shell = SWIMNIOShell(
             node: node,
             settings: settings,
@@ -290,7 +291,7 @@ extension SWIMNIOHandler {
 /// Used to a command to the channel pipeline to write the message,
 /// and install a reply handler for the specific sequence number associated with the message (along with a timeout)
 /// when a callback is provided.
-public struct SWIMNIOWriteCommand {
+public struct SWIMNIOWriteCommand: @unchecked Sendable {
     /// SWIM message to be written.
     public let message: SWIM.Message
     /// Address of recipient peer where the message should be written to.
@@ -319,7 +320,7 @@ public struct SWIMNIOWriteCommand {
 // MARK: Callback storage
 
 // TODO: move callbacks into the shell?
-struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible {
+struct PendingResponseCallbackIdentifier: Hashable, CustomStringConvertible, Sendable {
     let peerAddress: SocketAddress  // FIXME: UID as well...?
     let sequenceNumber: SWIM.SequenceNumber
 

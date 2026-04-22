@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import Dispatch
 import XCTest
 
 @testable import SWIM
@@ -21,9 +20,8 @@ import XCTest
 final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOriginPeer, CustomStringConvertible,
     @unchecked Sendable
 {
-    let swimNode: Node
+    var swimNode: Node
 
-    let semaphore = DispatchSemaphore(value: 1)
     var messages: [TestPeer.Message] = []
 
     enum Message {
@@ -64,10 +62,7 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
         timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
     ) async throws -> SWIM.PingResponse<TestPeer, TestPeer> {
-        self.semaphore.wait()
-        defer { self.semaphore.signal() }
-
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             self.messages.append(
                 .ping(
                     payload: payload,
@@ -87,10 +82,7 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
         timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
     ) async throws -> SWIM.PingResponse<TestPeer, TestPeer> {
-        self.semaphore.wait()
-        defer { self.semaphore.signal() }
-
-        return try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { continuation in
             self.messages.append(
                 .pingReq(
                     target: target,
@@ -110,9 +102,6 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
         incarnation: SWIM.Incarnation,
         payload: SWIM.GossipPayload<TestPeer>
     ) {
-        self.semaphore.wait()
-        defer { self.semaphore.signal() }
-
         self.messages.append(
             .ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber)
         )
@@ -122,9 +111,6 @@ final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOri
         acknowledging sequenceNumber: SWIM.SequenceNumber,
         target: TestPeer
     ) {
-        self.semaphore.wait()
-        defer { self.semaphore.signal() }
-
         self.messages.append(.nack(target: target, sequenceNumber: sequenceNumber))
     }
 

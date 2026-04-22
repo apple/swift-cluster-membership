@@ -26,7 +26,7 @@ import struct Dispatch.DispatchTime
 /// all operations performed on the shell are properly synchronized by hopping to the right event loop.
 ///
 /// - SeeAlso: `SWIM.Instance` for detailed documentation about the SWIM protocol implementation.
-public final class SWIMNIOShell {
+public final class SWIMNIOShell: @unchecked Sendable {
     var swim: SWIM.Instance<SWIM.NIOPeer, SWIM.NIOPeer, SWIM.NIOPeer>!
 
     let settings: SWIMNIO.Settings
@@ -42,7 +42,7 @@ public final class SWIMNIOShell {
         self.myself
     }
 
-    let onMemberStatusChange: (SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>) -> Void
+    let onMemberStatusChange: @Sendable (SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>) -> Void
 
     public var node: Node {
         self.myself.node
@@ -55,7 +55,7 @@ public final class SWIMNIOShell {
         node: Node,
         settings: SWIMNIO.Settings,
         channel: Channel,
-        onMemberStatusChange: @escaping (SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>) -> Void
+        onMemberStatusChange: @escaping @Sendable (SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>) -> Void
     ) {
         self.settings = settings
 
@@ -109,7 +109,7 @@ public final class SWIMNIOShell {
 
     /// Start a *single* timer, to run the passed task after given delay.
     @discardableResult
-    private func schedule(delay: Duration, _ task: @escaping () -> Void) -> SWIMCancellable {
+    private func schedule(delay: Duration, _ task: @escaping @Sendable () -> Void) -> SWIMCancellable {
         self.eventLoop.assertInEventLoop()
 
         let scheduled: Scheduled<Void> = self.eventLoop.scheduleTask(in: delay.toNIO) { () in task() }
