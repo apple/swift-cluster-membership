@@ -18,8 +18,10 @@ import XCTest
 
 @testable import SWIM
 
-final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOriginPeer, CustomStringConvertible {
-    var swimNode: Node
+final class TestPeer: Hashable, SWIMPeer, SWIMPingOriginPeer, SWIMPingRequestOriginPeer, CustomStringConvertible,
+    @unchecked Sendable
+{
+    let swimNode: Node
 
     let semaphore = DispatchSemaphore(value: 1)
     var messages: [TestPeer.Message] = []

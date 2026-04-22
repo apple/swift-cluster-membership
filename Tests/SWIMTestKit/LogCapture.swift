@@ -21,7 +21,7 @@ import class Foundation.NSLock
 @testable import Logging
 
 /// Testing only utility: Captures all log statements for later inspection.
-public final class LogCapture {
+public final class LogCapture: @unchecked Sendable {
     private var _logs: [CapturedLogMessage] = []
     private let lock = NSLock()
 

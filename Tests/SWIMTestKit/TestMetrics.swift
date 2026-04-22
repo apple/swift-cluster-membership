@@ -37,7 +37,7 @@ import XCTest
 ///
 /// Metrics factory which allows inspecting recorded metrics programmatically.
 /// Only intended for tests of the Metrics API itself.
-public final class TestMetrics: MetricsFactory {
+public final class TestMetrics: MetricsFactory, @unchecked Sendable {
     private let lock = NSLock()
 
     public typealias Label = String
@@ -204,7 +204,7 @@ public protocol TestMetric {
     var last: (Date, Value)? { get }
 }
 
-public final class TestCounter: TestMetric, CounterHandler, Equatable {
+public final class TestCounter: TestMetric, CounterHandler, Equatable, @unchecked Sendable {
     public let id: String
     public let label: String
     public let dimensions: [(String, String)]
@@ -259,7 +259,7 @@ public final class TestCounter: TestMetric, CounterHandler, Equatable {
     }
 }
 
-public final class TestRecorder: TestMetric, RecorderHandler, Equatable {
+public final class TestRecorder: TestMetric, RecorderHandler, Equatable, @unchecked Sendable {
     public let id: String
     public let label: String
     public let dimensions: [(String, String)]
@@ -308,7 +308,7 @@ public final class TestRecorder: TestMetric, RecorderHandler, Equatable {
     }
 }
 
-public final class TestTimer: TestMetric, TimerHandler, Equatable {
+public final class TestTimer: TestMetric, TimerHandler, Equatable, @unchecked Sendable {
     public let id: String
     public let label: String
     public var displayUnit: TimeUnit?
@@ -387,7 +387,7 @@ extension NSLock {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Errors
 
-public enum TestMetricsError: Error {
+public enum TestMetricsError: Error, @unchecked Sendable {
     case missingMetric(label: String, dimensions: [(String, String)])
     case illegalMetricType(metric: Any, expected: String)
 }
