@@ -39,44 +39,49 @@ extension SWIM {
             timeout: Swift.Duration,
             sequenceNumber: SWIM.SequenceNumber
         ) async throws -> PingResponse<SWIM.NIOPeer, SWIM.NIOPeer> {
-            try await withCheckedThrowingContinuation { continuation in
-                let message = SWIM.Message.ping(replyTo: origin, payload: payload, sequenceNumber: sequenceNumber)
-                let command = SWIMNIOWriteCommand(
-                    message: message,
-                    to: self.swimNode,
-                    replyTimeout: timeout.toNIO,
-                    replyCallback: { reply in
-                        switch reply {
-                        case .success(.response(.nack(_, _))):
-                            continuation.resume(
-                                throwing: SWIMNIOIllegalMessageTypeError(
-                                    "Unexpected .nack reply to .ping message! Was: \(reply)"
-                                )
+            let promise = self.channel.eventLoop.makePromise(of: PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)
+            let message = SWIM.Message.ping(replyTo: origin, payload: payload, sequenceNumber: sequenceNumber)
+            let command = SWIMNIOWriteCommand(
+                message: message,
+                to: self.swimNode,
+                replyTimeout: timeout.toNIO,
+                replyCallback: { reply in
+                    switch reply {
+                    case .success(.response(.nack(_, _))):
+                        promise.fail(
+                            SWIMNIOIllegalMessageTypeError(
+                                "Unexpected .nack reply to .ping message! Was: \(reply)"
                             )
+                        )
 
-                        case .success(.response(let pingResponse)):
-                            assert(
-                                sequenceNumber == pingResponse.sequenceNumber,
-                                "callback invoked with not matching sequence number! Submitted with \(sequenceNumber) but invoked with \(pingResponse.sequenceNumber)!"
+                    case .success(.response(let pingResponse)):
+                        assert(
+                            sequenceNumber == pingResponse.sequenceNumber,
+                            "callback invoked with not matching sequence number! Submitted with \(sequenceNumber) but invoked with \(pingResponse.sequenceNumber)!"
+                        )
+                        promise.succeed(pingResponse)
+
+                    case .failure(let error):
+                        promise.fail(error)
+
+                    case .success(let other):
+                        promise.fail(
+                            SWIMNIOIllegalMessageTypeError(
+                                "Unexpected message, got: [\(other)]:\(reflecting: type(of: other)) while expected \(PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)"
                             )
-                            continuation.resume(returning: pingResponse)
-
-                        case .failure(let error):
-                            continuation.resume(throwing: error)
-
-                        case .success(let other):
-                            continuation.resume(
-                                throwing:
-                                    SWIMNIOIllegalMessageTypeError(
-                                        "Unexpected message, got: [\(other)]:\(reflecting: type(of: other)) while expected \(PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)"
-                                    )
-                            )
-                        }
+                        )
                     }
-                )
+                }
+            )
 
-                self.channel.writeAndFlush(command, promise: nil)
+            let writePromise = self.channel.eventLoop.makePromise(of: Void.self)
+            writePromise.futureResult.whenFailure { error in
+                promise.fail(error)
             }
+
+            self.channel.writeAndFlush(command, promise: writePromise)
+
+            return try await promise.futureResult.get()
         }
 
         public func pingRequest(
@@ -86,41 +91,47 @@ extension SWIM {
             timeout: Duration,
             sequenceNumber: SWIM.SequenceNumber
         ) async throws -> PingResponse<SWIM.NIOPeer, SWIM.NIOPeer> {
-            try await withCheckedThrowingContinuation { continuation in
-                let message = SWIM.Message.pingRequest(
-                    target: target,
-                    replyTo: origin,
-                    payload: payload,
-                    sequenceNumber: sequenceNumber
-                )
-                let command = SWIMNIOWriteCommand(
-                    message: message,
-                    to: self.node,
-                    replyTimeout: timeout.toNIO,
-                    replyCallback: { reply in
-                        switch reply {
-                        case .success(.response(let pingResponse)):
-                            assert(
-                                sequenceNumber == pingResponse.sequenceNumber,
-                                "callback invoked with not matching sequence number! Submitted with \(sequenceNumber) but invoked with \(pingResponse.sequenceNumber)!"
-                            )
-                            continuation.resume(returning: pingResponse)
+            let promise = self.channel.eventLoop.makePromise(of: PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)
+            let message = SWIM.Message.pingRequest(
+                target: target,
+                replyTo: origin,
+                payload: payload,
+                sequenceNumber: sequenceNumber
+            )
+            let command = SWIMNIOWriteCommand(
+                message: message,
+                to: self.node,
+                replyTimeout: timeout.toNIO,
+                replyCallback: { reply in
+                    switch reply {
+                    case .success(.response(let pingResponse)):
+                        assert(
+                            sequenceNumber == pingResponse.sequenceNumber,
+                            "callback invoked with not matching sequence number! Submitted with \(sequenceNumber) but invoked with \(pingResponse.sequenceNumber)!"
+                        )
+                        promise.succeed(pingResponse)
 
-                        case .failure(let error):
-                            continuation.resume(throwing: error)
+                    case .failure(let error):
+                        promise.fail(error)
 
-                        case .success(let other):
-                            continuation.resume(
-                                throwing: SWIMNIOIllegalMessageTypeError(
-                                    "Unexpected message, got: \(other) while expected \(PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)"
-                                )
+                    case .success(let other):
+                        promise.fail(
+                            SWIMNIOIllegalMessageTypeError(
+                                "Unexpected message, got: \(other) while expected \(PingResponse<SWIM.NIOPeer, SWIM.NIOPeer>.self)"
                             )
-                        }
+                        )
                     }
-                )
+                }
+            )
 
-                self.channel.writeAndFlush(command, promise: nil)
+            let writePromise = self.channel.eventLoop.makePromise(of: Void.self)
+            writePromise.futureResult.whenFailure { error in
+                promise.fail(error)
             }
+
+            self.channel.writeAndFlush(command, promise: writePromise)
+
+            return try await promise.futureResult.get()
         }
 
         public func ack(

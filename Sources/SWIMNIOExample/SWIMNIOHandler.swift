@@ -100,7 +100,17 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
     }
 
     public func channelUnregistered(context: ChannelHandlerContext) {
-        self._storage.withLock { $0.shell?.receiveShutdown() }
+        let callbacks = self._storage.withLock { storage -> [PendingResponseCallbackIdentifier: @Sendable (Result<SWIM.Message, Error>) -> Void] in
+            storage.shell?.receiveShutdown()
+            let pending = storage.pendingReplyCallbacks
+            storage.pendingReplyCallbacks.removeAll()
+            return pending
+        }
+
+        for (_, callback) in callbacks {
+            callback(.failure(ChannelError.alreadyClosed))
+        }
+
         context.fireChannelUnregistered()
     }
 
@@ -218,6 +228,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
                 )
                 #endif
 
+                var callbackToInvoke: (@Sendable (Result<SWIM.Message, any Error>) -> Void)? = nil
                 self._storage.withLock { storage in
                     if let index = storage.pendingReplyCallbacks.index(forKey: callbackKey) {
                         let (storedKey, callback) = storage.pendingReplyCallbacks.remove(at: index)
@@ -231,7 +242,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
                         storage.metrics?.pingResponseTime.recordNanoseconds(
                             storedKey.nanosecondsSinceCallbackStored().nanoseconds
                         )
-                        callback(.success(message))
+                        callbackToInvoke = callback
                     } else {
                         self.log.trace(
                             "No callback for \(callbackKey); It may have been removed due to a timeout already.",
@@ -241,6 +252,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
                         )
                     }
                 }
+                callbackToInvoke?(.success(message))
             } else {
                 // deliver to the shell ------------------------------
                 self.shell.receiveMessage(message: message)
@@ -280,8 +292,8 @@ extension SWIMNIOHandler {
         }
 
         self._storage.withLock {
-            $0.metrics?.messageOutboundCount.increment()
-            $0.metrics?.messageOutboundBytes.record(data.count)
+            $0.metrics?.messageInboundCount.increment()
+            $0.metrics?.messageInboundBytes.record(data.count)
         }
 
         let decoder = SWIMNIODefaultDecoder()
@@ -294,8 +306,8 @@ extension SWIMNIOHandler {
         let data = try encoder.encode(message)
 
         self._storage.withLock {
-            $0.metrics?.messageInboundCount.increment()
-            $0.metrics?.messageInboundBytes.record(data.count)
+            $0.metrics?.messageOutboundCount.increment()
+            $0.metrics?.messageOutboundBytes.record(data.count)
         }
 
         let buffer = data.withUnsafeBytes { bytes -> ByteBuffer in

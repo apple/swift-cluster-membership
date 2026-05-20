@@ -101,16 +101,17 @@ public final class SWIMNIOShell: Sendable {
             }
         }
 
-        self._storage.withLock { storage in
+        let changeToAnnounce = self._storage.withLock { storage -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>? in
             storage.nextPeriodicTickCancellable?.cancel()
             switch storage.swim.confirmDead(peer: self.peer) {
             case .applied(let change):
-                self.tryAnnounceMemberReachability(change: change)
                 self.log.info("\(Self.self) shutdown")
+                return change
             case .ignored:
-                ()  // ok
+                return nil
             }
         }
+        self.tryAnnounceMemberReachability(change: changeToAnnounce)
     }
 
     /// Start a *single* timer, to run the passed task after given delay.
@@ -181,6 +182,7 @@ public final class SWIMNIOShell: Sendable {
             }
         }
 
+        var reachabilityChangesToAnnounce: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>?] = []
         self._storage.withLock { storage in
             self.log.trace(
                 "Received ping@\(sequenceNumber)",
@@ -198,8 +200,8 @@ public final class SWIMNIOShell: Sendable {
             )
             for directive in directives {
                 switch directive {
-                case .gossipProcessed(let gossipDirective):
-                    self.handleGossipPayloadProcessedDirective(gossipDirective)
+                case .gossipProcessed(.applied(let change)):
+                    reachabilityChangesToAnnounce.append(change)
 
                 case .sendAck(let pingOrigin, let pingedTarget, let incarnation, let payload, let sequenceNumber):
                     self.tracelog(.reply(to: pingOrigin), message: "\(directive)")
@@ -213,6 +215,9 @@ public final class SWIMNIOShell: Sendable {
                     }
                 }
             }
+        }
+        for change in reachabilityChangesToAnnounce {
+            self.tryAnnounceMemberReachability(change: change)
         }
     }
 
@@ -243,6 +248,7 @@ public final class SWIMNIOShell: Sendable {
             ]
         )
 
+        var reachabilityChangesToAnnounce: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>?] = []
         self._storage.withLock { storage in
             let directives = storage.swim.onPingRequest(
                 target: target,
@@ -252,8 +258,8 @@ public final class SWIMNIOShell: Sendable {
             )
             for directive in directives {
                 switch directive {
-                case .gossipProcessed(let gossipDirective):
-                    self.handleGossipPayloadProcessedDirective(gossipDirective)
+                case .gossipProcessed(.applied(let change)):
+                    reachabilityChangesToAnnounce.append(change)
 
                 case .sendPing(
                     let target,
@@ -276,6 +282,9 @@ public final class SWIMNIOShell: Sendable {
                 }
             }
         }
+        for change in reachabilityChangesToAnnounce {
+            self.tryAnnounceMemberReachability(change: change)
+        }
     }
 
     ///   - pingRequestOrigin: is set only when the ping that this is a reply to was originated as a `pingRequest`.
@@ -294,6 +303,7 @@ public final class SWIMNIOShell: Sendable {
             }
         }
 
+        var reachabilityChangesToAnnounce: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>?] = []
         self._storage.withLock { storage in
             self.log.trace(
                 "Receive ping response: \(response)",
@@ -313,8 +323,8 @@ public final class SWIMNIOShell: Sendable {
             // optionally debug log all directives here
             for directive in directives {
                 switch directive {
-                case .gossipProcessed(let gossipDirective):
-                    self.handleGossipPayloadProcessedDirective(gossipDirective)
+                case .gossipProcessed(.applied(let change)):
+                    reachabilityChangesToAnnounce.append(change)
 
                 case .sendAck(let pingRequestOrigin, let acknowledging, let target, let incarnation, let payload):
                     Task {
@@ -337,6 +347,9 @@ public final class SWIMNIOShell: Sendable {
                     }
                 }
             }
+        }
+        for change in reachabilityChangesToAnnounce {
+            self.tryAnnounceMemberReachability(change: change)
         }
     }
 
@@ -374,6 +387,8 @@ public final class SWIMNIOShell: Sendable {
 
         self.tracelog(.receive(pinged: pingedPeer), message: "\(result)")
         // TODO: do we know here WHO replied to us actually? We know who they told us about (with the ping-req), could be useful to know
+        var reachabilityChangesToAnnounce: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>?] = []
+        var directChangesToAnnounce: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>] = []
         self._storage.withLock { storage in
             // FIXME: change those directives
             let directives: [SWIM.Instance.PingRequestResponseDirective] = storage.swim.onPingRequestResponse(
@@ -382,21 +397,21 @@ public final class SWIMNIOShell: Sendable {
             )
             for directive in directives {
                 switch directive {
-                case .gossipProcessed(let gossipDirective):
-                    self.handleGossipPayloadProcessedDirective(gossipDirective)
+                case .gossipProcessed(.applied(let change)):
+                    reachabilityChangesToAnnounce.append(change)
 
                 case .alive(let previousStatus):
                     self.log.debug("Member [\(pingedPeer.swimNode)] marked as alive")
 
                     if previousStatus.isUnreachable, let member = storage.swim.member(for: pingedPeer) {
                         let event = SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: member)  // FIXME: make SWIM emit an option of the event
-                        self.announceMembershipChange(event)
+                        directChangesToAnnounce.append(event)
                     }
 
                 case .newlySuspect(let previousStatus, let suspect):
                     self.log.debug("Member [\(suspect)] marked as suspect")
                     let event = SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: suspect)  // FIXME: make SWIM emit an option of the event
-                    self.announceMembershipChange(event)
+                    directChangesToAnnounce.append(event)
 
                 case .nackReceived:
                     self.log.debug("Received `nack` from indirect probing of [\(pingedPeer)]")
@@ -404,6 +419,12 @@ public final class SWIMNIOShell: Sendable {
                     self.log.trace("Handled ping request response, resulting directive: \(other), was ignored.")  // TODO: explicitly list all cases
                 }
             }
+        }
+        for change in reachabilityChangesToAnnounce {
+            self.tryAnnounceMemberReachability(change: change)
+        }
+        for change in directChangesToAnnounce {
+            self.announceMembershipChange(change)
         }
     }
 
@@ -592,12 +613,13 @@ public final class SWIMNIOShell: Sendable {
     /// This is the heart of the periodic gossip performed by SWIM.
     func handlePeriodicProtocolPeriodTick() {
         self.eventLoop.assertInEventLoop()
+        var reachabilityChangesToAnnounce: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>?] = []
         self._storage.withLock { storage in
             let directives = storage.swim.onPeriodicPingTick()
             for directive in directives {
                 switch directive {
                 case .membershipChanged(let change):
-                    self.tryAnnounceMemberReachability(change: change)
+                    reachabilityChangesToAnnounce.append(change)
 
                 case .sendPing(let target, let payload, let timeout, let sequenceNumber):
                     self.log.trace(
@@ -621,6 +643,9 @@ public final class SWIMNIOShell: Sendable {
                     }
                 }
             }
+        }
+        for change in reachabilityChangesToAnnounce {
+            self.tryAnnounceMemberReachability(change: change)
         }
     }
 
@@ -687,6 +712,7 @@ public final class SWIMNIOShell: Sendable {
         // of removing the node from the member list. We do that in order to prevent dead nodes
         // from being re-added to the cluster.
         // TODO: add time of death to the status?
+        var changeToAnnounce: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>? = nil
         self._storage.withLock { storage in
             guard let member = storage.swim.member(forNode: node) else {
                 self.log.warning(
@@ -714,8 +740,11 @@ public final class SWIMNIOShell: Sendable {
                         "swim/member": "\(optional: storage.swim.member(forNode: node))"
                     ])
                 )
-                self.tryAnnounceMemberReachability(change: change)
+                changeToAnnounce = change
             }
+        }
+        if let change = changeToAnnounce {
+            self.tryAnnounceMemberReachability(change: change)
         }
     }
 
