@@ -75,3 +75,7 @@ You can run the GitHub Actions workflows locally using [act](https://github.com/
 ## How to contribute your work
 
 Please open a pull request at https://github.com/apple/swift-cluster-membership. Make sure the CI passes, and then wait for code review.
+
+## Automated release process
+
+This repository uses automated releases based on semantic versioning labels. See the [Auto Release Workflow documentation](https://github.com/apple/swift-temporal-sdk/blob/main/.github/workflows/README.md) for details.
