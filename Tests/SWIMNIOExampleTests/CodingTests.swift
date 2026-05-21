@@ -13,14 +13,19 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import Foundation
 import NIO
 import SWIM
-import XCTest
+import Testing
 
 @testable import SWIMNIOExample
 
-final class CodingTests: XCTestCase {
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+
+final class CodingTests {
     lazy var nioPeer: SWIM.NIOPeer = SWIM.NIOPeer(
         node: .init(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121),
         channel: EmbeddedChannel()
@@ -35,6 +40,7 @@ final class CodingTests: XCTestCase {
     lazy var memberThree = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0)
 
     // TODO: add some more "nasty" cases, since the node parsing code is very manual and not hardened / secure
+    @Test
     func test_serializationOf_node() throws {
         try self.shared_serializationRoundtrip(
             ContainsNode(node: Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121))
@@ -55,14 +61,17 @@ final class CodingTests: XCTestCase {
         )
     }
 
+    @Test
     func test_serializationOf_peer() throws {
         try self.shared_serializationRoundtrip(ContainsPeer(peer: self.nioPeer))
     }
 
+    @Test
     func test_serializationOf_member() throws {
         try self.shared_serializationRoundtrip(ContainsMember(member: self.memberOne))
     }
 
+    @Test
     func test_serializationOf_ping() throws {
         let payloadSome: SWIM.GossipPayload = .membership([
             self.memberOne,
@@ -74,6 +83,7 @@ final class CodingTests: XCTestCase {
         )
     }
 
+    @Test
     func test_serializationOf_pingReq() throws {
         let payloadNone: SWIM.GossipPayload<SWIM.NIOPeer> = .none
         try self.shared_serializationRoundtrip(
@@ -109,7 +119,7 @@ final class CodingTests: XCTestCase {
         decoder.userInfo[.channelUserInfoKey] = EmbeddedChannel()
         let deserialized = try decoder.decode(T.self, from: repr)
 
-        XCTAssertEqual("\(obj)", "\(deserialized)")
+        #expect("\(obj)" == "\(deserialized)")
     }
 }
 

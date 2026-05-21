@@ -15,8 +15,7 @@
 // tag::imports[]
 
 import SWIM
-import XCTest
+import Testing
 
 // end::imports[]
-
-final class SWIMDocExamples: XCTestCase {}
+struct SWIMDocExamples {}

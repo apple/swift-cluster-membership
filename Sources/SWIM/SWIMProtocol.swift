@@ -15,8 +15,6 @@
 import ClusterMembership
 import Logging
 
-import struct Dispatch.DispatchTime
-
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)

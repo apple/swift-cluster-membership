@@ -12,33 +12,36 @@
 //
 //===----------------------------------------------------------------------===//
 
-import XCTest
+import Testing
 
 @testable import ClusterMembership
 
-final class NodeTests: XCTestCase {
+struct NodeTests {
     let firstNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7001, uid: 1111)
     let secondNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7002, uid: 2222)
     let thirdNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.2", port: 7001, uid: 3333)
 
+    @Test
     func testCompareSameProtocolAndHost() throws {
-        XCTAssertLessThan(self.firstNode, self.secondNode)
-        XCTAssertGreaterThan(self.secondNode, self.firstNode)
-        XCTAssertNotEqual(self.firstNode, self.secondNode)
+        #expect(self.firstNode < self.secondNode)
+        #expect(self.secondNode > self.firstNode)
+        #expect(self.firstNode != self.secondNode)
     }
 
+    @Test
     func testCompareDifferentHost() throws {
-        XCTAssertLessThan(self.firstNode, self.thirdNode)
-        XCTAssertGreaterThan(self.thirdNode, self.firstNode)
-        XCTAssertNotEqual(self.firstNode, self.thirdNode)
-        XCTAssertLessThan(self.secondNode, self.thirdNode)
-        XCTAssertGreaterThan(self.thirdNode, self.secondNode)
+        #expect(self.firstNode < self.thirdNode)
+        #expect(self.thirdNode > self.firstNode)
+        #expect(self.firstNode != self.thirdNode)
+        #expect(self.secondNode < self.thirdNode)
+        #expect(self.thirdNode > self.secondNode)
     }
 
+    @Test
     func testSort() throws {
         let nodes: Set<ClusterMembership.Node> = [secondNode, firstNode, thirdNode]
         let sorted_nodes = nodes.sorted()
 
-        XCTAssertEqual(sorted_nodes, [self.firstNode, self.secondNode, self.thirdNode])
+        #expect(sorted_nodes == [self.firstNode, self.secondNode, self.thirdNode])
     }
 }
