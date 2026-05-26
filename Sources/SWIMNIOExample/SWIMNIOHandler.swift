@@ -274,7 +274,7 @@ public final class SWIMNIOHandler: ChannelDuplexHandler, Sendable {
             "Error caught: \(error)",
             metadata: [
                 "nio/channel": "\(context.channel)",
-                "swim/shell": "\(self.shell, orElse: "nil")",
+                "swim/shell": .string("\(self.shell, orElse: "nil")"),
                 "error": "\(error)",
             ]
         )

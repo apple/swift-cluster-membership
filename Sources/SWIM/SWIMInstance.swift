@@ -1702,7 +1702,7 @@ extension SWIM.Instance {
             "swim/timeoutSuspectsBeforePeriodMax": "\(self.timeoutSuspectsBeforePeriodMax)",
             "swim/timeoutSuspectsBeforePeriodMin": "\(self.timeoutSuspectsBeforePeriodMin)",
             "swim/incarnation": "\(self.incarnation)",
-            "swim/members/all": Logger.Metadata.Value.array(self.members.map { "\(reflecting: $0)" }),
+            "swim/members/all": Logger.Metadata.Value.array(self.members.map { .string(String(reflecting: $0)) }),
             "swim/members/count": "\(self.notDeadMemberCount)",
             "swim/suspects/count": "\(self.suspects.count)",
         ]
