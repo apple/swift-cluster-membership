@@ -24,7 +24,7 @@ SWIM is a [gossip protocol](https://en.wikipedia.org/wiki/Gossip_protocol) in wh
 
 At a high level, SWIM works like this: 
 
-* A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a .ping message to that peer, expecting an [`.ack`](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/Protocols/SWIMPingOriginPeer.html#/s:4SWIM18SWIMPingOriginPeerP3ack13acknowledging6target11incarnation7payloadys6UInt32V_AA8SWIMPeer_ps6UInt64VA2AO13GossipPayloadOtF) to be sent back. See how `A` probes `B` initially in the diagram below.
+* A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a .ping message to that peer, expecting an `.ack` to be sent back. See how `A` probes `B` initially in the diagram below.
     * The exchanged messages also carry a gossip `payload`, which is (partial) information about what other peers the sender of the message is aware of, along with their membership status (`.alive`, `.suspect`, etc.)
 * If it receives an `.ack`, the peer is considered still `.alive`. Otherwise, the target peer might have terminated/crashed or is unresponsive for other reasons. 
     * In order to double check if the peer really is dead, the origin asks a few other peers about the state of the unresponsive peer by sending `.pingRequest` messages to a configured number of other peers, which then issue direct pings to that peer (probing peer E in the diagram below).
@@ -47,33 +47,11 @@ The SWIM instance also has built-in support for emitting metrics (using [swift-m
 
 The primary purpose of this library is to share the `SWIM.Instance` implementation across various implementations which need some form of in-process membership service. Implementing a custom runtime is documented in depth in the project’s README (https://github.com/apple/swift-cluster-membership/), so please have a look there if you are interested in implementing SWIM over some different transport.
 
-Implementing a new transport boils down a “fill in the blanks” exercise: 
+Implementing a new transport boils down to providing two things: a way to send outbound messages, and a way to route inbound messages into `SWIM.Instance`.
 
-First, one has to implement the Peer protocols (https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/Peer.swift) using one’s target transport:
+`SWIM.Instance` identifies members by [`ClusterMembership.Node`](Sources/ClusterMembership/Node.swift) directly. Transport decoupling is achieved via a `@Sendable (SWIM.Message, Node) -> Void` closure that the shell provides. The instance calls this whenever it needs to send a message, and the shell is responsible for serializing and delivering it over the wire.
 
-```swift
-/// SWIM peer which can be initiated contact with, by sending ping or ping request messages.
-public protocol SWIMPeer: SWIMAddressablePeer {
-    /// Perform a probe of this peer by sending a `ping` message.
-    /// 
-    /// <... more docs here - please refer to the API docs for the latest version ...>
-    func ping(
-        payload: SWIM.GossipPayload,
-        from origin: SWIMPingOriginPeer,
-        timeout: Duration,
-        sequenceNumber: SWIM.SequenceNumber
-    ) async throws -> SWIM.PingResponse
-    
-    // ... 
-}
-```
-
-Which usually means wrapping some connection, channel, or other identity with the ability to send messages and invoke the appropriate callbacks when applicable. 
-
-Then, on the receiving end of a peer, one has to implement receiving those messages and invoke all the corresponding `on<SomeMessage>(...)` callbacks defined on `SWIM.Instance`.
-
-A piece of the `SWIM.Instance` API is listed below to give you an idea about it:
-
+On the receiving end, the shell deserializes incoming messages and invokes the corresponding `on<SomeMessage>(...)` callbacks on `SWIM.Instance`:
 
 ```swift
 extension SWIM.Instance {
@@ -98,16 +76,16 @@ extension SWIM.Instance {
 
     public mutating func onPingResponse( ... ) -> [PingResponseDirective]
 
-    // ... 
+    // ...
 }
 ```
 
-These calls perform all SWIM protocol specific tasks internally, and return directives which are simple to interpret “commands” to an implementation about how it should react to the message. For example, upon receiving a `.pingRequest` message, the returned directive may instruct a shell to send a ping to some nodes. The directive prepares all apropriate target, timeout and additional information that makes it simpler to simply follow its instruction and implement the call correctly, e.g. like this:
+These calls perform all SWIM protocol specific tasks internally, and return directives which are simple to interpret “commands” to an implementation about how it should react. For example, upon receiving a `.pingRequest` message, the returned directive may instruct a shell to send a ping to some nodes:
 
 ```swift
 self.swim.onPingRequest(
     target: target,
-    pingRequestOrigin: pingRequestOrigin,            
+    pingRequestOrigin: pingRequestOrigin,
     payload: payload,
     sequenceNumber: sequenceNumber
 ).forEach { directive in
