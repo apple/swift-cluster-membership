@@ -35,29 +35,9 @@ final class SWIMMetricsTests {
     let fourthNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7004, uid: 4444)
     let fifthNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7005, uid: 5555)
 
-    var myself: TestPeer!
-    var second: TestPeer!
-    var third: TestPeer!
-    var fourth: TestPeer!
-    var fifth: TestPeer!
-
     let metricsLabelPrefix = "swim-tests-\(UUID().uuidString)"
 
-    init() {
-        self.myself = TestPeer(node: self.myselfNode)
-        self.second = TestPeer(node: self.secondNode)
-        self.third = TestPeer(node: self.thirdNode)
-        self.fourth = TestPeer(node: self.fourthNode)
-        self.fifth = TestPeer(node: self.fifthNode)
-    }
-
-    deinit {
-        self.myself = nil
-        self.second = nil
-        self.third = nil
-        self.fourth = nil
-        self.fifth = nil
-    }
+    init() {}
 
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Metrics tests

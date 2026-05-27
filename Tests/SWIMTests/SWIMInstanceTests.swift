@@ -35,27 +35,7 @@ final class SWIMInstanceTests {
     let fourthNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7004, uid: 4444)
     let fifthNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7005, uid: 5555)
 
-    var myself: TestPeer!
-    var second: TestPeer!
-    var third: TestPeer!
-    var fourth: TestPeer!
-    var fifth: TestPeer!
-
-    init() {
-        self.myself = TestPeer(node: self.myselfNode)
-        self.second = TestPeer(node: self.secondNode)
-        self.third = TestPeer(node: self.thirdNode)
-        self.fourth = TestPeer(node: self.fourthNode)
-        self.fifth = TestPeer(node: self.fifthNode)
-    }
-
-    deinit {
-        self.myself = nil
-        self.second = nil
-        self.third = nil
-        self.fourth = nil
-        self.fifth = nil
-    }
+    init() {}
 
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Detecting myself
@@ -68,57 +48,57 @@ final class SWIMInstanceTests {
 
     @Test
     func test_notMyself_shouldDetectRandomNotMyselfActor() {
-        let someone = self.second!
+        let someone = self.secondNode
 
         let swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        #expect(swim.notMyself(someone.swimNode))
+        #expect(swim.notMyself(someone))
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Marking members as various statuses
     @Test
     func test_mark_shouldNotApplyEqualStatus() throws {
-        let otherPeer = self.second!
+        let otherPeer = self.secondNode
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        _ = swim.addMember(otherPeer.swimNode, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
+        _ = swim.addMember(otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
         swim.incrementProtocolPeriod()
 
         try self.validateMark(
             swim: &swim,
-            peer: otherPeer.swimNode,
+            peer: otherPeer,
             status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]),
             shouldSucceed: false
         )
 
-        #expect(swim.member(for: otherPeer.swimNode)!.protocolPeriod == 0)
+        #expect(swim.member(for: otherPeer)!.protocolPeriod == 0)
     }
 
     @Test
     func test_mark_shouldApplyNewerStatus() throws {
-        let otherPeer = self.second!
+        let otherPeer = self.secondNode
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        _ = swim.addMember(otherPeer.swimNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(otherPeer, status: .alive(incarnation: 0))
 
         for i: SWIM.Incarnation in 0...5 {
             swim.incrementProtocolPeriod()
             try self.validateMark(
                 swim: &swim,
-                peer: otherPeer.swimNode,
+                peer: otherPeer,
                 status: .suspect(incarnation: SWIM.Incarnation(i), suspectedBy: [self.thirdNode]),
                 shouldSucceed: true
             )
             try self.validateMark(
                 swim: &swim,
-                peer: otherPeer.swimNode,
+                peer: otherPeer,
                 status: .alive(incarnation: SWIM.Incarnation(i + 1)),
                 shouldSucceed: true
             )
         }
 
-        #expect(swim.member(for: otherPeer.swimNode)!.protocolPeriod == 6)
+        #expect(swim.member(for: otherPeer)!.protocolPeriod == 6)
     }
 
     @Test
@@ -126,78 +106,78 @@ final class SWIMInstanceTests {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
         // ==== Suspect member -----------------------------------------------------------------------------------------
-        let suspectMember = self.second!
-        _ = swim.addMember(suspectMember.swimNode, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
+        let suspectMember = self.secondNode
+        _ = swim.addMember(suspectMember, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
         swim.incrementProtocolPeriod()
 
         try self.validateMark(
             swim: &swim,
-            peer: suspectMember.swimNode,
+            peer: suspectMember,
             status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]),
             shouldSucceed: false
         )
-        try self.validateMark(swim: &swim, peer: suspectMember.swimNode, status: .alive(incarnation: 1), shouldSucceed: false)
+        try self.validateMark(swim: &swim, peer: suspectMember, status: .alive(incarnation: 1), shouldSucceed: false)
 
-        #expect(swim.member(for: suspectMember.swimNode)!.protocolPeriod == 0)
+        #expect(swim.member(for: suspectMember)!.protocolPeriod == 0)
     }
 
     @Test
     func test_mark_shouldNotApplyOlderStatus_unreachable() throws {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        let unreachableMember = TestPeer(node: self.secondNode)
-        _ = swim.addMember(unreachableMember.swimNode, status: .unreachable(incarnation: 1))
+        let unreachableMember = self.secondNode
+        _ = swim.addMember(unreachableMember, status: .unreachable(incarnation: 1))
         swim.incrementProtocolPeriod()
 
         try self.validateMark(
             swim: &swim,
-            peer: unreachableMember.swimNode,
+            peer: unreachableMember,
             status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]),
             shouldSucceed: false
         )
         try self.validateMark(
             swim: &swim,
-            peer: unreachableMember.swimNode,
+            peer: unreachableMember,
             status: .alive(incarnation: 1),
             shouldSucceed: false
         )
 
-        #expect(swim.member(for: unreachableMember.swimNode)!.protocolPeriod == 0)
+        #expect(swim.member(for: unreachableMember)!.protocolPeriod == 0)
     }
 
     @Test
     func test_mark_shouldApplyDead() throws {
-        let otherPeer = self.second!
+        let otherPeer = self.secondNode
 
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        _ = swim.addMember(otherPeer.swimNode, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
+        _ = swim.addMember(otherPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
         swim.incrementProtocolPeriod()
 
-        try self.validateMark(swim: &swim, peer: otherPeer.swimNode, status: .dead, shouldSucceed: true)
+        try self.validateMark(swim: &swim, peer: otherPeer, status: .dead, shouldSucceed: true)
 
-        #expect(!swim.isMember(otherPeer.swimNode))
+        #expect(!swim.isMember(otherPeer))
     }
 
     @Test
     func test_mark_shouldNotApplyAnyStatusIfAlreadyDead() throws {
-        let otherPeer = self.second!
+        let otherPeer = self.secondNode
 
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        _ = swim.addMember(otherPeer.swimNode, status: .dead)
+        _ = swim.addMember(otherPeer, status: .dead)
         swim.incrementProtocolPeriod()
 
-        try self.validateMark(swim: &swim, peer: otherPeer.swimNode, status: .alive(incarnation: 99), shouldSucceed: false)
+        try self.validateMark(swim: &swim, peer: otherPeer, status: .alive(incarnation: 99), shouldSucceed: false)
         try self.validateMark(
             swim: &swim,
-            peer: otherPeer.swimNode,
+            peer: otherPeer,
             status: .suspect(incarnation: 99, suspectedBy: [self.thirdNode]),
             shouldSucceed: false
         )
-        try self.validateMark(swim: &swim, peer: otherPeer.swimNode, status: .dead, shouldSucceed: false)
+        try self.validateMark(swim: &swim, peer: otherPeer, status: .dead, shouldSucceed: false)
 
-        #expect(swim.member(for: otherPeer.swimNode)!.protocolPeriod == 0)
+        #expect(swim.member(for: otherPeer)!.protocolPeriod == 0)
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -206,50 +186,50 @@ final class SWIMInstanceTests {
     func test_onPingRequestResponse_allowsSuspectNodeToRefuteSuspicion() {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        let secondPeer = self.second!
-        let thirdPeer = self.third!
+        let secondPeer = self.secondNode
+        let thirdPeer = self.thirdNode
 
         // thirdPeer is suspect already...
-        _ = swim.addMember(secondPeer.swimNode, status: .alive(incarnation: 0))
-        _ = swim.addMember(thirdPeer.swimNode, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(thirdPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
 
         // Imagine: we asked secondPeer to ping thirdPeer
         // thirdPeer pings secondPeer, gets an ack back -- and there secondPeer had to bump its incarnation number // TODO test for that, using Swim.instance?
 
         // and now we get an `ack` back, secondPeer claims that thirdPeer is indeed alive!
         _ = swim.onPingRequestResponse(
-            .ack(target: thirdPeer.swimNode, incarnation: 2, payload: .none, sequenceNumber: 1),
-            pinged: thirdPeer.swimNode
+            .ack(target: thirdPeer, incarnation: 2, payload: .none, sequenceNumber: 1),
+            pinged: thirdPeer
         )
         // may print the result for debugging purposes if one wanted to
 
         // thirdPeer should be alive; after all, secondPeer told us so!
-        #expect(swim.member(for: thirdPeer.swimNode)!.isAlive)
+        #expect(swim.member(for: thirdPeer)!.isAlive)
     }
 
     @Test
     func test_onPingRequestResponse_ignoresTooOldRefutations() {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        let secondPeer = self.second!
-        let thirdPeer = self.third!
+        let secondPeer = self.secondNode
+        let thirdPeer = self.thirdNode
 
         // thirdPeer is suspect already...
-        _ = swim.addMember(secondPeer.swimNode, status: .alive(incarnation: 0))
-        _ = swim.addMember(thirdPeer.swimNode, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(thirdPeer, status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]))
 
         // Imagine: we asked secondPeer to ping thirdPeer
         // thirdPeer pings secondPeer, yet secondPeer somehow didn't bump its incarnation... so we should NOT accept its refutation
 
         // and now we get an `ack` back, secondPeer claims that thirdPeer is indeed alive!
         _ = swim.onPingRequestResponse(
-            .ack(target: thirdPeer.swimNode, incarnation: 1, payload: .none, sequenceNumber: 1),
-            pinged: thirdPeer.swimNode
+            .ack(target: thirdPeer, incarnation: 1, payload: .none, sequenceNumber: 1),
+            pinged: thirdPeer
         )
         // may print the result for debugging purposes if one wanted to
 
         // thirdPeer should be alive; after all, secondPeer told us so!
-        #expect(swim.member(for: thirdPeer.swimNode)!.isSuspect)
+        #expect(swim.member(for: thirdPeer)!.isSuspect)
     }
 
     @Test
@@ -315,12 +295,12 @@ final class SWIMInstanceTests {
     // MARK: Detecting when a change is "effective"
     @Test
     func test_MarkedDirective_isEffectiveChange() {
-        let p = self.myself!
+        let p = self.myselfNode
 
         #expect(
             SWIM.MemberStatusChangedEvent(
                 previousStatus: nil,
-                member: SWIM.Member(node: p.swimNode, status: .alive(incarnation: 1), protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .alive(incarnation: 1), protocolPeriod: 1)
             )
             .isReachabilityChange
         )
@@ -328,7 +308,7 @@ final class SWIMInstanceTests {
             SWIM.MemberStatusChangedEvent(
                 previousStatus: nil,
                 member: SWIM.Member(
-                    node: p.swimNode,
+                    node: p,
                     status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]),
                     protocolPeriod: 1
                 )
@@ -338,14 +318,14 @@ final class SWIMInstanceTests {
         #expect(
             SWIM.MemberStatusChangedEvent(
                 previousStatus: nil,
-                member: SWIM.Member(node: p.swimNode, status: .unreachable(incarnation: 1), protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .unreachable(incarnation: 1), protocolPeriod: 1)
             )
             .isReachabilityChange
         )
         #expect(
             SWIM.MemberStatusChangedEvent(
                 previousStatus: nil,
-                member: SWIM.Member(node: p.swimNode, status: .dead, protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .dead, protocolPeriod: 1)
             )
             .isReachabilityChange
         )
@@ -353,7 +333,7 @@ final class SWIMInstanceTests {
         #expect(
             !SWIM.MemberStatusChangedEvent(
                 previousStatus: .alive(incarnation: 1),
-                member: SWIM.Member(node: p.swimNode, status: .alive(incarnation: 2), protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .alive(incarnation: 2), protocolPeriod: 1)
             )
             .isReachabilityChange
         )
@@ -361,7 +341,7 @@ final class SWIMInstanceTests {
             !SWIM.MemberStatusChangedEvent(
                 previousStatus: .alive(incarnation: 1),
                 member: SWIM.Member(
-                    node: p.swimNode,
+                    node: p,
                     status: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]),
                     protocolPeriod: 1
                 )
@@ -371,14 +351,14 @@ final class SWIMInstanceTests {
         #expect(
             SWIM.MemberStatusChangedEvent(
                 previousStatus: .alive(incarnation: 1),
-                member: SWIM.Member(node: p.swimNode, status: .unreachable(incarnation: 1), protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .unreachable(incarnation: 1), protocolPeriod: 1)
             )
             .isReachabilityChange
         )
         #expect(
             SWIM.MemberStatusChangedEvent(
                 previousStatus: .alive(incarnation: 1),
-                member: SWIM.Member(node: p.swimNode, status: .dead, protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .dead, protocolPeriod: 1)
             )
             .isReachabilityChange
         )
@@ -386,7 +366,7 @@ final class SWIMInstanceTests {
         #expect(
             !SWIM.MemberStatusChangedEvent(
                 previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]),
-                member: SWIM.Member(node: p.swimNode, status: .alive(incarnation: 2), protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .alive(incarnation: 2), protocolPeriod: 1)
             )
             .isReachabilityChange
         )
@@ -394,7 +374,7 @@ final class SWIMInstanceTests {
             !SWIM.MemberStatusChangedEvent(
                 previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]),
                 member: SWIM.Member(
-                    node: p.swimNode,
+                    node: p,
                     status: .suspect(incarnation: 2, suspectedBy: [self.thirdNode]),
                     protocolPeriod: 1
                 )
@@ -404,14 +384,14 @@ final class SWIMInstanceTests {
         #expect(
             SWIM.MemberStatusChangedEvent(
                 previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]),
-                member: SWIM.Member(node: p.swimNode, status: .unreachable(incarnation: 2), protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .unreachable(incarnation: 2), protocolPeriod: 1)
             )
             .isReachabilityChange
         )
         #expect(
             SWIM.MemberStatusChangedEvent(
                 previousStatus: .suspect(incarnation: 1, suspectedBy: [self.thirdNode]),
-                member: SWIM.Member(node: p.swimNode, status: .dead, protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .dead, protocolPeriod: 1)
             )
             .isReachabilityChange
         )
@@ -419,7 +399,7 @@ final class SWIMInstanceTests {
         #expect(
             SWIM.MemberStatusChangedEvent(
                 previousStatus: .unreachable(incarnation: 1),
-                member: SWIM.Member(node: p.swimNode, status: .alive(incarnation: 2), protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .alive(incarnation: 2), protocolPeriod: 1)
             )
             .isReachabilityChange
         )
@@ -427,7 +407,7 @@ final class SWIMInstanceTests {
             SWIM.MemberStatusChangedEvent(
                 previousStatus: .unreachable(incarnation: 1),
                 member: SWIM.Member(
-                    node: p.swimNode,
+                    node: p,
                     status: .suspect(incarnation: 2, suspectedBy: [self.thirdNode]),
                     protocolPeriod: 1
                 )
@@ -437,14 +417,14 @@ final class SWIMInstanceTests {
         #expect(
             !SWIM.MemberStatusChangedEvent(
                 previousStatus: .unreachable(incarnation: 1),
-                member: SWIM.Member(node: p.swimNode, status: .unreachable(incarnation: 2), protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .unreachable(incarnation: 2), protocolPeriod: 1)
             )
             .isReachabilityChange
         )
         #expect(
             !SWIM.MemberStatusChangedEvent(
                 previousStatus: .unreachable(incarnation: 1),
-                member: SWIM.Member(node: p.swimNode, status: .dead, protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .dead, protocolPeriod: 1)
             )
             .isReachabilityChange
         )
@@ -454,7 +434,7 @@ final class SWIMInstanceTests {
         #expect(
             !SWIM.MemberStatusChangedEvent(
                 previousStatus: .dead,
-                member: SWIM.Member(node: p.swimNode, status: .dead, protocolPeriod: 1)
+                member: SWIM.Member(node: p, status: .dead, protocolPeriod: 1)
             )
             .isReachabilityChange
         )
@@ -550,11 +530,11 @@ final class SWIMInstanceTests {
     @Test
     func test_onGossipPayload_other_withDead() throws {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
-        let other = self.second!
+        let other = self.secondNode
 
-        _ = swim.addMember(other.swimNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(other, status: .alive(incarnation: 0))
 
-        var otherMember = swim.member(for: other.swimNode)!
+        var otherMember = swim.member(for: other)!
         otherMember.status = .dead
         let directives = swim.onGossipPayload(about: otherMember)
 
@@ -594,11 +574,11 @@ final class SWIMInstanceTests {
         var settings = SWIM.Settings()
         settings.unreachability = .enabled
         var swim = SWIM.Instance(settings: settings, myself: self.myselfNode)
-        let other = self.second!
+        let other = self.secondNode
 
-        _ = swim.addMember(other.swimNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(other, status: .alive(incarnation: 0))
 
-        var otherMember = swim.member(for: other.swimNode)!
+        var otherMember = swim.member(for: other)!
         otherMember.status = .unreachable(incarnation: 1)
         let directives = swim.onGossipPayload(about: otherMember)
 
@@ -638,11 +618,11 @@ final class SWIMInstanceTests {
         var settings = SWIM.Settings()
         settings.unreachability = .enabled
         var swim = SWIM.Instance(settings: settings, myself: self.myselfNode)
-        let other = self.second!
+        let other = self.secondNode
 
-        _ = swim.addMember(other.swimNode, status: .alive(incarnation: 10))
+        _ = swim.addMember(other, status: .alive(incarnation: 10))
 
-        var otherMember = swim.member(for: other.swimNode)!
+        var otherMember = swim.member(for: other)!
         otherMember.status = .unreachable(incarnation: 1)  // too old, we're already alive in 10
         let directives = swim.onGossipPayload(about: otherMember)
 
@@ -684,11 +664,11 @@ final class SWIMInstanceTests {
         var settings = SWIM.Settings()
         settings.unreachability = .disabled
         var swim = SWIM.Instance(settings: settings, myself: self.myselfNode)
-        let other = self.second!
+        let other = self.secondNode
 
-        _ = swim.addMember(other.swimNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(other, status: .alive(incarnation: 0))
 
-        var otherMember = swim.member(for: other.swimNode)!
+        var otherMember = swim.member(for: other)!
         otherMember.status = .unreachable(incarnation: 1)
         // we receive an unreachability event, but we do not use this state, it should be automatically promoted to dead,
         // other nodes may use unreachability e.g. when we're rolling out a reconfiguration, but they can't force
@@ -707,10 +687,10 @@ final class SWIMInstanceTests {
     @Test
     func test_onGossipPayload_other_withNewSuspicion_shouldStoreIndividualSuspicions() throws {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
-        let other = self.second!
+        let other = self.secondNode
 
-        _ = swim.addMember(other.swimNode, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]))
-        var otherMember = swim.member(for: other.swimNode)!
+        _ = swim.addMember(other, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]))
+        var otherMember = swim.member(for: other)!
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.secondNode])
         let directives = swim.onGossipPayload(about: otherMember)
         if case .applied(.some(let change)) = directives.first,
@@ -727,15 +707,15 @@ final class SWIMInstanceTests {
     @Test
     func test_onGossipPayload_other_shouldNotApplyGossip_whenHaveEnoughSuspectedBy() throws {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
-        let other = self.second!
+        let other = self.secondNode
 
         let saturatedSuspectedByList = (1...swim.settings.lifeguard.maxIndependentSuspicions).map {
             Node(protocol: "test", host: "test", port: 12345, uid: UInt64($0))
         }
 
-        _ = swim.addMember(other.swimNode, status: .suspect(incarnation: 0, suspectedBy: Set(saturatedSuspectedByList)))
+        _ = swim.addMember(other, status: .suspect(incarnation: 0, suspectedBy: Set(saturatedSuspectedByList)))
 
-        var otherMember = swim.member(for: other.swimNode)!
+        var otherMember = swim.member(for: other)!
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode])
         let directives = swim.onGossipPayload(about: otherMember)
         guard case [] = directives else {
@@ -750,11 +730,11 @@ final class SWIMInstanceTests {
         settings.lifeguard.maxIndependentSuspicions = 3
 
         var swim = SWIM.Instance(settings: settings, myself: self.myselfNode)
-        let other = self.second!
+        let other = self.secondNode
 
-        _ = swim.addMember(other.swimNode, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.secondNode]))
+        _ = swim.addMember(other, status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.secondNode]))
 
-        var otherMember = swim.member(for: other.swimNode)!
+        var otherMember = swim.member(for: other)!
         otherMember.status = .suspect(incarnation: 0, suspectedBy: [self.thirdNode, self.fourthNode])
         let directives = swim.onGossipPayload(about: otherMember)
         if case .applied(.some(let change)) = directives.first,
@@ -784,16 +764,16 @@ final class SWIMInstanceTests {
     func test_members_shouldContainAllAddedMembers() {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        let secondPeer = self.second!
-        let thirdPeer = self.third!
+        let secondPeer = self.secondNode
+        let thirdPeer = self.thirdNode
 
         _ = swim.addMember(self.myselfNode, status: .alive(incarnation: 0))
-        _ = swim.addMember(secondPeer.swimNode, status: .alive(incarnation: 0))
-        _ = swim.addMember(thirdPeer.swimNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
+        _ = swim.addMember(thirdPeer, status: .alive(incarnation: 0))
 
         #expect(swim.isMember(self.myselfNode))
-        #expect(swim.isMember(secondPeer.swimNode))
-        #expect(swim.isMember(thirdPeer.swimNode))
+        #expect(swim.isMember(secondPeer))
+        #expect(swim.isMember(thirdPeer))
 
         #expect(swim.allMemberCount == 3)
         #expect(swim.notDeadMemberCount == 3)
@@ -823,14 +803,14 @@ final class SWIMInstanceTests {
     func test_onPingRequestResponse_incrementLHAMultiplier_whenMissedNack() {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        let secondPeer = self.second!
+        let secondPeer = self.secondNode
 
-        _ = swim.addMember(secondPeer.swimNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
 
         #expect(swim.localHealthMultiplier == 0)
         _ = swim.onEveryPingRequestResponse(
-            .timeout(target: secondPeer.swimNode, pingRequestOrigin: nil, timeout: .milliseconds(300), sequenceNumber: 1),
-            pinged: secondPeer.swimNode
+            .timeout(target: secondPeer, pingRequestOrigin: nil, timeout: .milliseconds(300), sequenceNumber: 1),
+            pinged: secondPeer
         )
         #expect(swim.localHealthMultiplier == 1)
     }
@@ -904,12 +884,12 @@ final class SWIMInstanceTests {
     func test_onPingRequestResponse_decrementLHAMultiplier_whenGotAck() {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        let secondPeer = self.second!
+        let secondPeer = self.secondNode
 
-        _ = swim.addMember(secondPeer.swimNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
         swim.localHealthMultiplier = 1
         _ = swim.onPingAckResponse(
-            target: secondPeer.swimNode,
+            target: secondPeer,
             incarnation: 0,
             payload: .none,
             pingRequestOrigin: nil,
@@ -927,14 +907,14 @@ final class SWIMInstanceTests {
         _ = swim.addMember(self.thirdNode, status: .alive(incarnation: 33))
 
         // let's pretend `third` asked us to ping `second`, and we get the ack back:
-        let pingRequestOrigin = self.third!
+        let pingRequestOrigin = self.thirdNode
         let pingRequestSequenceNumber: UInt32 = 1212
 
         let directives = swim.onPingAckResponse(
             target: self.secondNode,
             incarnation: 12,
             payload: .none,
-            pingRequestOrigin: pingRequestOrigin.swimNode,
+            pingRequestOrigin: pingRequestOrigin,
             pingRequestSequenceNumber: pingRequestSequenceNumber,
             sequenceNumber: 2  // the sequence number that we used to send the `ping` with
         )
@@ -942,7 +922,7 @@ final class SWIMInstanceTests {
         for directive in directives {
             switch directive {
             case .sendAck(let peer, let acknowledging, let target, let incarnation, _):
-                #expect(peer == pingRequestOrigin.swimNode)
+                #expect(peer == pingRequestOrigin)
                 #expect(acknowledging == pingRequestSequenceNumber)
                 #expect(self.secondNode == target)
                 #expect(incarnation == 12)
@@ -969,21 +949,21 @@ final class SWIMInstanceTests {
         _ = swim.addMember(self.thirdNode, status: .alive(incarnation: 33))
 
         // let's pretend `third` asked us to ping `second`
-        let pingRequestOrigin = self.third!
+        let pingRequestOrigin = self.thirdNode
         let pingRequestSequenceNumber: UInt32 = 1212
 
         // and we get a timeout (so we should send a nack to the origin)
         let directives = swim.onPingResponseTimeout(
             target: self.secondNode,
             timeout: .seconds(1),
-            pingRequestOrigin: pingRequestOrigin.swimNode,
+            pingRequestOrigin: pingRequestOrigin,
             pingRequestSequenceNumber: pingRequestSequenceNumber
         )
 
         for directive in directives {
             switch directive {
             case .sendNack(let peer, let acknowledging, let target):
-                #expect(peer == pingRequestOrigin.swimNode)
+                #expect(peer == pingRequestOrigin)
                 #expect(acknowledging == pingRequestSequenceNumber)
                 #expect(self.secondNode == target)
             default:
@@ -1003,12 +983,12 @@ final class SWIMInstanceTests {
 
     @Test
     func test_onPingRequestResponse_notIncrementLHAMultiplier_whenSeeOldSuspicion_onGossip() {
-        let p1 = self.myself!
+        let p1 = self.myselfNode
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
         // first suspicion is for current incarnation, should increase LHA counter
         _ = swim.onGossipPayload(
             about: SWIM.Member(
-                node: p1.swimNode,
+                node: p1,
                 status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]),
                 protocolPeriod: 0
             )
@@ -1017,7 +997,7 @@ final class SWIMInstanceTests {
         // second suspicion is for a stale incarnation, should ignore
         _ = swim.onGossipPayload(
             about: SWIM.Member(
-                node: p1.swimNode,
+                node: p1,
                 status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]),
                 protocolPeriod: 0
             )
@@ -1027,12 +1007,12 @@ final class SWIMInstanceTests {
 
     @Test
     func test_onPingRequestResponse_incrementLHAMultiplier_whenRefuteSuspicion_onGossip() {
-        let p1 = self.myself!
+        let p1 = self.myselfNode
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
         _ = swim.onGossipPayload(
             about: SWIM.Member(
-                node: p1.swimNode,
+                node: p1,
                 status: .suspect(incarnation: 0, suspectedBy: [self.thirdNode]),
                 protocolPeriod: 0
             )
@@ -1044,12 +1024,12 @@ final class SWIMInstanceTests {
     func test_onPingRequestResponse_dontChangeLHAMultiplier_whenGotNack() {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        let secondPeer = self.second!
+        let secondPeer = self.secondNode
 
-        _ = swim.addMember(secondPeer.swimNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(secondPeer, status: .alive(incarnation: 0))
         swim.localHealthMultiplier = 1
 
-        _ = swim.onEveryPingRequestResponse(.nack(target: secondPeer.swimNode, sequenceNumber: 1), pinged: secondPeer.swimNode)
+        _ = swim.onEveryPingRequestResponse(.nack(target: secondPeer, sequenceNumber: 1), pinged: secondPeer)
         #expect(swim.localHealthMultiplier == 1)
     }
 
@@ -1060,13 +1040,12 @@ final class SWIMInstanceTests {
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
         let memberCount = 10
-        var members: Set<TestPeer> = []
+        var members: Set<Node> = []
         for i in 1...memberCount {
             var node = self.myselfNode
             node.port = 8000 + i
-            let peer = TestPeer(node: node)
-            members.insert(peer)
-            _ = swim.addMember(peer.swimNode, status: .alive(incarnation: 0))
+            members.insert(node)
+            _ = swim.addMember(node, status: .alive(incarnation: 0))
         }
 
         var seenNodes: [Node] = []
@@ -1078,7 +1057,7 @@ final class SWIMInstanceTests {
 
             seenNodes.append(member)
             members = members.filter {
-                $0.swimNode != member
+                $0 != member
             }
         }
 
@@ -1115,10 +1094,10 @@ final class SWIMInstanceTests {
 
     @Test
     func test_addMember_shouldNotAddLocalNodeForPinging() {
-        let otherPeer = self.second!
-        var swim = SWIM.Instance(settings: .init(), myself: otherPeer.swimNode)
+        let otherPeer = self.secondNode
+        var swim = SWIM.Instance(settings: .init(), myself: otherPeer)
 
-        #expect(swim.isMember(otherPeer.swimNode))
+        #expect(swim.isMember(otherPeer))
         #expect(swim.nextPeerToPing() == nil)
     }
 
@@ -1126,10 +1105,10 @@ final class SWIMInstanceTests {
     func test_addMember_shouldNotAddPeerWithoutUID() {
         var swim = SWIM.Instance(settings: .init(), myself: self.myselfNode)
 
-        let other = TestPeer(node: .init(protocol: "test", host: "127.0.0.1", port: 111, uid: nil))
-        let directives = swim.addMember(other.swimNode, status: .alive(incarnation: 0))
+        let other = Node(protocol: "test", host: "127.0.0.1", port: 111, uid: nil)
+        let directives = swim.addMember(other, status: .alive(incarnation: 0))
         #expect(directives.count == 0)
-        #expect(!swim.isMember(other.swimNode))
+        #expect(!swim.isMember(other))
         #expect(swim.nextPeerToPing() == nil)
     }
 
@@ -1139,7 +1118,6 @@ final class SWIMInstanceTests {
         _ = swim.addMember(self.secondNode, status: .alive(incarnation: 0))
         #expect(swim.isMember(self.secondNode))
 
-        _ = TestPeer(node: self.secondNode)
         var restartedSecondNode = self.secondNode
         restartedSecondNode.uid = self.secondNode.uid! * 2
 
@@ -1199,15 +1177,15 @@ final class SWIMInstanceTests {
 
     @Test
     func test_member_shouldReturnTheLastAssignedStatus() {
-        let otherPeer = self.second!
+        let otherPeer = self.secondNode
 
         var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
 
-        _ = swim.addMember(otherPeer.swimNode, status: .alive(incarnation: 0))
-        #expect(swim.member(for: otherPeer.swimNode)!.status == .alive(incarnation: 0))
+        _ = swim.addMember(otherPeer, status: .alive(incarnation: 0))
+        #expect(swim.member(for: otherPeer)!.status == .alive(incarnation: 0))
 
-        _ = swim.mark(otherPeer.swimNode, as: .suspect(incarnation: 99, suspectedBy: [self.thirdNode]))
-        #expect(swim.member(for: otherPeer.swimNode)!.status == .suspect(incarnation: 99, suspectedBy: [self.thirdNode]))
+        _ = swim.mark(otherPeer, as: .suspect(incarnation: 99, suspectedBy: [self.thirdNode]))
+        #expect(swim.member(for: otherPeer)!.status == .suspect(incarnation: 99, suspectedBy: [self.thirdNode]))
     }
 
     @Test
