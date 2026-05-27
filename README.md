@@ -43,7 +43,7 @@ The way Swift Cluster Membership implements protocols, is by offering "`Instance
 
 The SWIM instance also has built-in support for emitting metrics (using [swift-metrics](https://github.com/apple/swift-metrics)) and can be configured to log details about internal details by passing a [swift-log](https://github.com/apple/swift-log) `Logger`.
 
-### Example: Reusing the SWIM protocol logic implementation
+### Example: Reusing SWIM logic implementation
 
 The primary purpose of this library is to share the `SWIM.Instance` implementation across various implementations which need some form of in-process membership service. Implementing a custom runtime is documented in depth in the project’s README (https://github.com/apple/swift-cluster-membership/), so please have a look there if you are interested in implementing SWIM over some different transport.
 
@@ -80,7 +80,7 @@ extension SWIM.Instance {
 }
 ```
 
-These calls perform all SWIM protocol specific tasks internally, and return directives which are simple to interpret “commands” to an implementation about how it should react. For example, upon receiving a `.pingRequest` message, the returned directive may instruct a shell to send a ping to some nodes:
+These calls perform all SWIM specific tasks internally, and return directives which are simple to interpret “commands” to an implementation about how it should react. For example, upon receiving a `.pingRequest` message, the returned directive may instruct a shell to send a ping to some nodes:
 
 ```swift
 self.swim.onPingRequest(
@@ -112,7 +112,7 @@ For detailed documentation about each of the callbacks, when to invoke them, and
 
 ### Example: SWIMming with Swift NIO
 
-The repository contains an [end-to-end example](Samples/Sources/SWIMNIOSampleCluster) and an example implementation called [SWIMNIOExample](Sources/SWIMNIOExample) which makes use of the `SWIM.Instance` to enable a simple UDP based peer monitoring system. This allows peers to gossip and notify each other about node failures using the SWIM protocol by sending datagrams driven by SwiftNIO.
+The repository contains an [end-to-end example](Samples/Sources/SWIMNIOSampleCluster) and an example implementation called [SWIMNIOExample](Sources/SWIMNIOExample) which makes use of the `SWIM.Instance` to enable a simple UDP based peer monitoring system. This allows peers to gossip and notify each other about node failures using SWIM by sending datagrams driven by SwiftNIO.
 
 > 📘 The `SWIMNIOExample` implementation is offered only as an example, and has not been implemented with production use in mind, however with some amount of effort it could definitely do well for some use-cases. If you are interested in learning more about cluster membership algorithms, scalability benchmarking and using SwiftNIO itself, this is a great module to get your feet wet, and perhaps once the module is mature enough we could consider making it not only an example, but a reusable component for Swift NIO based clustered applications.
 

@@ -31,7 +31,7 @@ import Musl
 /// > As you swim lazily through the milieu, <br/>
 /// > The secrets of the world will infect you.
 ///
-/// Implementation of the SWIM protocol in abstract terms, not dependent on any specific runtime.
+/// Implementation of SWIM in abstract terms, not dependent on any specific runtime.
 /// The actual implementation resides in `SWIM.Instance`.
 ///
 /// ### Terminology
@@ -582,7 +582,7 @@ extension SWIM {
             }
         }
 
-        /// Current SWIM protocol period (i.e. which round of gossip the instance is in).
+        /// Current SWIM period (i.e. which round of gossip the instance is in).
         public var protocolPeriod: UInt64 {
             self._protocolPeriod
         }
@@ -861,7 +861,7 @@ extension SWIM.Instance {
 }
 
 // ==== ----------------------------------------------------------------------------------------------------------------
-// MARK: Handling SWIM protocol interactions
+// MARK: Handling SWIM interactions
 
 extension SWIM.Instance {
     // ==== ------------------------------------------------------------------------------------------------------------

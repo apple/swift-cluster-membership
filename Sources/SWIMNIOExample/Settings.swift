@@ -23,7 +23,7 @@ public enum SWIMNIO {}
 extension SWIMNIO {
     /// SWIMNIO specific settings.
     public struct Settings: Sendable {
-        /// Underlying settings for the SWIM protocol implementation.
+        /// Underlying settings for SWIM implementation.
         public var swim: SWIM.Settings
 
         public init() {

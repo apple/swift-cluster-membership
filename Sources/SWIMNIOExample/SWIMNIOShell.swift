@@ -27,7 +27,7 @@ import Foundation
 
 /// The SWIM shell is responsible for driving all interactions of the `SWIM.Instance` with the outside world.
 ///
-/// - SeeAlso: `SWIM.Instance` for detailed documentation about the SWIM protocol implementation.
+/// - SeeAlso: `SWIM.Instance` for detailed documentation about SWIM implementation.
 public actor SWIMNIOShell {
 
     private var hasStarted = false

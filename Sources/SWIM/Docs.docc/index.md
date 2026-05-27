@@ -26,7 +26,7 @@ SWIM is a [gossip protocol](https://en.wikipedia.org/wiki/Gossip_protocol) in wh
 
 At a high level, SWIM works like this:
 
-* A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a `.ping` message to that peer, expecting an [`.ack`](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/Protocols/SWIMPingOriginPeer.html#/s:4SWIM18SWIMPingOriginPeerP3ack13acknowledging6target11incarnation7payloadys6UInt32V_AA8SWIMPeer_ps6UInt64VA2AO13GossipPayloadOtF) to be sent back. See how `A` probes `B` initially in the diagram below.
+* A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a `.ping` message to that peer, expecting an `.ack` to be sent back. See how `A` probes `B` initially in the diagram below.
     * The exchanged messages also carry a gossip `payload`, which is (partial) information about what other peers the sender of the message is aware of, along with their membership status (`.alive`, `.suspect`, etc.)
 * If it receives an `.ack`, the peer is considered still `.alive`. Otherwise, the target peer might have terminated/crashed or is unresponsive for other reasons.
     * In order to double-check if the peer really is dead, the origin asks a few other peers about the state of the unresponsive peer by sending `.pingRequest` messages to a configured number of other peers, which then issue direct pings to that peer (probing peer E in the diagram below).
@@ -45,41 +45,16 @@ The way Swift Cluster Membership implements protocols is by offering "`Instances
 
 The SWIM instance also has built-in support for emitting metrics (using [swift-metrics](https://github.com/apple/swift-metrics)) and can be configured to log details about internal details by passing a [swift-log](https://github.com/apple/swift-log) `Logger`.
 
-#### Example: Reusing the SWIM protocol logic implementation
+#### Example: Reusing SWIM logic implementation
 
 The primary purpose of this library is to share the `SWIM.Instance` implementation across various implementations which need some form of in-process membership service. Implementing a custom runtime is documented in depth in the project’s README (https://github.com/apple/swift-cluster-membership/), so please have a look there if you are interested in implementing SWIM over some different transport.
 
-Implementing a new transport boils down a “fill in the blanks” exercise:
+`SWIM.Instance` identifies members by `ClusterMembership.Node` directly. Transport decoupling is achieved via a `@Sendable (SWIM.Message, Node) async -> Void` closure that the shell provides — the instance calls this whenever it needs to send a message, and the shell is responsible for serializing and delivering it over the wire.
 
-First, one has to implement the Peer protocols (https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/Peer.swift) using one’s target transport:
-
-```swift
-/// SWIM peer which can be initiated contact with, by sending ping or ping request messages.
-public protocol SWIMPeer: SWIMAddressablePeer {
-    /// Perform a probe of this peer by sending a `ping` message.
-    /// 
-    /// <... more docs here - please refer to the API docs for the latest version ...>
-    func ping(
-        payload: SWIM.GossipPayload,
-        from origin: SWIMPingOriginPeer,
-        timeout: Duration,
-        sequenceNumber: SWIM.SequenceNumber
-    ) async throws -> SWIM.PingResponse
-    
-    // ... 
-}
-```
-
-Which usually means wrapping some connection, channel, or other identity with the ability to send messages and invoke the appropriate callbacks when applicable.
-
-Then, on the receiving end of a peer, one has to implement receiving those messages and invoke all the corresponding 
-`on<SomeMessage>(...)` callbacks defined on the ``SWIM/Instance`` (grouped under ``SWIMProtocol``).
-
-A piece of the ``SWIMProtocol`` is listed below to give you an idea about it:
-
+On the receiving end, the shell deserializes incoming messages and invokes the corresponding `on<SomeMessage>(...)` callbacks on `SWIM.Instance`:
 
 ```swift
-public protocol SWIMProtocol {
+extension SWIM.Instance {
 
     /// MUST be invoked periodically, in intervals of `self.swim.dynamicLHMProtocolInterval`.
     ///
@@ -92,25 +67,20 @@ public protocol SWIMProtocol {
     /// - decisions are made to `.ping` a random peer for fault detection,
     /// - and some internal house keeping is performed.
     ///
-    /// Note: This means that effectively all decisions are made in interval sof protocol periods.
-    /// It would be possible to have a secondary periodic or more ad-hoc interval to speed up
-    /// some operations, however this is currently not implemented and the protocol follows the fairly
-    /// standard mode of simply carrying payloads in periodic ping messages.
-    ///
     /// - Returns: `SWIM.Instance.PeriodicPingTickDirective` which must be interpreted by a shell implementation
-    mutating func onPeriodicPingTick() -> [SWIM.Instance.PeriodicPingTickDirective]
+    public func onPeriodicPingTick() -> [PeriodicPingTickDirective]
 
-    mutating func onPing( ... ) -> [SWIM.Instance.PingDirective]
+    public func onPing( ... ) -> [PingDirective]
 
-    mutating func onPingRequest( ... ) -> [SWIM.Instance.PingRequestDirective]
+    public func onPingRequest( ... ) -> [PingRequestDirective]
 
-    mutating func onPingResponse( ... ) -> [SWIM.Instance.PingResponseDirective]
+    public func onPingResponse( ... ) -> [PingResponseDirective]
 
-    // ... 
+    // ...
 }
 ```
 
-These calls perform all SWIM protocol specific tasks internally, and return directives which are simple to interpret “commands” to an implementation about how it should react to the message. For example, upon receiving a `.pingRequest` message, the returned directive may instruct a shell to send a ping to some nodes. The directive prepares all apropriate target, timeout and additional information that makes it simpler to simply follow its instruction and implement the call correctly, e.g. like this:
+These calls perform all SWIM-specific tasks internally, and return directives which are simple to interpret “commands” to an implementation about how it should react to the message. For example, upon receiving a `.pingRequest` message, the returned directive may instruct a shell to send a ping to some nodes. The directive prepares all appropriate target, timeout and additional information that makes it simpler to simply follow its instruction and implement the call correctly, e.g. like this:
 
 ```swift
 self.swim.onPingRequest(
@@ -151,12 +121,11 @@ In general this allows for all the tricky "what to do when" to be encapsulated w
 - ``SWIMLifeguardSettings``
 - ``SWIMMetricsSettings``
 
-### Protocols peer implementations must conform to 
+### Message types
 
-- ``SWIMPeer``
-- ``SWIMAddressablePeer`` 
-- ``SWIMPingOriginPeer`` 
-- ``SWIMPingRequestOriginPeer`` 
+- ``SWIM/Message``
+- ``SWIM/LocalMessage``
+- ``SWIM/PingResponse``
 
 ### Namespace
 

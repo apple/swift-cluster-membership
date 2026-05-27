@@ -50,7 +50,7 @@ extension SWIM {
         /// Gossip settings, configures how the protocol period time intervals and gossip characteristics.
         public var gossip: SWIMGossipSettings = .init()
 
-        /// Settings of the Lifeguard extensions to the SWIM protocol.
+        /// Settings of the Lifeguard extensions to SWIM.
         public var lifeguard: SWIMLifeguardSettings = .init()
 
         /// Settings for metrics to be emitted by the SWIM.Instance automatically.
@@ -131,7 +131,7 @@ extension SWIM {
         /// - SeeAlso: `SWIMLifeguardSettings.maxLocalHealthMultiplier` which affects the "effective" ping timeouts used in runtime.
         public var pingTimeout: Duration = .milliseconds(300)
 
-        /// Optional SWIM Protocol Extension: `SWIM.MemberStatus.unreachable`
+        /// Optional SWIM extension: `SWIM.MemberStatus.unreachable`
         ///
         /// This is a custom extension to the standard SWIM statuses which first moves a member into unreachable state,
         /// while still trying to ping it, while awaiting for a final "mark it `.dead` now" from an external system.
@@ -184,10 +184,10 @@ extension SWIM {
         }
 
         #if TRACELOG_SWIM
-        /// When enabled traces _all_ incoming SWIM protocol communication (remote messages).
+        /// When enabled traces _all_ incoming SWIM communication (remote messages).
         public var traceLogLevel: Logger.Level? = .warning
         #else
-        /// When enabled traces _all_ incoming SWIM protocol communication (remote messages).
+        /// When enabled traces _all_ incoming SWIM communication (remote messages).
         public var traceLogLevel: Logger.Level?
         #endif
     }
