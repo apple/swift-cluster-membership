@@ -47,7 +47,6 @@ var targets: [PackageDescription.Target] = [
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "NIOFoundationCompat", package: "swift-nio"),
             .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
-            .product(name: "NIOExtras", package: "swift-nio-extras"),
 
             .product(name: "Logging", package: "swift-log"),
             .product(name: "Metrics", package: "swift-metrics"),
@@ -110,12 +109,10 @@ var targets: [PackageDescription.Target] = [
 ]
 
 var dependencies: [Package.Dependency] = [
-    .package(url: "https://github.com/apple/swift-nio.git", from: "2.94.0"),
-    .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.36.0"),
-    .package(url: "https://github.com/apple/swift-nio-extras.git", from: "1.32.0"),
+    .package(url: "https://github.com/apple/swift-nio.git", from: "2.100.0"),
 
     // ~~~ SSWG APIs ~~~
-    .package(url: "https://github.com/apple/swift-log.git", from: "1.9.0"),
+    .package(url: "https://github.com/apple/swift-log.git", from: "1.13.0"),
     .package(url: "https://github.com/apple/swift-metrics.git", "2.10.0"..<"3.0.0"),  // since latest
 
 ]
