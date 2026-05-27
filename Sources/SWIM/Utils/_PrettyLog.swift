@@ -54,17 +54,9 @@ public struct _SWIMPrettyMetadataLogHandler: LogHandler {
     public var metadata: Logger.Metadata = [:]
     public var logLevel: Logger.Level = .trace
 
-    public func log(
-        level: Logger.Level,
-        message: Logger.Message,
-        metadata: Logger.Metadata?,
-        source: String,
-        file: String,
-        function: String,
-        line: UInt
-    ) {
+    public func log(event: Logging.LogEvent) {
         var metadataString: String = ""
-        if let metadata = metadata {
+        if let metadata = event.metadata {
             if !metadata.isEmpty {
                 metadataString = "\n// metadata:\n"
                 for key in metadata.keys.sorted() {
@@ -89,10 +81,9 @@ public struct _SWIMPrettyMetadataLogHandler: LogHandler {
             }
         }
         let date = Date().formatted(Self.dateFormat)
-        let file = file.split(separator: "/").last ?? ""
-        let line = line
+        let file = event.file.split(separator: "/").last ?? ""
         print(
-            "\(self.CONSOLE_BOLD)\(self.label)\(self.CONSOLE_RESET): [\(date)] [\(level)] [\(file):\(line)] \(message)\(metadataString)"
+            "\(self.CONSOLE_BOLD)\(self.label)\(self.CONSOLE_RESET): [\(date)] [\(event.level)] [\(file):\(event.line)] \(event.message)\(metadataString)"
         )
     }
 

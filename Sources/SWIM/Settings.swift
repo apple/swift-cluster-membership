@@ -217,7 +217,7 @@ public struct SWIMGossipSettings: Sendable {
     ///
     /// - SeeAlso: SWIM 4.1. Infection-Style Dissemination Component
     /// - SeeAlso: SWIM 5. Performance Evaluation of a Prototype
-    public func gossipedEnoughTimes(_ gossip: SWIM.Gossip<some SWIMPeer>, members n: Int) -> Bool {
+    public func gossipedEnoughTimes(_ gossip: SWIM.Gossip, members n: Int) -> Bool {
         precondition(n >= 1, "number of members MUST be >= 1")
         guard n > 1 else {
             // no need to gossip ever in a single node cluster
@@ -227,7 +227,7 @@ public struct SWIMGossipSettings: Sendable {
         return gossip.numberOfTimesGossiped > Int(maxTimesDouble)
     }
 
-    internal func needsToBeGossipedMoreTimes(_ gossip: SWIM.Gossip<some SWIMPeer>, members n: Int) -> Bool {
+    internal func needsToBeGossipedMoreTimes(_ gossip: SWIM.Gossip, members n: Int) -> Bool {
         !self.gossipedEnoughTimes(gossip, members: n)
     }
 

@@ -34,7 +34,7 @@ extension SWIMNIOShell {
         if let level = self.settings.swim.traceLogLevel {
             self.log.log(
                 level: level,
-                "[\(self.myself.node)] \(type.description) :: \(message())",
+                "[\(self.node)] \(type.description) :: \(message())",
                 metadata: self.swim.metadata,
                 file: file,
                 function: function,
@@ -44,9 +44,9 @@ extension SWIMNIOShell {
     }
 
     internal enum TraceLogType: CustomStringConvertible {
-        case send(to: SWIMAddressablePeer)
-        case reply(to: SWIMAddressablePeer)
-        case receive(pinged: SWIMAddressablePeer?)
+        case send(to: Node)
+        case reply(to: Node)
+        case receive(pinged: Node?)
 
         static var receive: TraceLogType {
             .receive(pinged: nil)
@@ -55,13 +55,13 @@ extension SWIMNIOShell {
         var description: String {
             switch self {
             case .send(let to):
-                return "SEND(to:\(to.swimNode))"
+                return "SEND(to:\(to))"
             case .receive(nil):
                 return "RECV"
             case .receive(let .some(pinged)):
-                return "RECV(pinged:\(pinged.swimNode))"
+                return "RECV(pinged:\(pinged))"
             case .reply(let to):
-                return "REPL(to:\(to.swimNode))"
+                return "REPL(to:\(to))"
             }
         }
     }

@@ -47,29 +47,29 @@ extension SWIM.Message: Codable {
 
         switch try container.decode(DiscriminatorKeys.self, forKey: ._case) {
         case .ping:
-            let replyTo = try container.decode(SWIM.NIOPeer.self, forKey: .replyTo)
-            let payload = try container.decode(SWIM.GossipPayload<SWIM.NIOPeer>.self, forKey: .payload)
+            let replyTo = try container.decode(Node.self, forKey: .replyTo)
+            let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
             let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
             self = .ping(replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
 
         case .pingRequest:
-            let target = try container.decode(SWIM.NIOPeer.self, forKey: .target)
-            let replyTo = try container.decode(SWIM.NIOPeer.self, forKey: .replyTo)
-            let payload = try container.decode(SWIM.GossipPayload<SWIM.NIOPeer>.self, forKey: .payload)
+            let target = try container.decode(Node.self, forKey: .target)
+            let replyTo = try container.decode(Node.self, forKey: .replyTo)
+            let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
             let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
             self = .pingRequest(target: target, replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
 
         case .response_ack:
-            let target = try container.decode(SWIM.NIOPeer.self, forKey: .target)
+            let target = try container.decode(Node.self, forKey: .target)
             let incarnation = try container.decode(SWIM.Incarnation.self, forKey: .incarnation)
-            let payload = try container.decode(SWIM.GossipPayload<SWIM.NIOPeer>.self, forKey: .payload)
+            let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
             let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
             self = .response(
                 .ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber)
             )
 
         case .response_nack:
-            let target = try container.decode(SWIM.NIOPeer.self, forKey: .target)
+            let target = try container.decode(Node.self, forKey: .target)
             let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
             self = .response(.nack(target: target, sequenceNumber: sequenceNumber))
         }
@@ -94,39 +94,19 @@ extension SWIM.Message: Codable {
 
         case .response(.ack(let target, let incarnation, let payload, let sequenceNumber)):
             try container.encode(DiscriminatorKeys.response_ack, forKey: ._case)
-            try container.encode(target.swimNode, forKey: .target)
+            try container.encode(target, forKey: .target)
             try container.encode(incarnation, forKey: .incarnation)
             try container.encode(payload, forKey: .payload)
             try container.encode(sequenceNumber, forKey: .sequenceNumber)
 
         case .response(.nack(let target, let sequenceNumber)):
             try container.encode(DiscriminatorKeys.response_nack, forKey: ._case)
-            try container.encode(target.swimNode, forKey: .target)
+            try container.encode(target, forKey: .target)
             try container.encode(sequenceNumber, forKey: .sequenceNumber)
 
         case .response(let other):
             fatalError("SWIM.Message.response(\(other)) MUST NOT be serialized, this is a bug, please report an issue.")
         }
-    }
-}
-
-extension CodingUserInfoKey {
-    static let channelUserInfoKey = CodingUserInfoKey(rawValue: "nio_peer_channel")!
-}
-
-extension SWIM.NIOPeer: Codable {
-    public nonisolated init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let node = try container.decode(Node.self)
-        guard let channel = decoder.userInfo[.channelUserInfoKey] as? Channel else {
-            fatalError("Expected channelUserInfoKey to be present in userInfo, unable to decode SWIM.NIOPeer!")
-        }
-        self.init(node: node, channel: channel)
-    }
-
-    public nonisolated func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(self.node)
     }
 }
 
@@ -139,11 +119,10 @@ extension SWIM.Member: Codable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let peer = try container.decode(SWIM.NIOPeer.self, forKey: .node)
+        let node = try container.decode(Node.self, forKey: .node)
         let status = try container.decode(SWIM.Status.self, forKey: .status)
         let protocolPeriod = try container.decode(UInt64.self, forKey: .protocolPeriod)
-        // as!-safe, since we only have members of a NIO implementation, so Peer will be NIOPeer
-        self.init(peer: peer as! Peer, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: nil)
+        self.init(node: node, status: status, protocolPeriod: protocolPeriod, suspicionStartedAt: nil)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -237,11 +216,11 @@ extension ClusterMembership.Node: Codable {
 extension SWIM.GossipPayload: Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        let members: [SWIM.Member<SWIM.NIOPeer>] = try container.decode([SWIM.Member<SWIM.NIOPeer>].self)
+        let members: [SWIM.Member] = try container.decode([SWIM.Member].self)
         if members.isEmpty {
             self = .none
         } else {
-            self = .membership(members as! [SWIM.Member<Peer>])  // as! safe, since we always have Peer == NIOPeer
+            self = .membership(members)
         }
     }
 
@@ -250,7 +229,7 @@ extension SWIM.GossipPayload: Codable {
 
         switch self {
         case .none:
-            let empty: [SWIM.Member<SWIM.NIOPeer>] = []
+            let empty: [SWIM.Member] = []
             try container.encode(empty)
 
         case .membership(let members):

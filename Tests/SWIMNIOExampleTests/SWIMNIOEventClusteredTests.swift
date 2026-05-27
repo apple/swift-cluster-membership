@@ -14,6 +14,7 @@
 
 import ClusterMembership
 import NIO
+import NIOCore
 import SWIM
 import SWIMTestKit
 import Synchronization
@@ -25,13 +26,17 @@ import Testing
 @Suite(.serialized)
 final class SWIMNIOEventClusteredTests {
     var settings: SWIMNIO.Settings = SWIMNIO.Settings(swim: .init())
-    lazy var myselfNode = Node(protocol: "udp", host: "127.0.0.1", port: 7001, uid: 1111)
-    lazy var myselfPeer = SWIM.NIOPeer(node: myselfNode, channel: EmbeddedChannel())
-    lazy var myselfMemberAliveInitial = SWIM.Member(peer: myselfPeer, status: .alive(incarnation: 0), protocolPeriod: 0)
+    var myselfNode: Node!
+    var myselfPeer: Node!
+    var myselfMemberAliveInitial: SWIM.Member!
 
     var group: MultiThreadedEventLoopGroup!
 
-    init() {
+    init() async {
+        let port = await TestPortAllocator.shared.nextPort()
+        self.myselfNode = Node(protocol: "udp", host: "127.0.0.1", port: port, uid: 1111)
+        self.myselfPeer = myselfNode
+        self.myselfMemberAliveInitial = SWIM.Member(node: myselfNode, status: .alive(incarnation: 0), protocolPeriod: 0)
         self.settings.node = self.myselfNode
         self.group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
     }
@@ -44,7 +49,7 @@ final class SWIMNIOEventClusteredTests {
     @Test
     func test_memberStatusChange_alive_emittedForMyself() async throws {
         try await withEmbeddedClusteredTestScope { cluster in
-            let firstProbe = ProbeEventHandler(loop: group.next())
+            let firstProbe = ProbeEventHandler()
 
             let first = try await bindShell(probe: firstProbe, cluster: cluster) { [myselfNode] settings in
                 settings.node = myselfNode
@@ -64,10 +69,10 @@ final class SWIMNIOEventClusteredTests {
     @Test
     func test_memberStatusChange_suspect_emittedForDyingNode() async throws {
         try await withEmbeddedClusteredTestScope { cluster in
-            let firstProbe = ProbeEventHandler(loop: group.next())
-            let secondProbe = ProbeEventHandler(loop: group.next())
+            let firstProbe = ProbeEventHandler()
+            let secondProbe = ProbeEventHandler()
 
-            let secondNodePort = 7002
+            let secondNodePort = await TestPortAllocator.shared.nextPort()
             let secondNode = Node(protocol: "udp", host: "127.0.0.1", port: secondNodePort, uid: 222_222)
 
             let second = try await bindShell(probe: secondProbe, cluster: cluster) { settings in
@@ -85,7 +90,7 @@ final class SWIMNIOEventClusteredTests {
                     SWIM.MemberStatusChangedEvent(
                         previousStatus: nil,
                         member: SWIM.Member(
-                            peer: SWIM.NIOPeer(node: secondNode, channel: EmbeddedChannel()),
+                            node: secondNode,
                             status: .alive(incarnation: 0),
                             protocolPeriod: 0
                         )
@@ -127,16 +132,32 @@ final class SWIMNIOEventClusteredTests {
         await cluster.makeLogCapture(name: "swim-\(settings.node!.port)", settings: &settings)
 
         await cluster.appendNode(settings.node!)
-        return try await DatagramBootstrap(group: self.group)
+        let asyncChannel = try await DatagramBootstrap(group: self.group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-            .channelInitializer { [settings] channel in
-                let swimHandler = SWIMNIOHandler(settings: settings)
-                return channel.pipeline.addHandler(swimHandler).flatMap { _ in
-                    channel.pipeline.addHandler(probeHandler)
+            .bind(host: settings.node!.host, port: settings.node!.port) { channel in
+                do {
+                    let asyncChannel = try NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>(
+                        wrappingChannelSynchronously: channel
+                    )
+                    return channel.eventLoop.makeSucceededFuture(asyncChannel)
+                } catch {
+                    return channel.eventLoop.makeFailedFuture(error)
                 }
             }
-            .bind(host: settings.node!.host, port: settings.node!.port)
-            .get()
+        let service = SWIMNIOService(
+            node: settings.node!,
+            settings: settings,
+            channel: asyncChannel,
+            onMemberStatusChange: { event in
+                probeHandler.handleEvent(event)
+            }
+        )
+
+        Task {
+            try? await service.run()
+        }
+
+        return asyncChannel.channel
     }
 }
 
@@ -146,11 +167,11 @@ final class SWIMNIOEventClusteredTests {
 extension ProbeEventHandler {
     @discardableResult
     func expectEvent(
-        _ expected: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>? = nil,
+        _ expected: SWIM.MemberStatusChangedEvent? = nil,
         file: StaticString = (#file),
         line: UInt = #line,
         sourceLocation: SourceLocation = #_sourceLocation
-    ) async throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
+    ) async throws -> SWIM.MemberStatusChangedEvent {
         let got = try await self.expectEvent()
 
         if let expected = expected {
@@ -162,55 +183,50 @@ extension ProbeEventHandler {
 }
 
 final class ProbeEventHandler: ChannelInboundHandler, Sendable {
-    typealias InboundIn = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
+    typealias InboundIn = SWIM.MemberStatusChangedEvent
 
     struct Storage: Sendable {
-        var events: [SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>] = []
-        var waitingPromise: EventLoopPromise<SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>>?
-        var loop: EventLoop
+        var events: [SWIM.MemberStatusChangedEvent] = []
+        var continuation: CheckedContinuation<SWIM.MemberStatusChangedEvent, any Error>?
     }
 
     let storage: Mutex<Storage>
 
-    init(loop: EventLoop) {
-        self.storage = Mutex(Storage(loop: loop))
+    init() {
+        self.storage = Mutex(Storage())
+    }
+
+    func handleEvent(_ change: SWIM.MemberStatusChangedEvent) {
+        self.storage.withLock { storage in
+            if let continuation = storage.continuation {
+                continuation.resume(returning: change)
+                storage.continuation = nil
+            } else {
+                storage.events.append(change)
+            }
+        }
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let change = self.unwrapInboundIn(data)
-        self.storage.withLock { storage in
-            storage.events.append(change)
-
-            if let probePromise = storage.waitingPromise {
-                let event = storage.events.removeFirst()
-                probePromise.succeed(event)
-                storage.waitingPromise = nil
-            }
-        }
+        self.handleEvent(change)
     }
 
     func expectEvent(
         file: StaticString = #file,
         line: UInt = #line,
         sourceLocation: SourceLocation = #_sourceLocation
-    ) async throws -> SWIM.MemberStatusChangedEvent<SWIM.NIOPeer> {
-        try await self.storage.withLock { storage in
-            let p = storage.loop.makePromise(of: SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>.self, file: file, line: line)
-            storage.loop.execute {
-                self.storage
-                    .withLock { storage in
-                        assert(storage.waitingPromise == nil, "Already waiting on an event")
-                        if !storage.events.isEmpty {
-                            let event = storage.events.removeFirst()
-                            p.succeed(event)
-                        } else {
-                            storage.waitingPromise = p
-                        }
-                    }
+    ) async throws -> SWIM.MemberStatusChangedEvent {
+        try await withCheckedThrowingContinuation { continuation in
+            self.storage.withLock { storage in
+                assert(storage.continuation == nil, "Already waiting on an event")
+                if let event = storage.events.first {
+                    storage.events.removeFirst()
+                    continuation.resume(returning: event)
+                } else {
+                    storage.continuation = continuation
+                }
             }
-            return p
         }
-        .futureResult
-        .get()
     }
 }

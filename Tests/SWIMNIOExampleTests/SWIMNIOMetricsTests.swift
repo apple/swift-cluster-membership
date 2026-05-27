@@ -57,7 +57,7 @@ final class SWIMNIOMetricsTests {
 
             try await Task.sleep(for: .seconds(1))  // giving it some extra time to report a few metrics (a few round-trip times etc).
 
-            let m: SWIM.Metrics.ShellMetrics = firstHandler.metrics!
+            let m: SWIM.Metrics.ShellMetrics = firstHandler.metrics
 
             let roundTripTime = try self.testMetrics.expectTimer(m.pingResponseTime)
             #expect(roundTripTime.lastValue != nil)  // some roundtrip time should have been reported
@@ -90,23 +90,23 @@ final class SWIMNIOMetricsTests {
             #expect(pingRequestResponseTimeFirst.lastValue == nil)  // because this only counts ACKs, and we get NACKs because the peer is down
 
             let successfulPingProbes = try self.testMetrics.expectCounter(
-                firstHandler.shell.swim.metrics.successfulPingProbes
+                await firstHandler.shell.swim.metrics.successfulPingProbes
             )
             print("  successfulPingProbes = \(successfulPingProbes.totalValue)")
             #expect(successfulPingProbes.totalValue > 1)  // definitely at least one, we joined some nodes
 
-            let failedPingProbes = try self.testMetrics.expectCounter(firstHandler.shell.swim.metrics.failedPingProbes)
+            let failedPingProbes = try self.testMetrics.expectCounter(await firstHandler.shell.swim.metrics.failedPingProbes)
             print("  failedPingProbes = \(failedPingProbes.totalValue)")
             #expect(failedPingProbes.totalValue > 1)  // definitely at least one, we detected the down peer
 
             let successfulPingRequestProbes = try self.testMetrics.expectCounter(
-                firstHandler.shell.swim.metrics.successfulPingRequestProbes
+                await firstHandler.shell.swim.metrics.successfulPingRequestProbes
             )
             print("  successfulPingRequestProbes = \(successfulPingRequestProbes.totalValue)")
             #expect(successfulPingRequestProbes.totalValue > 1)  // definitely at least one, the second peer is alive and .nacks us, so we count that as success
 
             let failedPingRequestProbes = try self.testMetrics.expectCounter(
-                firstHandler.shell.swim.metrics.failedPingRequestProbes
+                await firstHandler.shell.swim.metrics.failedPingRequestProbes
             )
             print("  failedPingRequestProbes = \(failedPingRequestProbes.totalValue)")
             #expect(failedPingRequestProbes.totalValue == 0)  // 0 because the second peer is still responsive to us, even it third is dead

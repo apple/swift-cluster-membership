@@ -70,13 +70,13 @@ public protocol SWIMPeer: SWIMAddressablePeer {
 
 Which usually means wrapping some connection, channel, or other identity with the ability to send messages and invoke the appropriate callbacks when applicable. 
 
-Then, on the receiving end of a peer, one has to implement receiving those messages and invoke all the corresponding `on<SomeMessage>(...)` callbacks defined on the `SWIM.Instance` (grouped under [SWIMProtocol](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/SWIMInstance.swift#L24-L85)).
+Then, on the receiving end of a peer, one has to implement receiving those messages and invoke all the corresponding `on<SomeMessage>(...)` callbacks defined on `SWIM.Instance`.
 
-A piece of the SWIMProtocol is listed below to give you an idea about it:
+A piece of the `SWIM.Instance` API is listed below to give you an idea about it:
 
 
 ```swift
-public protocol SWIMProtocol {
+extension SWIM.Instance {
 
     /// MUST be invoked periodically, in intervals of `self.swim.dynamicLHMProtocolInterval`.
     ///
@@ -89,19 +89,14 @@ public protocol SWIMProtocol {
     /// - decisions are made to `.ping` a random peer for fault detection,
     /// - and some internal house keeping is performed.
     ///
-    /// Note: This means that effectively all decisions are made in interval sof protocol periods.
-    /// It would be possible to have a secondary periodic or more ad-hoc interval to speed up
-    /// some operations, however this is currently not implemented and the protocol follows the fairly
-    /// standard mode of simply carrying payloads in periodic ping messages.
-    ///
     /// - Returns: `SWIM.Instance.PeriodicPingTickDirective` which must be interpreted by a shell implementation
-    mutating func onPeriodicPingTick() -> [SWIM.Instance.PeriodicPingTickDirective]
+    public mutating func onPeriodicPingTick() -> [PeriodicPingTickDirective]
 
-    mutating func onPing( ... ) -> [SWIM.Instance.PingDirective]
+    public mutating func onPing( ... ) -> [PingDirective]
 
-    mutating func onPingRequest( ... ) -> [SWIM.Instance.PingRequestDirective]
+    public mutating func onPingRequest( ... ) -> [PingRequestDirective]
 
-    mutating func onPingResponse( ... ) -> [SWIM.Instance.PingResponseDirective]
+    public mutating func onPingResponse( ... ) -> [PingResponseDirective]
 
     // ... 
 }
@@ -143,40 +138,29 @@ The repository contains an [end-to-end example](Samples/Sources/SWIMNIOSampleClu
 
 > 📘 The `SWIMNIOExample` implementation is offered only as an example, and has not been implemented with production use in mind, however with some amount of effort it could definitely do well for some use-cases. If you are interested in learning more about cluster membership algorithms, scalability benchmarking and using SwiftNIO itself, this is a great module to get your feet wet, and perhaps once the module is mature enough we could consider making it not only an example, but a reusable component for Swift NIO based clustered applications.
 
-In it’s simplest form, combining the provided SWIM instance and NIO shell to build a simple server, one can embedd the provided handlers like shown below, in a typical NIO channel pipeline:
+In its simplest form, combining the provided SWIM instance and NIO shell to build a simple server using Swift's structured concurrency:
 
 ```swift
 let bootstrap = DatagramBootstrap(group: group)
     .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-    .channelInitializer { channel in
-        channel.pipeline
-            // first install the SWIM handler, which contains the SWIMNIOShell:
-            .addHandler(SWIMNIOHandler(settings: settings)).flatMap {
-                // then install some user handler, it will receive SWIM events:
-                channel.pipeline.addHandler(SWIMNIOExampleHandler())
-        }
-    }
 
-bootstrap.bind(host: host, port: port)
-```
-
-The example handler can then receive and handle SWIM cluster membership change events:
-
-```swift
-final class SWIMNIOExampleHandler: ChannelInboundHandler {
-    public typealias InboundIn = SWIM.MemberStatusChangedEvent
-    
-    let log = Logger(label: "SWIMNIOExampleHandler")
-    
-    public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let change: SWIM.MemberStatusChangedEvent = self.unwrapInboundIn(data)
-
-        self.log.info("Membership status changed: [\(change.member.node)] is now [\(change.status)]", metadata: [    
-            "swim/member": "\(change.member.node)",
-            "swim/member/status": "\(change.status)",
-        ])
+let asyncChannel = try await bootstrap.bind(host: host, port: port) { channel in
+    channel.eventLoop.makeCompletedFuture {
+        try NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>(
+            wrappingChannelSynchronously: channel
+        )
     }
 }
+
+let service = SWIMNIOService(
+    node: node,
+    settings: settings,
+    channel: asyncChannel,
+    onMemberStatusChange: { event in
+        print("Membership status changed: \(event)")
+    }
+)
+try await service.run()
 ```
 
 If you are interested in contributing and polishing up the SWIMNIO implementation please head over to the issues and pick up a task or propose an improvement yourself!

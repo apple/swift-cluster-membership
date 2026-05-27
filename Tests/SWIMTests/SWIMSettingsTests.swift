@@ -24,7 +24,7 @@ struct SWIMSettingsTests {
         let settings = SWIM.Settings()
 
         let node = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7001, uid: 1111)
-        let member = SWIM.Member(peer: TestPeer(node: node), status: .alive(incarnation: 0), protocolPeriod: 0)
+        let member = SWIM.Member(node: node, status: .alive(incarnation: 0), protocolPeriod: 0)
         var g = SWIM.Gossip(member: member, numberOfTimesGossiped: 0)
 
         var members = 0
