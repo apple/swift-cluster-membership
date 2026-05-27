@@ -308,8 +308,8 @@ public final class SWIMNIOShell: Sendable {
             self.log.trace(
                 "Receive ping response: \(response)",
                 metadata: storage.swim.metadata([
-                    "swim/pingRequest/origin": "\(pingRequestOriginPeer, orElse: "nil")",
-                    "swim/pingRequest/sequenceNumber": "\(pingRequestSequenceNumber, orElse: "nil")",
+                    "swim/pingRequest/origin": .string("\(pingRequestOriginPeer, orElse: "nil")"),
+                    "swim/pingRequest/sequenceNumber": .string("\(pingRequestSequenceNumber, orElse: "nil")"),
                     "swim/response": "\(response)",
                     "swim/response/sequenceNumber": "\(response.sequenceNumber)",
                 ])
@@ -729,7 +729,7 @@ public final class SWIMNIOShell: Sendable {
                 self.log.warning(
                     "Attempted to confirmDead node \(node) was ignored, was already dead?",
                     metadata: [
-                        "swim/member": "\(optional: storage.swim.member(forNode: node))"
+                        "swim/member": .string("\(optional: storage.swim.member(forNode: node))")
                     ]
                 )
 
@@ -737,7 +737,7 @@ public final class SWIMNIOShell: Sendable {
                 self.log.trace(
                     "Confirmed node as .dead",
                     metadata: storage.swim.metadata([
-                        "swim/member": "\(optional: storage.swim.member(forNode: node))"
+                        "swim/member": .string("\(optional: storage.swim.member(forNode: node))")
                     ])
                 )
                 changeToAnnounce = change
