@@ -14,6 +14,7 @@
 
 import ArgumentParser
 import ClusterMembership
+import Foundation
 import Logging
 import Metrics
 import NIO

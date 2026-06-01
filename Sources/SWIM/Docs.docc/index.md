@@ -123,8 +123,6 @@ In general this allows for all the tricky "what to do when" to be encapsulated w
 
 ### Message types
 
-- ``SWIM/Message``
-- ``SWIM/LocalMessage``
 - ``SWIM/PingResponse``
 
 ### Namespace

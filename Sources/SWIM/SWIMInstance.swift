@@ -1405,7 +1405,7 @@ extension SWIM.Instance {
     ///
     /// - parameters:
     ///   - response: the response representing this ping's result (i.e. `ack` or `timeout`).
-    ///   - pinged: the pinged peer that this response is from
+    ///   - pingedNode: the pinged peer that this response is from
     /// - Returns: `Instance.PingRequestResponseDirective` which must be interpreted by a shell implementation
     public mutating func onPingRequestResponse(
         _ response: SWIM.PingResponse,
@@ -1472,8 +1472,8 @@ extension SWIM.Instance {
     /// in order for the local health adjusted timeouts to be calculated correctly.
     ///
     /// - parameters:
-    ///   - response: the response representing
-    ///   - pinged: the pinged peer that this response is from
+    ///   - result: the response representing this ping request's result (i.e. `ack`, `nack`, or `timeout`).
+    ///   - node: the pinged peer that this response is from
     /// - Returns: `Instance.PingRequestResponseDirective` which must be interpreted by a shell implementation
     public mutating func onEveryPingRequestResponse(
         _ result: SWIM.PingResponse,
@@ -1718,7 +1718,7 @@ extension SWIM.Instance {
     /// Once a node is determined dead by such higher level system, it may invoke `swim.confirmDead(peer: theDefinitelyDeadPeer)`,
     /// to mark the node as dead, with all of its consequences.
     ///
-    /// - Parameter peer: the peer which should be confirmed dead.
+    /// - Parameter node: the node which should be confirmed dead.
     /// - Returns: `Instance.ConfirmDeadDirective` which must be interpreted by a shell implementation
     public mutating func confirmDead(node: Node) -> ConfirmDeadDirective {
         if self.member(for: node) == nil,
