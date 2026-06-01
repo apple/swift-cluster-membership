@@ -22,8 +22,6 @@ import ServiceLifecycle
 public struct SWIMNIOService: Service {
     public let shell: SWIMNIOShell
     public let channel: NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>
-    private let outboundStream: AsyncStream<(SWIM.Message, Node)>
-    private let outboundContinuation: AsyncStream<(SWIM.Message, Node)>.Continuation
 
     public var node: Node { self.shell.node }
     public var metrics: SWIM.Metrics.ShellMetrics { self.shell.metrics }
@@ -35,25 +33,18 @@ public struct SWIMNIOService: Service {
         channel: NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>,
         onMemberStatusChange: @escaping @Sendable (SWIM.MemberStatusChangedEvent) -> Void = { _ in () }
     ) {
-        let (outboundStream, outboundContinuation) = AsyncStream<(SWIM.Message, Node)>.makeStream()
         self.channel = channel
-        self.outboundStream = outboundStream
-        self.outboundContinuation = outboundContinuation
         self.shell = SWIMNIOShell(
             node: node,
             settings: settings,
-            sendMessage: { message, target in
-                outboundContinuation.yield((message, target))
-            },
             onMemberStatusChange: onMemberStatusChange
         )
     }
 
     public func run() async throws {
         try await withTaskCancellationOrGracefulShutdownHandler {
-            try await self.shell.run(channel: self.channel, outboundStream: self.outboundStream)
+            try await self.shell.run(channel: self.channel)
         } onCancelOrGracefulShutdown: {
-            self.outboundContinuation.finish()
             self.channel.channel.close(promise: nil)
         }
         await self.shell.receiveShutdown()

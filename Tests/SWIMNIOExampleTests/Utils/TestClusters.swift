@@ -167,7 +167,6 @@ actor EmbeddedCluster {
         let shell = SWIMNIOShell(
             node: node,
             settings: settings,
-            sendMessage: { _, _ in () },
             onMemberStatusChange: { _ in () }
         )
 

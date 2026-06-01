@@ -44,20 +44,23 @@ public actor SWIMNIOShell {
     nonisolated let node: Node
     nonisolated let metrics: SWIM.Metrics.ShellMetrics
 
-    let sendMessage: @Sendable (SWIM.Message, Node) -> Void
+    private let outboundContinuation: AsyncStream<(SWIM.Message, Node)>.Continuation
+    public let outboundStream: AsyncStream<(SWIM.Message, Node)>
+
     let onMemberStatusChange: @Sendable (SWIM.MemberStatusChangedEvent) -> Void
 
     public init(
         node: Node,
         settings: SWIMNIO.Settings,
-        sendMessage: @escaping @Sendable (SWIM.Message, Node) -> Void,
         onMemberStatusChange: @escaping @Sendable (SWIM.MemberStatusChangedEvent) -> Void
     ) {
+        let (stream, continuation) = AsyncStream<(SWIM.Message, Node)>.makeStream()
+        self.outboundStream = stream
+        self.outboundContinuation = continuation
         self.settings = settings
         self.node = node
         self.swim = SWIM.Instance(settings: settings.swim, myself: node)
         self.metrics = self.swim.metrics.shell
-        self.sendMessage = sendMessage
         self.onMemberStatusChange = onMemberStatusChange
     }
 
@@ -66,7 +69,7 @@ public actor SWIMNIOShell {
         self.hasStarted = true
 
         // Immediately announce that "we" are alive
-        self.announceMembershipChange(.init(previousStatus: nil, member: self.swim.member))
+        self.onMemberStatusChange(.init(previousStatus: nil, member: self.swim.member))
 
         // Immediately attempt to connect to initial contact points
         for node in self.settings.swim.initialContactPoints {
@@ -84,16 +87,14 @@ public actor SWIMNIOShell {
     }
 
     public func run(
-        channel: NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>,
-        outboundStream: AsyncStream<(SWIM.Message, Node)>
+        channel: NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>
     ) async throws {
         self.start()
-        try await self.runIO(channel: channel, outboundStream: outboundStream)
+        try await self.runIO(channel: channel)
     }
 
     private func runIO(
-        channel: NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>,
-        outboundStream: AsyncStream<(SWIM.Message, Node)>
+        channel: NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>
     ) async throws {
         let decoder = JSONDecoder()
         let encoder = JSONEncoder()
@@ -125,7 +126,7 @@ public actor SWIMNIOShell {
 
                 group.addTask {
                     do {
-                        for await (message, node) in outboundStream {
+                        for await (message, node) in self.outboundStream {
                             let data = try encoder.encode(message)
                             var buffer = ByteBuffer()
                             buffer.writeBytes(data)
@@ -168,6 +169,7 @@ public actor SWIMNIOShell {
             continuation.resume(throwing: CancellationError())
         }
         self.pendingPings.removeAll()
+        self.outboundContinuation.finish()
 
         let changeToAnnounce: SWIM.MemberStatusChangedEvent? = {
             switch self.swim.confirmDead(node: self.node) {
@@ -178,7 +180,7 @@ public actor SWIMNIOShell {
                 return nil
             }
         }()
-        self.tryAnnounceMemberReachability(change: changeToAnnounce)
+        self.announceIfReachabilityChange(changeToAnnounce)
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -248,12 +250,12 @@ public actor SWIMNIOShell {
                 let message = SWIM.Message.response(
                     .ack(target: pingedTarget, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber)
                 )
-                self.sendMessage(message, pingOrigin)
+                self.outboundContinuation.yield((message, pingOrigin))
             }
         }
 
         for change in reachabilityChangesToAnnounce {
-            self.tryAnnounceMemberReachability(change: change)
+            self.announceIfReachabilityChange(change)
         }
     }
 
@@ -307,7 +309,7 @@ public actor SWIMNIOShell {
         }
 
         for change in reachabilityChangesToAnnounce {
-            self.tryAnnounceMemberReachability(change: change)
+            self.announceIfReachabilityChange(change)
         }
     }
 
@@ -349,13 +351,13 @@ public actor SWIMNIOShell {
                 let message = SWIM.Message.response(
                     .ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: acknowledging)
                 )
-                self.sendMessage(message, pingRequestOrigin)
+                self.outboundContinuation.yield((message, pingRequestOrigin))
 
             case .sendNack(let pingRequestOrigin, let acknowledging, let target):
                 let message = SWIM.Message.response(
                     .nack(target: target, sequenceNumber: acknowledging)
                 )
-                self.sendMessage(message, pingRequestOrigin)
+                self.outboundContinuation.yield((message, pingRequestOrigin))
 
             case .sendPingRequests(let pingRequestDirective):
                 Task {
@@ -365,7 +367,7 @@ public actor SWIMNIOShell {
         }
 
         for change in reachabilityChangesToAnnounce {
-            self.tryAnnounceMemberReachability(change: change)
+            self.announceIfReachabilityChange(change)
         }
     }
 
@@ -424,15 +426,11 @@ public actor SWIMNIOShell {
         }
 
         for change in reachabilityChangesToAnnounce {
-            self.tryAnnounceMemberReachability(change: change)
+            self.announceIfReachabilityChange(change)
         }
         for change in directChangesToAnnounce {
-            self.announceMembershipChange(change)
+            self.onMemberStatusChange(change)
         }
-    }
-
-    private func announceMembershipChange(_ change: SWIM.MemberStatusChangedEvent) {
-        self.onMemberStatusChange(change)
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
@@ -463,7 +461,7 @@ public actor SWIMNIOShell {
 
         let message = SWIM.Message.ping(replyTo: self.node, payload: payload, sequenceNumber: sequenceNumber)
         let pingSentAt: ContinuousClock.Instant = .now
-        self.sendMessage(message, target)
+        self.outboundContinuation.yield((message, target))
 
         let timeoutTask = Task {
             try? await Task.sleep(for: timeout)
@@ -510,7 +508,7 @@ public actor SWIMNIOShell {
             payload: payload,
             sequenceNumber: sequenceNumber
         )
-        self.sendMessage(message, peerToPingRequestThrough)
+        self.outboundContinuation.yield((message, peerToPingRequestThrough))
 
         let pingRequestSentAt: ContinuousClock.Instant = .now
 
@@ -628,7 +626,7 @@ public actor SWIMNIOShell {
         }
 
         for change in reachabilityChangesToAnnounce {
-            self.tryAnnounceMemberReachability(change: change)
+            self.announceIfReachabilityChange(change)
         }
 
         try? await Task.sleep(for: nextDelay)
@@ -723,7 +721,7 @@ public actor SWIMNIOShell {
         }
 
         if let change = changeToAnnounce {
-            self.tryAnnounceMemberReachability(change: change)
+            self.announceIfReachabilityChange(change)
         }
     }
 
@@ -732,21 +730,16 @@ public actor SWIMNIOShell {
     ) {
         switch directive {
         case .applied(let change):
-            self.tryAnnounceMemberReachability(change: change)
+            self.announceIfReachabilityChange(change)
         }
     }
 
-    /// Announce to the a change in reachability of a member.
-    private func tryAnnounceMemberReachability(change: SWIM.MemberStatusChangedEvent?) {
-        guard let change = change else {
+    /// Announce a reachability change only if the event represents one.
+    private func announceIfReachabilityChange(_ change: SWIM.MemberStatusChangedEvent?) {
+        guard let change = change, change.isReachabilityChange else {
             return
         }
-
-        guard change.isReachabilityChange else {
-            return
-        }
-
-        self.announceMembershipChange(change)
+        self.onMemberStatusChange(change)
     }
 }
 
