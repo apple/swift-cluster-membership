@@ -22,12 +22,6 @@ import SWIM
 import SWIMNIOExample
 import ServiceLifecycle
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
-import Foundation
-#endif
-
 @main
 struct SWIMNIOSampleCluster: AsyncParsableCommand {
 
@@ -120,7 +114,7 @@ struct SWIMNIOSampleCluster: AsyncParsableCommand {
     }
 
     private func parseContactPoints() -> Set<ClusterMembership.Node> {
-        guard self.initialContactPoints.trimmingCharacters(in: .whitespacesAndNewlines) != "" else {
+        guard self.initialContactPoints.contains(where: { !$0.isWhitespace && !$0.isNewline }) else {
             return []
         }
 
