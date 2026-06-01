@@ -14,7 +14,6 @@
 
 import ArgumentParser
 import ClusterMembership
-import Foundation
 import Logging
 import Metrics
 import NIO
@@ -22,6 +21,12 @@ import Prometheus
 import SWIM
 import SWIMNIOExample
 import ServiceLifecycle
+
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 @main
 struct SWIMNIOSampleCluster: AsyncParsableCommand {
