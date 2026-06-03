@@ -16,7 +16,7 @@
 ///
 /// Generally the node represents "some node we want to contact" if the `uid` is not set,
 /// and if the `uid` is available "the specific instance of a node".
-public struct Node: Hashable, Sendable, Comparable, CustomStringConvertible {
+public struct Node: Sendable, Comparable, CustomStringConvertible {
     /// Protocol that can be used to contact this node;
     /// Does not have to be a formal protocol name and may be "swim" or a name which is understood by a membership implementation.
     public var `protocol`: String
@@ -78,5 +78,24 @@ extension Node {
             // "silly" but good enough comparison, we just need a predictable order, does not really matter what it is
             return "\(lhs.protocol)\(lhs.host)" < "\(rhs.protocol)\(rhs.host)"
         }
+    }
+}
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: Hashable, Equatable
+
+extension Node: Hashable {
+    public static func == (lhs: Node, rhs: Node) -> Bool {
+        lhs.protocol == rhs.protocol
+            && lhs.host == rhs.host
+            && lhs.port == rhs.port
+            && lhs.uid == rhs.uid
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(self.protocol)
+        hasher.combine(self.host)
+        hasher.combine(self.port)
+        hasher.combine(self.uid)
     }
 }
