@@ -35,7 +35,7 @@ At a high level, SWIM works like this:
 
 The above mechanism, serves not only as a failure detection mechanism, but also as a gossip mechanism, which carries information about known members of the cluster. This way members eventually learn about the status of their peers, even without having them all listed upfront. It is worth pointing out however that this membership view is [weakly-consistent](https://en.wikipedia.org/wiki/Weak_consistency), which means there is no guarantee (or way to know, without additional information) if all members have the same exact view on the membership at any given point in time. However, it is an excellent building block for higher-level tools and systems to build their stronger guarantees on top.
 
-Once the failure detection mechanism detects an unresponsive node, it eventually is marked as  .dead resulting in its irrevocable removal from the cluster. Our implementation offers an optional extension, adding an .unreachable state to the possible states, however most users will not find it necessary and it is disabled by default. For details and rules rules about legal status transitions refer to [SWIM.Status](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/Status.swift#L18-L39) or the following diagram:
+Once the failure detection mechanism detects an unresponsive node, it eventually is marked as  .dead resulting in its irrevocable removal from the cluster. Our implementation offers an optional extension, adding an .unreachable state to the possible states, however most users will not find it necessary and it is disabled by default. For details and rules about legal status transitions refer to [SWIM.Status](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/Status.swift#L18-L39) or the following diagram:
 
 ![SWIM: Lifecycle Diagram](Sources/SWIM/Docs.docc/images/swim_lifecycle.svg)
 
@@ -89,7 +89,7 @@ public protocol SWIMProtocol {
     /// - decisions are made to `.ping` a random peer for fault detection,
     /// - and some internal house keeping is performed.
     ///
-    /// Note: This means that effectively all decisions are made in interval sof protocol periods.
+    /// Note: This means that effectively all decisions are made in intervals of protocol periods.
     /// It would be possible to have a secondary periodic or more ad-hoc interval to speed up
     /// some operations, however this is currently not implemented and the protocol follows the fairly
     /// standard mode of simply carrying payloads in periodic ping messages.
@@ -107,7 +107,7 @@ public protocol SWIMProtocol {
 }
 ```
 
-These calls perform all SWIM protocol specific tasks internally, and return directives which are simple to interpret “commands” to an implementation about how it should react to the message. For example, upon receiving a `.pingRequest` message, the returned directive may instruct a shell to send a ping to some nodes. The directive prepares all apropriate target, timeout and additional information that makes it simpler to simply follow its instruction and implement the call correctly, e.g. like this:
+These calls perform all SWIM protocol specific tasks internally, and return directives which are simple to interpret “commands” to an implementation about how it should react to the message. For example, upon receiving a `.pingRequest` message, the returned directive may instruct a shell to send a ping to some nodes. The directive prepares all appropriate target, timeout and additional information that makes it simpler to simply follow its instruction and implement the call correctly, e.g. like this:
 
 ```swift
 self.swim.onPingRequest(
@@ -143,7 +143,7 @@ The repository contains an [end-to-end example](Samples/Sources/SWIMNIOSampleClu
 
 > 📘 The `SWIMNIOExample` implementation is offered only as an example, and has not been implemented with production use in mind, however with some amount of effort it could definitely do well for some use-cases. If you are interested in learning more about cluster membership algorithms, scalability benchmarking and using SwiftNIO itself, this is a great module to get your feet wet, and perhaps once the module is mature enough we could consider making it not only an example, but a reusable component for Swift NIO based clustered applications.
 
-In it’s simplest form, combining the provided SWIM instance and NIO shell to build a simple server, one can embedd the provided handlers like shown below, in a typical NIO channel pipeline:
+In it’s simplest form, combining the provided SWIM instance and NIO shell to build a simple server, one can embed the provided handlers like shown below, in a typical NIO channel pipeline:
 
 ```swift
 let bootstrap = DatagramBootstrap(group: group)
