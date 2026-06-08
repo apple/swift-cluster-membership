@@ -13,102 +13,12 @@
 //===----------------------------------------------------------------------===//
 
 import ClusterMembership
-import NIO
-import SWIM
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
 import Foundation
 #endif
-
-typealias SWIMNIODefaultEncoder = JSONEncoder
-typealias SWIMNIODefaultDecoder = JSONDecoder
-
-extension SWIM.Message: Codable {
-    public enum DiscriminatorKeys: UInt8, Codable {
-        case ping = 0
-        case pingRequest = 1
-        case response_ack = 2
-        case response_nack = 3
-    }
-
-    public enum CodingKeys: CodingKey {
-        case _case
-        case replyTo
-        case payload
-        case sequenceNumber
-        case incarnation
-        case target
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        switch try container.decode(DiscriminatorKeys.self, forKey: ._case) {
-        case .ping:
-            let replyTo = try container.decode(Node.self, forKey: .replyTo)
-            let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
-            let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
-            self = .ping(replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
-
-        case .pingRequest:
-            let target = try container.decode(Node.self, forKey: .target)
-            let replyTo = try container.decode(Node.self, forKey: .replyTo)
-            let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
-            let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
-            self = .pingRequest(target: target, replyTo: replyTo, payload: payload, sequenceNumber: sequenceNumber)
-
-        case .response_ack:
-            let target = try container.decode(Node.self, forKey: .target)
-            let incarnation = try container.decode(SWIM.Incarnation.self, forKey: .incarnation)
-            let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
-            let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
-            self = .response(
-                .ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber)
-            )
-
-        case .response_nack:
-            let target = try container.decode(Node.self, forKey: .target)
-            let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
-            self = .response(.nack(target: target, sequenceNumber: sequenceNumber))
-        }
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-
-        switch self {
-        case .ping(let replyTo, let payload, let sequenceNumber):
-            try container.encode(DiscriminatorKeys.ping, forKey: ._case)
-            try container.encode(replyTo, forKey: .replyTo)
-            try container.encode(payload, forKey: .payload)
-            try container.encode(sequenceNumber, forKey: .sequenceNumber)
-
-        case .pingRequest(let target, let replyTo, let payload, let sequenceNumber):
-            try container.encode(DiscriminatorKeys.pingRequest, forKey: ._case)
-            try container.encode(target, forKey: .target)
-            try container.encode(replyTo, forKey: .replyTo)
-            try container.encode(payload, forKey: .payload)
-            try container.encode(sequenceNumber, forKey: .sequenceNumber)
-
-        case .response(.ack(let target, let incarnation, let payload, let sequenceNumber)):
-            try container.encode(DiscriminatorKeys.response_ack, forKey: ._case)
-            try container.encode(target, forKey: .target)
-            try container.encode(incarnation, forKey: .incarnation)
-            try container.encode(payload, forKey: .payload)
-            try container.encode(sequenceNumber, forKey: .sequenceNumber)
-
-        case .response(.nack(let target, let sequenceNumber)):
-            try container.encode(DiscriminatorKeys.response_nack, forKey: ._case)
-            try container.encode(target, forKey: .target)
-            try container.encode(sequenceNumber, forKey: .sequenceNumber)
-
-        case .response(let other):
-            fatalError("SWIM.Message.response(\(other)) MUST NOT be serialized, this is a bug, please report an issue.")
-        }
-    }
-}
 
 extension SWIM.Member: Codable {
     public enum CodingKeys: CodingKey {

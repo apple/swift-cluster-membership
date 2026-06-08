@@ -41,6 +41,14 @@ var targets: [PackageDescription.Target] = [
     ),
 
     .target(
+        name: "SWIMDistributed",
+        dependencies: [
+            "ClusterMembership",
+            "SWIM",
+        ]
+    ),
+
+    .target(
         name: "SWIMNIOExample",
         dependencies: [
             "SWIM",
@@ -127,6 +135,10 @@ let products: [PackageDescription.Product] = [
     .library(
         name: "SWIM",
         targets: ["SWIM"]
+    ),
+    .library(
+        name: "SWIMDistributed",
+        targets: ["SWIMDistributed"]
     ),
     .library(
         name: "SWIMNIOExample",
