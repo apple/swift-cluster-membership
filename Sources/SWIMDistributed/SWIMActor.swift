@@ -32,19 +32,18 @@ import SWIM
 ///     settings: .init(
 ///         swim: swimSettings,
 ///         myself: myNode,
-///         resolvePeer: { node in mySystem.resolveSWIMPeer(for: node) }
+///         resolvePeer: { node in await mySystem.resolveSWIMPeer(for: node) }
 ///     )
 /// )
 ///
 /// for await event in swim.membershipChanges {
-///     mySystem.applyReachabilityChange(event)
+///     await mySystem.applyReachabilityChange(event)
 /// }
 /// ```
 ///
 /// - SeeAlso: `Settings`
 /// - SeeAlso: `SWIM.Instance` for the pure state machine.
-public distributed actor SWIMActor<System: DistributedActorSystem>: CustomStringConvertible
-where System.ActorID: Codable & Sendable {
+public distributed actor SWIMActor<System: DistributedActorSystem> {
     public typealias ActorSystem = System
     public typealias SerializationRequirement = System.SerializationRequirement
     internal let settings: SWIMActor.Settings
@@ -60,6 +59,8 @@ where System.ActorID: Codable & Sendable {
         return log
     }()
 
+    private var nextPeriodicTickTask: Task<Void, Never>?
+
     // MARK: - Initialization
 
     /// Creates a new `SWIMActor` with the given settings.
@@ -71,7 +72,11 @@ where System.ActorID: Codable & Sendable {
         self.instance = SWIM.Instance(settings: settings.swim, myself: settings.myself)
 
         // Kick off the periodic protocol tick loop
-        self.handlePeriodicProtocolPeriodTick()
+        self.nextPeriodicTickTask = Task {
+            while !Task.isCancelled {
+                await self.handlePeriodicProtocolPeriodTick()
+            }
+        }
 
         // Announce ourselves as alive
         self.announce(.init(previousStatus: nil, member: self.instance.member))
@@ -183,11 +188,19 @@ where System.ActorID: Codable & Sendable {
         let fakeGossip = SWIM.GossipPayload.membership([
             SWIM.Member(node: node, status: .alive(incarnation: 0), protocolPeriod: 0)
         ])
-        _ = self.instance.onPingResponse(
+        let directives = self.instance.onPingResponse(
             response: .ack(target: node, incarnation: 0, payload: fakeGossip, sequenceNumber: 0),
             pingRequestOrigin: nil,
             pingRequestSequenceNumber: nil
         )
+        for directive in directives {
+            switch directive {
+            case .gossipProcessed(let gossipDirective):
+                self.handleGossipProcessed(gossipDirective)
+            case .sendAck, .sendNack, .sendPingRequests:
+                break  // not applicable for the fake bootstrap ack
+            }
+        }
 
         // Send an initial ping
         let sequenceNumber = self.instance.nextSequenceNumber()
@@ -204,12 +217,14 @@ where System.ActorID: Codable & Sendable {
     /// Confirms that the given node is dead.
     ///
     /// This should be called by the host system when it decides to permanently remove a node.
-    public func confirmDead(node: Node) {
+    public func confirmDead(node: Node) async {
         let directive = self.instance.confirmDead(node: node)
         switch directive {
         case .applied(let change):
             self.log.info("Confirmed node .dead: \(change)")
-            self.announce(change)
+            if change.isReachabilityChange {
+                await self.settings.onMembershipChange(change)
+            }
         case .ignored:
             self.log.debug("confirmDead for \(node) was ignored")
         }
@@ -217,8 +232,10 @@ where System.ActorID: Codable & Sendable {
 
     // MARK: - Protocol Ticks
 
-    public func handlePeriodicProtocolPeriodTick() {
-        for directive in self.instance.onPeriodicPingTick() {
+    /// Handles a single periodic protocol tick.
+    func handlePeriodicProtocolPeriodTick() async {
+        let result = self.instance.onPeriodicPingTick()
+        for directive in result.directives {
             switch directive {
             case .membershipChanged(let change):
                 self.announce(change)
@@ -234,15 +251,10 @@ where System.ActorID: Codable & Sendable {
                         sequenceNumber: sequenceNumber
                     )
                 }
-
-            case .scheduleNextTick(let delay):
-                // Keep scheduling the timer so that it fires for each tick
-                Task {
-                    try await Task.sleep(until: .now + delay, clock: .continuous)
-                    self.handlePeriodicProtocolPeriodTick()
-                }
             }
         }
+
+        try? await Task.sleep(for: result.nextTickDelay)
     }
 
     // MARK: - Sending pings
@@ -256,7 +268,7 @@ where System.ActorID: Codable & Sendable {
         timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
     ) async -> SWIM.PingResponse {
-        guard let targetPeer = self.settings.resolvePeer(target) else {
+        guard let targetPeer = await self.settings.resolvePeer(target) else {
             self.log.warning("Unable to resolve peer for node: \(target)")
             return .timeout(
                 target: target,
@@ -275,7 +287,6 @@ where System.ActorID: Codable & Sendable {
 
         self.metrics.shell.messageOutboundCount.increment()
         let pingSentAt = ContinuousClock.now
-        self.log.warning("DEBUG sendPing: about to call pingWithTimeout for \(target)")
 
         do {
             let response = try await self.pingWithTimeout(
@@ -343,7 +354,7 @@ where System.ActorID: Codable & Sendable {
         let firstSuccessful = await withTaskGroup(of: SWIM.PingResponse.self) { group in
             for pingRequest in directive.requestDetails {
                 group.addTask {
-                    guard let peer = self.settings.resolvePeer(pingRequest.peerToPingRequestThrough) else {
+                    guard let peer = await self.settings.resolvePeer(pingRequest.peerToPingRequestThrough) else {
                         return .timeout(
                             target: peerToPing,
                             pingRequestOrigin: self.settings.myself,
@@ -493,26 +504,26 @@ where System.ActorID: Codable & Sendable {
         guard let change = change, change.isReachabilityChange else {
             return
         }
-        self.settings.onMembershipChange(change)
+        Task {
+            await self.settings.onMembershipChange(change)
+        }
     }
 
-    // MARK: - CustomStringConvertible
+    deinit {
+        self.nextPeriodicTickTask?.cancel()
+        self.nextPeriodicTickTask = nil
+    }
+}
 
+// MARK: - CustomStringConvertible
+extension SWIMActor: CustomStringConvertible {
     nonisolated public var description: String {
         "\(Self.self)(\(self.id))"
     }
 }
 
 // MARK: - Test hooks
-
 extension SWIMActor {
-    /// Trigger a single periodic protocol tick.
-    ///
-    /// For testing only.
-    public func _handlePeriodicProtocolPeriodTick() {
-        self.handlePeriodicProtocolPeriodTick()
-    }
-
     /// Returns the current membership state.
     ///
     /// For testing only.
@@ -529,7 +540,6 @@ extension SWIMActor {
 }
 
 // MARK: - Errors
-
 enum SWIMActorError: Error {
     case timeout
     case noResponse

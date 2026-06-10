@@ -94,6 +94,13 @@ var targets: [PackageDescription.Target] = [
     ),
 
     .testTarget(
+        name: "SWIMDistributedTests",
+        dependencies: [
+            "SWIMDistributed"
+        ]
+    ),
+
+    .testTarget(
         name: "SWIMNIOExampleTests",
         dependencies: [
             "SWIMNIOExample",

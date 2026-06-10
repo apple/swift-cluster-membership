@@ -31,12 +31,12 @@ extension SWIMActor {
         ///
         /// The host system must implement this mapping. Typically this involves
         /// resolving a well-known actor ID for the SWIM peer on the target node.
-        public var resolvePeer: @Sendable (Node) -> SWIMActor?
+        public var resolvePeer: @Sendable (Node) async -> SWIMActor?
 
         /// Called whenever SWIM detects a reachability change.
         ///
         /// Use this to wire SWIM events into your cluster's membership state.
-        public var onMembershipChange: @Sendable (SWIM.MemberStatusChangedEvent) -> Void
+        public var onMembershipChange: @Sendable (SWIM.MemberStatusChangedEvent) async -> Void
 
         /// Creates new settings for a `SWIMActor`.
         ///
@@ -49,8 +49,8 @@ extension SWIMActor {
         public init(
             swim: SWIM.Settings,
             myself: Node,
-            resolvePeer: @escaping @Sendable (Node) -> SWIMActor?,
-            onMembershipChange: @escaping @Sendable (SWIM.MemberStatusChangedEvent) -> Void = { _ in }
+            resolvePeer: @escaping @Sendable (Node) async -> SWIMActor?,
+            onMembershipChange: @escaping @Sendable (SWIM.MemberStatusChangedEvent) async -> Void = { _ in }
         ) {
             self.swim = swim
             self.myself = myself

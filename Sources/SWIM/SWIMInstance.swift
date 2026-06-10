@@ -870,7 +870,7 @@ extension SWIM.Instance {
     /// MUST be invoked periodically, in intervals of `self.swim.dynamicLHMProtocolInterval`.
     ///
     /// MUST NOT be scheduled using a "repeated" task/timer, as the interval is dynamic and may change as the algorithm proceeds.
-    /// Implementations should schedule each next tick by handling the returned directive's `scheduleNextTick` case,
+    /// Implementations should schedule each next tick using the returned `nextTickDelay`,
     /// which includes the appropriate delay to use for the next protocol tick.
     ///
     /// This is the heart of the protocol, as each tick corresponds to a "protocol period" in which:
@@ -883,8 +883,8 @@ extension SWIM.Instance {
     /// some operations, however this is currently not implemented and the protocol follows the fairly
     /// standard mode of simply carrying payloads in periodic ping messages.
     ///
-    /// - Returns: `SWIM.Instance.PeriodicPingTickDirective` which must be interpreted by a shell implementation
-    public mutating func onPeriodicPingTick() -> [PeriodicPingTickDirective] {
+    /// - Returns: `SWIM.Instance.PeriodicPingTickResult` which must be interpreted by a shell implementation
+    public mutating func onPeriodicPingTick() -> PeriodicPingTickResult {
         defer {
             self.incrementProtocolPeriod()
         }
@@ -892,7 +892,9 @@ extension SWIM.Instance {
         var directives: [PeriodicPingTickDirective] = []
 
         // 1) always check suspicion timeouts, even if we no longer have anyone else to ping
-        directives.append(contentsOf: self.checkSuspicionTimeouts())
+        directives.append(
+            contentsOf: self.checkSuspicionTimeouts().map { .membershipChanged($0) }
+        )
 
         // 2) if we have someone to ping, let's do so
         if let toPing = self.nextPeerToPing() {
@@ -912,10 +914,23 @@ extension SWIM.Instance {
             cleanupTombstones()
         }
 
-        // 3) ALWAYS schedule the next tick
-        directives.append(.scheduleNextTick(delay: self.dynamicLHMProtocolInterval))
+        return PeriodicPingTickResult(
+            directives: directives,
+            nextTickDelay: self.dynamicLHMProtocolInterval
+        )
+    }
 
-        return directives
+    /// The result of a periodic protocol tick, including directives to act on and the mandatory delay for the next tick.
+    public struct PeriodicPingTickResult {
+        /// Directives to act on during this tick.
+        public var directives: [PeriodicPingTickDirective]
+        /// The delay after which the next `onPeriodicPingTick` should be invoked.
+        public var nextTickDelay: Duration
+
+        public init(directives: [PeriodicPingTickDirective], nextTickDelay: Duration) {
+            self.directives = directives
+            self.nextTickDelay = nextTickDelay
+        }
     }
 
     /// Describes how a periodic tick should be handled.
@@ -929,15 +944,13 @@ extension SWIM.Instance {
             timeout: Duration,
             sequenceNumber: SWIM.SequenceNumber
         )
-        /// Schedule the next timer `onPeriodicPingTick` invocation in `delay` time.
-        case scheduleNextTick(delay: Duration)
     }
 
     /// Check all suspects if any of them have been suspect for long enough that we should promote them to unreachable or dead.
     ///
     /// Suspicion timeouts are calculated taking into account the number of peers suspecting a given member (LHA-Suspicion).
-    private mutating func checkSuspicionTimeouts() -> [PeriodicPingTickDirective] {
-        var directives: [PeriodicPingTickDirective] = []
+    private mutating func checkSuspicionTimeouts() -> [SWIM.MemberStatusChangedEvent] {
+        var events: [SWIM.MemberStatusChangedEvent] = []
 
         for suspect in self.suspects {
             if case .suspect(_, let suspectedBy) = suspect.status {
@@ -964,10 +977,8 @@ extension SWIM.Instance {
 
                 switch self.mark(suspect.node, as: newStatus) {
                 case .applied(let previousStatus, let member):
-                    directives.append(
-                        .membershipChanged(
-                            SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: member)
-                        )
+                    events.append(
+                        SWIM.MemberStatusChangedEvent(previousStatus: previousStatus, member: member)
                     )
                 case .ignoredDueToOlderStatus:
                     continue
@@ -976,7 +987,7 @@ extension SWIM.Instance {
         }
 
         self.metrics.updateMembership(self.members)
-        return directives
+        return events
     }
 
     // ==== ------------------------------------------------------------------------------------------------------------
