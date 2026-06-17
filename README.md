@@ -143,7 +143,7 @@ The repository contains an [end-to-end example](Samples/Sources/SWIMNIOSampleClu
 
 > 📘 The `SWIMNIOExample` implementation is offered only as an example, and has not been implemented with production use in mind, however with some amount of effort it could definitely do well for some use-cases. If you are interested in learning more about cluster membership algorithms, scalability benchmarking and using SwiftNIO itself, this is a great module to get your feet wet, and perhaps once the module is mature enough we could consider making it not only an example, but a reusable component for Swift NIO based clustered applications.
 
-In it’s simplest form, combining the provided SWIM instance and NIO shell to build a simple server, one can embed the provided handlers like shown below, in a typical NIO channel pipeline:
+In its simplest form, combining the provided SWIM instance and NIO shell to build a simple server, one can embed the provided handlers like shown below, in a typical NIO channel pipeline:
 
 ```swift
 let bootstrap = DatagramBootstrap(group: group)
