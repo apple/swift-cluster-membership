@@ -114,7 +114,7 @@ struct SWIMNIOSampleCluster: AsyncParsableCommand {
     }
 
     private func parseContactPoints() -> Set<ClusterMembership.Node> {
-        guard self.initialContactPoints.trimmingCharacters(in: .whitespacesAndNewlines) != "" else {
+        guard self.initialContactPoints.contains(where: { !$0.isWhitespace && !$0.isNewline }) else {
             return []
         }
 

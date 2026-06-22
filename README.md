@@ -24,7 +24,7 @@ SWIM is a [gossip protocol](https://en.wikipedia.org/wiki/Gossip_protocol) in wh
 
 At a high level, SWIM works like this: 
 
-* A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a .ping message to that peer, expecting an [`.ack`](https://apple.github.io/swift-cluster-membership/docs/current/SWIM/Protocols/SWIMPingOriginPeer.html#/s:4SWIM18SWIMPingOriginPeerP3ack13acknowledging6target11incarnation7payloadys6UInt32V_AA8SWIMPeer_ps6UInt64VA2AO13GossipPayloadOtF) to be sent back. See how `A` probes `B` initially in the diagram below.
+* A member periodically pings a "randomly" selected peer it is aware of. It does so by sending a .ping message to that peer, expecting an `.ack` to be sent back. See how `A` probes `B` initially in the diagram below.
     * The exchanged messages also carry a gossip `payload`, which is (partial) information about what other peers the sender of the message is aware of, along with their membership status (`.alive`, `.suspect`, etc.)
 * If it receives an `.ack`, the peer is considered still `.alive`. Otherwise, the target peer might have terminated/crashed or is unresponsive for other reasons. 
     * In order to double check if the peer really is dead, the origin asks a few other peers about the state of the unresponsive peer by sending `.pingRequest` messages to a configured number of other peers, which then issue direct pings to that peer (probing peer E in the diagram below).
@@ -43,40 +43,18 @@ The way Swift Cluster Membership implements protocols, is by offering "`Instance
 
 The SWIM instance also has built-in support for emitting metrics (using [swift-metrics](https://github.com/apple/swift-metrics)) and can be configured to log details about internal details by passing a [swift-log](https://github.com/apple/swift-log) `Logger`.
 
-### Example: Reusing the SWIM protocol logic implementation
+### Example: Reusing SWIM logic implementation
 
 The primary purpose of this library is to share the `SWIM.Instance` implementation across various implementations which need some form of in-process membership service. Implementing a custom runtime is documented in depth in the project’s README (https://github.com/apple/swift-cluster-membership/), so please have a look there if you are interested in implementing SWIM over some different transport.
 
-Implementing a new transport boils down a “fill in the blanks” exercise: 
+Implementing a new transport boils down to providing two things: a way to send outbound messages, and a way to route inbound messages into `SWIM.Instance`.
 
-First, one has to implement the Peer protocols (https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/Peer.swift) using one’s target transport:
+`SWIM.Instance` identifies members by [`ClusterMembership.Node`](Sources/ClusterMembership/Node.swift) directly. Transport decoupling is achieved via a `@Sendable (SWIM.Message, Node) -> Void` closure that the shell provides. The instance calls this whenever it needs to send a message, and the shell is responsible for serializing and delivering it over the wire.
 
-```swift
-/// SWIM peer which can be initiated contact with, by sending ping or ping request messages.
-public protocol SWIMPeer: SWIMAddressablePeer {
-    /// Perform a probe of this peer by sending a `ping` message.
-    /// 
-    /// <... more docs here - please refer to the API docs for the latest version ...>
-    func ping(
-        payload: SWIM.GossipPayload,
-        from origin: SWIMPingOriginPeer,
-        timeout: Duration,
-        sequenceNumber: SWIM.SequenceNumber
-    ) async throws -> SWIM.PingResponse
-    
-    // ... 
-}
-```
-
-Which usually means wrapping some connection, channel, or other identity with the ability to send messages and invoke the appropriate callbacks when applicable. 
-
-Then, on the receiving end of a peer, one has to implement receiving those messages and invoke all the corresponding `on<SomeMessage>(...)` callbacks defined on the `SWIM.Instance` (grouped under [SWIMProtocol](https://github.com/apple/swift-cluster-membership/blob/main/Sources/SWIM/SWIMInstance.swift#L24-L85)).
-
-A piece of the SWIMProtocol is listed below to give you an idea about it:
-
+On the receiving end, the shell deserializes incoming messages and invokes the corresponding `on<SomeMessage>(...)` callbacks on `SWIM.Instance`:
 
 ```swift
-public protocol SWIMProtocol {
+extension SWIM.Instance {
 
     /// MUST be invoked periodically, in intervals of `self.swim.dynamicLHMProtocolInterval`.
     ///
@@ -89,30 +67,25 @@ public protocol SWIMProtocol {
     /// - decisions are made to `.ping` a random peer for fault detection,
     /// - and some internal house keeping is performed.
     ///
-    /// Note: This means that effectively all decisions are made in intervals of protocol periods.
-    /// It would be possible to have a secondary periodic or more ad-hoc interval to speed up
-    /// some operations, however this is currently not implemented and the protocol follows the fairly
-    /// standard mode of simply carrying payloads in periodic ping messages.
-    ///
     /// - Returns: `SWIM.Instance.PeriodicPingTickDirective` which must be interpreted by a shell implementation
-    mutating func onPeriodicPingTick() -> [SWIM.Instance.PeriodicPingTickDirective]
+    public mutating func onPeriodicPingTick() -> [PeriodicPingTickDirective]
 
-    mutating func onPing( ... ) -> [SWIM.Instance.PingDirective]
+    public mutating func onPing( ... ) -> [PingDirective]
 
-    mutating func onPingRequest( ... ) -> [SWIM.Instance.PingRequestDirective]
+    public mutating func onPingRequest( ... ) -> [PingRequestDirective]
 
-    mutating func onPingResponse( ... ) -> [SWIM.Instance.PingResponseDirective]
+    public mutating func onPingResponse( ... ) -> [PingResponseDirective]
 
-    // ... 
+    // ...
 }
 ```
 
-These calls perform all SWIM protocol specific tasks internally, and return directives which are simple to interpret “commands” to an implementation about how it should react to the message. For example, upon receiving a `.pingRequest` message, the returned directive may instruct a shell to send a ping to some nodes. The directive prepares all appropriate target, timeout and additional information that makes it simpler to simply follow its instruction and implement the call correctly, e.g. like this:
+These calls perform all SWIM specific tasks internally, and return directives which are simple to interpret “commands” to an implementation about how it should react. For example, upon receiving a `.pingRequest` message, the returned directive may instruct a shell to send a ping to some nodes:
 
 ```swift
 self.swim.onPingRequest(
     target: target,
-    pingRequestOrigin: pingRequestOrigin,            
+    pingRequestOrigin: pingRequestOrigin,
     payload: payload,
     sequenceNumber: sequenceNumber
 ).forEach { directive in
@@ -139,44 +112,33 @@ For detailed documentation about each of the callbacks, when to invoke them, and
 
 ### Example: SWIMming with Swift NIO
 
-The repository contains an [end-to-end example](Samples/Sources/SWIMNIOSampleCluster) and an example implementation called [SWIMNIOExample](Sources/SWIMNIOExample) which makes use of the `SWIM.Instance` to enable a simple UDP based peer monitoring system. This allows peers to gossip and notify each other about node failures using the SWIM protocol by sending datagrams driven by SwiftNIO.
+The repository contains an [end-to-end example](Samples/Sources/SWIMNIOSampleCluster) and an example implementation called [SWIMNIOExample](Sources/SWIMNIOExample) which makes use of the `SWIM.Instance` to enable a simple UDP based peer monitoring system. This allows peers to gossip and notify each other about node failures using SWIM by sending datagrams driven by SwiftNIO.
 
 > 📘 The `SWIMNIOExample` implementation is offered only as an example, and has not been implemented with production use in mind, however with some amount of effort it could definitely do well for some use-cases. If you are interested in learning more about cluster membership algorithms, scalability benchmarking and using SwiftNIO itself, this is a great module to get your feet wet, and perhaps once the module is mature enough we could consider making it not only an example, but a reusable component for Swift NIO based clustered applications.
 
-In its simplest form, combining the provided SWIM instance and NIO shell to build a simple server, one can embed the provided handlers like shown below, in a typical NIO channel pipeline:
+In its simplest form, combining the provided SWIM instance and NIO shell to build a simple server using Swift's structured concurrency:
 
 ```swift
 let bootstrap = DatagramBootstrap(group: group)
     .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-    .channelInitializer { channel in
-        channel.pipeline
-            // first install the SWIM handler, which contains the SWIMNIOShell:
-            .addHandler(SWIMNIOHandler(settings: settings)).flatMap {
-                // then install some user handler, it will receive SWIM events:
-                channel.pipeline.addHandler(SWIMNIOExampleHandler())
-        }
-    }
 
-bootstrap.bind(host: host, port: port)
-```
-
-The example handler can then receive and handle SWIM cluster membership change events:
-
-```swift
-final class SWIMNIOExampleHandler: ChannelInboundHandler {
-    public typealias InboundIn = SWIM.MemberStatusChangedEvent
-    
-    let log = Logger(label: "SWIMNIOExampleHandler")
-    
-    public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let change: SWIM.MemberStatusChangedEvent = self.unwrapInboundIn(data)
-
-        self.log.info("Membership status changed: [\(change.member.node)] is now [\(change.status)]", metadata: [    
-            "swim/member": "\(change.member.node)",
-            "swim/member/status": "\(change.status)",
-        ])
+let asyncChannel = try await bootstrap.bind(host: host, port: port) { channel in
+    channel.eventLoop.makeCompletedFuture {
+        try NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>(
+            wrappingChannelSynchronously: channel
+        )
     }
 }
+
+let service = SWIMNIOService(
+    node: node,
+    settings: settings,
+    channel: asyncChannel,
+    onMemberStatusChange: { event in
+        print("Membership status changed: \(event)")
+    }
+)
+try await service.run()
 ```
 
 If you are interested in contributing and polishing up the SWIMNIO implementation please head over to the issues and pick up a task or propose an improvement yourself!

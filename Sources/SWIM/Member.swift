@@ -20,17 +20,10 @@ import ClusterMembership
 extension SWIM {
     /// A `SWIM.Member` represents an active participant of the cluster.
     ///
-    /// It associates a specific `SWIMAddressablePeer` with its `SWIM.Status` and a number of other SWIM specific state information.
-    public struct Member<Peer: SWIMPeer>: Sendable {
-        /// Peer reference, used to send messages to this cluster member.
-        ///
-        /// Can represent the "local" member as well, use `swim.isMyself` to verify if a peer is `myself`.
-        public var peer: Peer
-
-        /// `Node` of the member's `peer`.
-        public var node: ClusterMembership.Node {
-            self.peer.node
-        }
+    /// It associates a specific `Node` with its `SWIM.Status` and a number of other SWIM specific state information.
+    public struct Member: Sendable {
+        /// Node of this cluster member.
+        public let node: ClusterMembership.Node
 
         /// Membership status of this cluster member
         public var status: SWIM.Status
@@ -45,8 +38,8 @@ extension SWIM {
         public let localSuspicionStartedAt: ContinuousClock.Instant?  // could be "status updated at"?
 
         /// Create a new member.
-        public init(peer: Peer, status: SWIM.Status, protocolPeriod: UInt64, suspicionStartedAt: ContinuousClock.Instant? = nil) {
-            self.peer = peer
+        public init(node: ClusterMembership.Node, status: SWIM.Status, protocolPeriod: UInt64, suspicionStartedAt: ContinuousClock.Instant? = nil) {
+            self.node = node
             self.status = status
             self.protocolPeriod = protocolPeriod
             self.localSuspicionStartedAt = suspicionStartedAt
@@ -84,12 +77,12 @@ extension SWIM {
 
 /// Manual Hashable conformance since we omit `suspicionStartedAt` from identity
 extension SWIM.Member: Hashable, Equatable {
-    public static func == (lhs: SWIM.Member<Peer>, rhs: SWIM.Member<Peer>) -> Bool {
-        lhs.peer.node == rhs.peer.node && lhs.protocolPeriod == rhs.protocolPeriod && lhs.status == rhs.status
+    public static func == (lhs: SWIM.Member, rhs: SWIM.Member) -> Bool {
+        lhs.node == rhs.node && lhs.protocolPeriod == rhs.protocolPeriod && lhs.status == rhs.status
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(self.peer.node)
+        hasher.combine(self.node)
         hasher.combine(self.protocolPeriod)
         hasher.combine(self.status)
     }
@@ -97,7 +90,7 @@ extension SWIM.Member: Hashable, Equatable {
 
 extension SWIM.Member: CustomStringConvertible, CustomDebugStringConvertible {
     public var description: String {
-        var res = "SWIM.Member(\(self.peer), \(self.status), protocolPeriod: \(self.protocolPeriod)"
+        var res = "SWIM.Member(\(self.node), \(self.status), protocolPeriod: \(self.protocolPeriod)"
         if let suspicionStartedAt = self.localSuspicionStartedAt {
             res.append(", suspicionStartedAt: \(suspicionStartedAt)")
         }
@@ -106,7 +99,7 @@ extension SWIM.Member: CustomStringConvertible, CustomDebugStringConvertible {
     }
 
     public var debugDescription: String {
-        var res = "SWIM.Member(\(String(reflecting: self.peer)), \(self.status), protocolPeriod: \(self.protocolPeriod)"
+        var res = "SWIM.Member(\(String(reflecting: self.node)), \(self.status), protocolPeriod: \(self.protocolPeriod)"
         if let suspicionStartedAt = self.localSuspicionStartedAt {
             res.append(", suspicionStartedAt: \(suspicionStartedAt)")
         }

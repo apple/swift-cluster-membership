@@ -24,15 +24,18 @@ extension SWIM {
     public typealias SequenceNumber = UInt32
 
     /// Typealias for the underlying membership representation.
-    public typealias Membership<Peer: SWIMPeer> = Dictionary<Node, SWIM.Member<Peer>>.Values
+    public typealias Membership = Dictionary<Node, SWIM.Member>.Values
 }
+
+// ==== ----------------------------------------------------------------------------------------------------------------
+// MARK: PingResponse
 
 extension SWIM {
     /// Message sent in reply to a `.ping`.
     ///
     /// The ack may be delivered directly in a request-response fashion between the probing and pinged members,
     /// or indirectly, as a result of a `pingRequest` message.
-    public enum PingResponse<Peer: SWIMPeer, PingRequestOrigin: SWIMPingRequestOriginPeer>: Sendable {
+    public enum PingResponse: Sendable {
         /// - parameters:
         ///   - target: the target of the ping;
         ///     On the remote "pinged" node which is about to send an ack back to the ping origin this should be filled with the `myself` peer.
@@ -41,9 +44,9 @@ extension SWIM {
         ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
         ///     It is used on the ping origin to co-relate the reply with its handling code.
         case ack(
-            target: Peer,
+            target: Node,
             incarnation: Incarnation,
-            payload: GossipPayload<Peer>,
+            payload: GossipPayload,
             sequenceNumber: SWIM.SequenceNumber
         )
 
@@ -66,7 +69,7 @@ extension SWIM {
         ///   - payload: The gossip payload to be carried in this message.
         ///
         /// - SeeAlso: Lifeguard IV.A. Local Health Aware Probe
-        case nack(target: Peer, sequenceNumber: SWIM.SequenceNumber)
+        case nack(target: Node, sequenceNumber: SWIM.SequenceNumber)
 
         /// This is a "pseudo-message", in the sense that it is not transported over the wire, but should be triggered
         /// and fired into an implementation Shell when a ping has timed out.
@@ -86,8 +89,8 @@ extension SWIM {
         ///   - sequenceNumber: the `sequenceNumber` of the `ping` message this ack is a "reply" for;
         ///     It is used on the ping origin to co-relate the reply with its handling code.
         case timeout(
-            target: Peer,
-            pingRequestOrigin: PingRequestOrigin?,
+            target: Node,
+            pingRequestOrigin: Node?,
             timeout: Duration,
             sequenceNumber: SWIM.SequenceNumber
         )
@@ -116,23 +119,23 @@ extension SWIM {
     /// A piece of "gossip" about a specific member of the cluster.
     ///
     /// A gossip will only be spread a limited number of times, as configured by `settings.gossip.gossipedEnoughTimes(_:members:)`.
-    public struct Gossip<Peer: SWIMPeer>: Equatable, Sendable {
+    public struct Gossip: Equatable, Sendable {
         /// The specific member (including status) that this gossip is about.
         ///
         /// A change in member status implies a new gossip must be created and the count for the rumor mongering must be reset.
-        public let member: SWIM.Member<Peer>
+        public let member: SWIM.Member
         /// The number of times this specific gossip message was gossiped to another peer.
         public internal(set) var numberOfTimesGossiped: Int
     }
 
     /// A `GossipPayload` is used to spread gossips about members.
-    public enum GossipPayload<Peer: SWIMPeer>: Sendable {
+    public enum GossipPayload: Sendable {
         /// Explicit case to signal "no gossip payload"
         ///
         /// Effectively equivalent to an empty `.membership([])` case.
         case none
         /// Gossip information about a few select members.
-        case membership([SWIM.Member<Peer>])
+        case membership([SWIM.Member])
     }
 }
 

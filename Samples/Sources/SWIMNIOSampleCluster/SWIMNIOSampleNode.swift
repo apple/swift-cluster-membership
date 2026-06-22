@@ -15,6 +15,7 @@
 import ClusterMembership
 import Logging
 import NIO
+import NIOCore
 import SWIM
 import SWIMNIOExample
 import ServiceLifecycle
@@ -35,49 +36,44 @@ struct SampleSWIMNIONode: Service {
     func run() async throws {
         let bootstrap = DatagramBootstrap(group: group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-            .channelInitializer { channel in
-                channel.pipeline
-                    .addHandler(SWIMNIOHandler(settings: self.settings)).flatMap {
-                        channel.pipeline.addHandler(SWIMNIOSampleHandler())
-                    }
-            }
 
-        let channel =
-            try await bootstrap
-            .bind(host: "127.0.0.1", port: port)
-            .get()
-
-        await withGracefulShutdownHandler {
+        let asyncChannel = try await bootstrap.bind(
+            host: "127.0.0.1",
+            port: port
+        ) { channel in
             do {
-                self.settings.logger.info("Bound to: \(channel)")
-                try await channel.closeFuture.get()
+                let asyncChannel = try NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>(
+                    wrappingChannelSynchronously: channel
+                )
+                return channel.eventLoop.makeSucceededFuture(asyncChannel)
             } catch {
-                self.settings.logger.error("Error: \(error)")
+                return channel.eventLoop.makeFailedFuture(error)
             }
-        } onGracefulShutdown: {
-            channel.close(promise: nil)
-            try? group.syncShutdownGracefully()
         }
-    }
 
-}
+        let node = Node(protocol: "udp", host: "127.0.0.1", port: port, uid: .random(in: 1..<UInt64.max))
+        var settings = self.settings
+        settings.node = node
+        let logger = settings.logger
 
-final class SWIMNIOSampleHandler: ChannelInboundHandler {
-    typealias InboundIn = SWIM.MemberStatusChangedEvent<SWIM.NIOPeer>
-
-    let log = Logger(label: "SWIMNIOSample")
-
-    public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let change: SWIM.MemberStatusChangedEvent = self.unwrapInboundIn(data)
-
-        // we log each event (in a pretty way)
-        self.log.info(
-            "Membership status changed: [\(change.member.node)] is now [\(change.status)]",
-            metadata: [
-                "swim/member": "\(change.member.node)",
-                "swim/member/previousStatus": "\(change.previousStatus.map({"\($0)"}) ?? "unknown")",
-                "swim/member/status": "\(change.status)",
-            ]
+        let service = SWIMNIOService(
+            node: node,
+            settings: settings,
+            channel: asyncChannel,
+            onMemberStatusChange: { event in
+                logger.info(
+                    "Membership status changed: [\(event.member.node)] is now [\(event.status)]",
+                    metadata: [
+                        "swim/member": "\(event.member.node)",
+                        "swim/member/previousStatus": "\(event.previousStatus.map({"\($0)"}) ?? "unknown")",
+                        "swim/member/status": "\(event.status)",
+                    ]
+                )
+            }
         )
+
+        self.settings.logger.info("Bound to: \(asyncChannel.channel)")
+        try await service.run()
     }
+
 }

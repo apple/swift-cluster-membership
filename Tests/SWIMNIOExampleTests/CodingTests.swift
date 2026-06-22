@@ -26,30 +26,24 @@ import Foundation
 #endif
 
 final class CodingTests {
-    lazy var nioPeer: SWIM.NIOPeer = SWIM.NIOPeer(
-        node: .init(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121),
-        channel: EmbeddedChannel()
-    )
-    lazy var nioPeerOther: SWIM.NIOPeer = SWIM.NIOPeer(
-        node: .init(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324),
-        channel: EmbeddedChannel()
-    )
+    lazy var node = Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121)
+    lazy var nodeOther = Node(protocol: "udp", host: "127.0.0.1", port: 2222, uid: 234_324)
 
-    lazy var memberOne = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 1), protocolPeriod: 0)
-    lazy var memberTwo = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0)
-    lazy var memberThree = SWIM.Member(peer: nioPeer, status: .alive(incarnation: 2), protocolPeriod: 0)
+    lazy var memberOne = SWIM.Member(node: node, status: .alive(incarnation: 1), protocolPeriod: 0)
+    lazy var memberTwo = SWIM.Member(node: node, status: .alive(incarnation: 2), protocolPeriod: 0)
+    lazy var memberThree = SWIM.Member(node: node, status: .alive(incarnation: 2), protocolPeriod: 0)
 
     // TODO: add some more "nasty" cases, since the node parsing code is very manual and not hardened / secure
     @Test
     func test_serializationOf_node() throws {
         try self.shared_serializationRoundtrip(
-            ContainsNode(node: Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121))
+            Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: 12121)
         )
         try self.shared_serializationRoundtrip(
-            ContainsNode(node: Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: nil))
+            Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: nil)
         )
         try self.shared_serializationRoundtrip(
-            ContainsNode(node: Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: .random(in: 0...UInt64.max)))
+            Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: .random(in: 0...UInt64.max))
         )
         try self.shared_serializationRoundtrip(
             Node(protocol: "udp", host: "127.0.0.1", port: 1111, uid: .random(in: 0...UInt64.max))
@@ -62,13 +56,8 @@ final class CodingTests {
     }
 
     @Test
-    func test_serializationOf_peer() throws {
-        try self.shared_serializationRoundtrip(ContainsPeer(peer: self.nioPeer))
-    }
-
-    @Test
     func test_serializationOf_member() throws {
-        try self.shared_serializationRoundtrip(ContainsMember(member: self.memberOne))
+        try self.shared_serializationRoundtrip(self.memberOne)
     }
 
     @Test
@@ -79,17 +68,17 @@ final class CodingTests {
             self.memberThree,
         ])
         try self.shared_serializationRoundtrip(
-            SWIM.Message.ping(replyTo: self.nioPeer, payload: payloadSome, sequenceNumber: 1212)
+            SWIM.Message.ping(replyTo: self.node, payload: payloadSome, sequenceNumber: 1212)
         )
     }
 
     @Test
     func test_serializationOf_pingReq() throws {
-        let payloadNone: SWIM.GossipPayload<SWIM.NIOPeer> = .none
+        let payloadNone: SWIM.GossipPayload = .none
         try self.shared_serializationRoundtrip(
             SWIM.Message.pingRequest(
-                target: self.nioPeer,
-                replyTo: self.nioPeerOther,
+                target: self.node,
+                replyTo: self.nodeOther,
                 payload: payloadNone,
                 sequenceNumber: 111
             )
@@ -102,8 +91,8 @@ final class CodingTests {
         ])
         try self.shared_serializationRoundtrip(
             SWIM.Message.pingRequest(
-                target: self.nioPeer,
-                replyTo: self.nioPeerOther,
+                target: self.node,
+                replyTo: self.nodeOther,
                 payload: payloadSome,
                 sequenceNumber: 1212
             )
@@ -116,24 +105,8 @@ final class CodingTests {
     func shared_serializationRoundtrip<T: Codable>(_ obj: T) throws {
         let repr = try SWIMNIODefaultEncoder().encode(obj)
         let decoder = SWIMNIODefaultDecoder()
-        decoder.userInfo[.channelUserInfoKey] = EmbeddedChannel()
         let deserialized = try decoder.decode(T.self, from: repr)
 
         #expect("\(obj)" == "\(deserialized)")
     }
-}
-
-// This is a workaround until Swift 5.2.5 is available with the "top level string value encoding" support.
-struct ContainsPeer: Codable {
-    let peer: SWIM.NIOPeer
-}
-
-// This is a workaround until Swift 5.2.5 is available with the "top level string value encoding" support.
-struct ContainsMember: Codable {
-    let member: SWIM.Member<SWIM.NIOPeer>
-}
-
-// This is a workaround until Swift 5.2.5 is available with the "top level string value encoding" support.
-struct ContainsNode: Codable {
-    let node: ClusterMembership.Node
 }

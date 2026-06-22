@@ -35,29 +35,9 @@ final class SWIMMetricsTests {
     let fourthNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7004, uid: 4444)
     let fifthNode = ClusterMembership.Node(protocol: "test", host: "127.0.0.1", port: 7005, uid: 5555)
 
-    var myself: TestPeer!
-    var second: TestPeer!
-    var third: TestPeer!
-    var fourth: TestPeer!
-    var fifth: TestPeer!
-
     let metricsLabelPrefix = "swim-tests-\(UUID().uuidString)"
 
-    init() {
-        self.myself = TestPeer(node: self.myselfNode)
-        self.second = TestPeer(node: self.secondNode)
-        self.third = TestPeer(node: self.thirdNode)
-        self.fourth = TestPeer(node: self.fourthNode)
-        self.fifth = TestPeer(node: self.fifthNode)
-    }
-
-    deinit {
-        self.myself = nil
-        self.second = nil
-        self.third = nil
-        self.fourth = nil
-        self.fifth = nil
-    }
+    init() {}
 
     // ==== ------------------------------------------------------------------------------------------------------------
     // MARK: Metrics tests
@@ -74,24 +54,24 @@ final class SWIMMetricsTests {
 
         let testMetrics: TestMetrics = TestMetrics()
         var swim = withMetricsFactory(testMetrics) {
-            SWIM.Instance<TestPeer, TestPeer, TestPeer>(settings: settings, myself: self.myself)
+            SWIM.Instance(settings: settings, myself: self.myselfNode)
         }
         try self.expectMembership(swim, testMetrics: testMetrics, alive: 1, unreachable: 0, totalDead: 0)
 
-        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.secondNode, status: .alive(incarnation: 0))
         try self.expectMembership(swim, testMetrics: testMetrics, alive: 2, unreachable: 0, totalDead: 0)
 
-        _ = swim.addMember(self.third, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.thirdNode, status: .alive(incarnation: 0))
         try self.expectMembership(swim, testMetrics: testMetrics, alive: 3, unreachable: 0, totalDead: 0)
 
-        _ = swim.addMember(self.fourth, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.fourthNode, status: .alive(incarnation: 0))
         _ = swim.onPeriodicPingTick()
         try self.expectMembership(swim, testMetrics: testMetrics, alive: 4, unreachable: 0, totalDead: 0)
 
         for _ in 0..<10 {
             _ = swim.onPingResponse(
                 response: .timeout(
-                    target: self.second,
+                    target: self.secondNode,
                     pingRequestOrigin: nil,
                     timeout: .seconds(1),
                     sequenceNumber: 0
@@ -99,13 +79,13 @@ final class SWIMMetricsTests {
                 pingRequestOrigin: nil,
                 pingRequestSequenceNumber: nil
             )
-            _ = swim.onPingRequestResponse(.nack(target: self.third, sequenceNumber: 0), pinged: self.second)
+            _ = swim.onPingRequestResponse(.nack(target: self.thirdNode, sequenceNumber: 0), pinged: self.secondNode)
         }
         try expectMembership(swim, testMetrics: testMetrics, suspect: 1)
 
         for _ in 0..<10 {
             _ = swim.onPingResponse(
-                response: .timeout(target: self.third, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
+                response: .timeout(target: self.thirdNode, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
                 pingRequestOrigin: nil,
                 pingRequestSequenceNumber: nil
             )
@@ -141,18 +121,18 @@ final class SWIMMetricsTests {
         settings.timeSourceNow = { mockTime.withLock { $0 } }
         let testMetrics: TestMetrics = TestMetrics()
         var swim = withMetricsFactory(testMetrics) {
-            SWIM.Instance<TestPeer, TestPeer, TestPeer>(settings: settings, myself: self.myself)
+            SWIM.Instance(settings: settings, myself: self.myselfNode)
         }
 
         try self.expectMembership(swim, testMetrics: testMetrics, alive: 1, unreachable: 0, totalDead: 0)
 
-        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.secondNode, status: .alive(incarnation: 0))
         try self.expectMembership(swim, testMetrics: testMetrics, alive: 2, unreachable: 0, totalDead: 0)
 
-        _ = swim.addMember(self.third, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.thirdNode, status: .alive(incarnation: 0))
         try self.expectMembership(swim, testMetrics: testMetrics, alive: 3, unreachable: 0, totalDead: 0)
 
-        _ = swim.addMember(self.fourth, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.fourthNode, status: .alive(incarnation: 0))
         _ = swim.onPeriodicPingTick()
         try self.expectMembership(swim, testMetrics: testMetrics, alive: 4, unreachable: 0, totalDead: 0)
 
@@ -161,7 +141,7 @@ final class SWIMMetricsTests {
         for _ in 0..<10 {
             _ = swim.onPingResponse(
                 response: .timeout(
-                    target: self.second,
+                    target: self.secondNode,
                     pingRequestOrigin: nil,
                     timeout: .seconds(1),
                     sequenceNumber: 0
@@ -187,7 +167,7 @@ final class SWIMMetricsTests {
 
         for _ in 0..<10 {
             _ = swim.onPingResponse(
-                response: .timeout(target: self.third, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
+                response: .timeout(target: self.thirdNode, pingRequestOrigin: nil, timeout: .seconds(1), sequenceNumber: 0),
                 pingRequestOrigin: nil,
                 pingRequestSequenceNumber: nil
             )
@@ -208,7 +188,7 @@ final class SWIMMetricsTests {
         )
 
         if mode == .unreachableFirst {
-            _ = swim.confirmDead(peer: self.second)
+            _ = swim.confirmDead(node: self.secondNode)
             try self.expectMembership(
                 swim,
                 testMetrics: testMetrics,
@@ -231,10 +211,10 @@ final class SWIMMetricsTests {
 
         let testMetrics: TestMetrics = TestMetrics()
         var swim = withMetricsFactory(testMetrics) {
-            SWIM.Instance<TestPeer, TestPeer, TestPeer>(settings: settings, myself: self.myself)
+            SWIM.Instance(settings: settings, myself: self.myselfNode)
         }
-        _ = swim.addMember(self.second, status: .alive(incarnation: 0))
-        _ = swim.addMember(self.third, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.secondNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.thirdNode, status: .alive(incarnation: 0))
 
         try #expect(testMetrics.expectRecorder(swim.metrics.localHealthMultiplier).lastValue == Double(0))
 
@@ -254,7 +234,7 @@ final class SWIMMetricsTests {
 
 extension SWIMMetricsTests {
     private func expectMembership(
-        _ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>,
+        _ swim: SWIM.Instance,
         testMetrics: TestMetrics,
         suspect: Int,
         sourceLocation: SourceLocation = #_sourceLocation
@@ -273,7 +253,7 @@ extension SWIMMetricsTests {
     }
 
     private func expectMembership(
-        _ swim: SWIM.Instance<TestPeer, TestPeer, TestPeer>,
+        _ swim: SWIM.Instance,
         testMetrics: TestMetrics,
         alive: Int,
         unreachable: Int,

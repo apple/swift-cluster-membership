@@ -199,39 +199,31 @@ struct LogCaptureLogHandler: LogHandler {
         self.capture = capture
     }
 
-    public func log(
-        level: Logger.Level,
-        message: Logger.Message,
-        metadata: Logger.Metadata?,
-        source: String,
-        file: String,
-        function: String,
-        line: UInt
-    ) {
+    public func log(event: Logging.LogEvent) {
         guard
             self.capture.settings.grep.isEmpty
-                || self.capture.settings.grep.contains(where: { "\(message)".contains($0) })
+                || self.capture.settings.grep.contains(where: { "\(event.message)".contains($0) })
         else {
             return  // log was included explicitly
         }
-        guard !self.capture.settings.excludeGrep.contains(where: { "\(message)".contains($0) }) else {
+        guard !self.capture.settings.excludeGrep.contains(where: { "\(event.message)".contains($0) }) else {
             return  // log was excluded explicitly
         }
 
         let date = Date()
         var _metadata: Logger.Metadata = self.metadata
-        _metadata.merge(metadata ?? [:], uniquingKeysWith: { _, r in r })
+        _metadata.merge(event.metadata ?? [:], uniquingKeysWith: { _, r in r })
         _metadata["label"] = "\(self.label)"
 
         self.capture.append(
             CapturedLogMessage(
                 date: date,
-                level: level,
-                message: message,
+                level: event.level,
+                message: event.message,
                 metadata: _metadata,
-                file: file,
-                function: function,
-                line: line
+                file: event.file,
+                function: event.function,
+                line: event.line
             )
         )
     }

@@ -32,7 +32,6 @@ import Foundation
 actor RealCluster {
     private var storage: TestClusterStorage
     private let group: MultiThreadedEventLoopGroup
-    private let loop: EventLoop
 
     fileprivate init(
         group: MultiThreadedEventLoopGroup,
@@ -42,7 +41,6 @@ actor RealCluster {
             captureLogs: captureLogs
         )
         self.group = group
-        self.loop = group.next()
     }
 
     /// Function to manually shutdown and clean, and print logs base on codition
@@ -62,7 +60,7 @@ actor RealCluster {
     func makeClusterNode(
         name: String? = nil,
         configure configureSettings: @Sendable (inout SWIMNIO.Settings) -> Void = { _ in () }
-    ) async throws -> (SWIMNIOHandler, Channel) {
+    ) async throws -> (SWIMNIOService, Channel) {
         let port = await TestPortAllocator.shared.nextPort()
         let name = name ?? "swim-\(port)"
         var settings = SWIMNIO.Settings()
@@ -72,17 +70,44 @@ actor RealCluster {
             self.storage.makeLogCapture(name: name, settings: &settings)
         }
 
-        let handler = SWIMNIOHandler(settings: settings)
+        let node: Node
+        if let _node = settings.node {
+            node = _node
+        } else {
+            node = Node(protocol: "udp", name: name, host: "127.0.0.1", port: port, uid: .random(in: 1..<UInt64.max))
+            settings.node = node
+        }
         let bootstrap = DatagramBootstrap(group: self.group)
             .channelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
-            .channelInitializer { channel in channel.pipeline.addHandler(handler) }
 
-        let channel = try await bootstrap.bind(host: "127.0.0.1", port: port).get()
+        let asyncChannel = try await bootstrap.bind(
+            host: "127.0.0.1",
+            port: port
+        ) { channel in
+            do {
+                let asyncChannel = try NIOAsyncChannel<AddressedEnvelope<ByteBuffer>, AddressedEnvelope<ByteBuffer>>(
+                    wrappingChannelSynchronously: channel
+                )
+                return channel.eventLoop.makeSucceededFuture(asyncChannel)
+            } catch {
+                return channel.eventLoop.makeFailedFuture(error)
+            }
+        }
+        let service = SWIMNIOService(
+            node: node,
+            settings: settings,
+            channel: asyncChannel
+        )
 
-        self.storage.shells.append(handler.shell)
-        self.storage.nodes.append(handler.shell.node)
+        Task {
+            try await service.run()
+        }
 
-        return (handler, channel)
+        self.storage.shells.append(service.shell)
+        self.storage.nodes.append(node)
+        self.storage.channels.append(asyncChannel.channel)
+
+        return (service, asyncChannel.channel)
     }
 
     func capturedLogs(of node: Node) -> LogCapture {
@@ -95,16 +120,13 @@ actor RealCluster {
 
 actor EmbeddedCluster {
     private var storage: TestClusterStorage
-    private let loop: EmbeddedEventLoop
 
     fileprivate init(
-        loop: EmbeddedEventLoop,
         captureLogs: Bool
     ) {
         self.storage = TestClusterStorage(
             captureLogs: captureLogs
         )
-        self.loop = loop
     }
 
     /// Function to manually shutdown and clean, and print logs base on codition
@@ -142,13 +164,10 @@ actor EmbeddedCluster {
             self.storage.makeLogCapture(name: node.name ?? "swim-\(node.port)", settings: &settings)
         }
 
-        let channel = EmbeddedChannel(loop: self.loop)
-        channel.isWritable = true
         let shell = SWIMNIOShell(
             node: node,
             settings: settings,
-            channel: channel,
-            onMemberStatusChange: { _ in () }  // TODO: store events so we can inspect them?
+            onMemberStatusChange: { _ in () }
         )
 
         self.storage.nodes.append(shell.node)
@@ -182,6 +201,7 @@ struct TestClusterStorage: Sendable {
 
     var nodes: [Node] = []
     var shells: [SWIMNIOShell] = []
+    var channels: [Channel] = []
     var logCaptures: [LogCapture] = []
 
     /// If `true` automatically captures all logs of all `setUpNode` started systems, and prints them if at least one test failure is encountered.
@@ -200,11 +220,17 @@ struct TestClusterStorage: Sendable {
     /// - testFailed—notifies if test failed or not
     /// - alwaysPrintCaptureLogs—enables logging all captured logs, even if the test passed successfully. Default: `false`
     func clean(testFailed: Bool, alwaysPrintCaptureLogs: Bool = false) async {
+        // Cancel service tasks first so onCancelOrGracefulShutdown handlers fire
         await withTaskGroup(of: Void.self) { group in
             for shell in self.shells {
                 group.addTask {
+                    await shell.receiveShutdown()
+                }
+            }
+            for channel in self.channels {
+                group.addTask {
                     do {
-                        try await shell.myself.channel.close()
+                        try await channel.close()
                     } catch {
                         ()  // channel was already closed, that's okey (e.g. we closed it in the test to "crash" a node)
                     }
@@ -259,7 +285,7 @@ extension TestClusterStorage {
 // ==== ----------------------------------------------------------------------------------------------------------------
 // MARK: Shared, concurrency-safe port allocator for tests,
 
-fileprivate actor TestPortAllocator {
+actor TestPortAllocator {
 
     static let shared = TestPortAllocator()
 
@@ -280,7 +306,6 @@ fileprivate actor TestPortAllocator {
 /// - constructs a cluster for the duration of `body`
 /// - ensures `shutdown()` is called on success *and* on failure
 ///
-
 func withRealClusteredTestScope<T>(
     group: MultiThreadedEventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 8),
     captureLogs: Bool = true,
@@ -308,13 +333,11 @@ func withRealClusteredTestScope<T>(
 }
 
 func withEmbeddedClusteredTestScope<T>(
-    loop: EmbeddedEventLoop = EmbeddedEventLoop(),
     captureLogs: Bool = true,
     alwaysPrintCaptureLogs: Bool = false,
     _ body: (sending EmbeddedCluster) async throws -> T
 ) async rethrows -> T {
     let cluster = EmbeddedCluster(
-        loop: loop,
         captureLogs: captureLogs
     )
     do {

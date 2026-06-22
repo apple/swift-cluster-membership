@@ -50,6 +50,7 @@ var targets: [PackageDescription.Target] = [
 
             .product(name: "Logging", package: "swift-log"),
             .product(name: "Metrics", package: "swift-metrics"),
+            .product(name: "ServiceLifecycle", package: "swift-service-lifecycle"),
         ]
     ),
 
@@ -114,6 +115,7 @@ var dependencies: [Package.Dependency] = [
     // ~~~ SSWG APIs ~~~
     .package(url: "https://github.com/apple/swift-log.git", from: "1.13.0"),
     .package(url: "https://github.com/apple/swift-metrics.git", "2.10.0"..<"3.0.0"),  // since latest
+    .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.9.0"),
 
 ]
 
@@ -157,12 +159,18 @@ var package = Package(
 )
 
 // ---    STANDARD CROSS-REPO SETTINGS DO NOT EDIT   --- //
+let upcomingConcurrencySettings: [SwiftSetting] = [
+    .enableUpcomingFeature("MemberImportVisibility"),  // SE-0444
+    .enableUpcomingFeature("NonisolatedNonsendingByDefault"),  // SE-0461
+    .enableUpcomingFeature("InferIsolatedConformances"),  // SE-0470
+    .enableUpcomingFeature("ImmutableWeakCaptures"),  // SE-0481
+]
+
 for target in package.targets {
     switch target.type {
     case .regular, .test, .executable:
         var settings = target.swiftSettings ?? []
-        // https://github.com/swiftlang/swift-evolution/blob/main/proposals/0444-member-import-visibility.md
-        settings.append(.enableUpcomingFeature("MemberImportVisibility"))
+        settings.append(contentsOf: upcomingConcurrencySettings)
         target.swiftSettings = settings
     case .macro, .plugin, .system, .binary:
         ()  // not applicable
