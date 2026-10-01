@@ -53,7 +53,9 @@ extension SWIMNIO {
         /// By default the same as passed in `swim.logger` in the initializer is used.
         public var logger: Logger
 
-        // TODO: retry initial contact points max count: https://github.com/apple/swift-cluster-membership/issues/32
+        /// Maximum number of attempts to contact an initial contact point before giving up.
+        /// Defaults to 10 attempts.
+        public var initialContactPointMaxAttempts: Int = 10
 
         /// How frequently the shell should retry attempting to join a `swim.initialContactPoint`
         public var initialContactPointPingInterval: TimeAmount = .seconds(5)
