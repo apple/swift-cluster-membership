@@ -148,6 +148,58 @@ extension SWIM.GossipPayload: Codable {
     }
 }
 
+extension SWIM.PingResponse: Codable {
+    public enum DiscriminatorKeys: UInt8, Codable {
+        case ack = 0
+        case nack = 1
+    }
+
+    public enum CodingKeys: CodingKey {
+        case _case
+        case target
+        case incarnation
+        case payload
+        case sequenceNumber
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let target = try container.decode(Node.self, forKey: .target)
+        let sequenceNumber = try container.decode(SWIM.SequenceNumber.self, forKey: .sequenceNumber)
+
+        switch try container.decode(DiscriminatorKeys.self, forKey: ._case) {
+        case .ack:
+            let incarnation = try container.decode(SWIM.Incarnation.self, forKey: .incarnation)
+            let payload = try container.decode(SWIM.GossipPayload.self, forKey: .payload)
+            self = .ack(target: target, incarnation: incarnation, payload: payload, sequenceNumber: sequenceNumber)
+        case .nack:
+            self = .nack(target: target, sequenceNumber: sequenceNumber)
+        }
+    }
+
+    /// - Throws: `SWIMSerializationError.notSerializable` for `.timeout`, which is never sent to other nodes.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        switch self {
+        case .ack(let target, let incarnation, let payload, let sequenceNumber):
+            try container.encode(DiscriminatorKeys.ack, forKey: ._case)
+            try container.encode(target, forKey: .target)
+            try container.encode(incarnation, forKey: .incarnation)
+            try container.encode(payload, forKey: .payload)
+            try container.encode(sequenceNumber, forKey: .sequenceNumber)
+
+        case .nack(let target, let sequenceNumber):
+            try container.encode(DiscriminatorKeys.nack, forKey: ._case)
+            try container.encode(target, forKey: .target)
+            try container.encode(sequenceNumber, forKey: .sequenceNumber)
+
+        case .timeout:
+            throw SWIMSerializationError.notSerializable("\(self) is local-only and must not be sent to other nodes")
+        }
+    }
+}
+
 extension SWIM.Status: Codable {
     public enum DiscriminatorKeys: Int, Codable {
         case alive
