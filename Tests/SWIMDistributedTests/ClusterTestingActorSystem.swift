@@ -31,7 +31,7 @@ import Foundation
 /// All actors live in the same process, but remote calls are gated
 /// by SWIM reachability: if the target node is not `.alive`, the call throws.
 ///
-/// The system owns its `SWIMActor` — call `run()` after creation
+/// The system owns its `SWIM.Shell` — call `run()` after creation
 /// to drive the cluster membership layer.
 final class ClusterTestingActorSystem: DistributedActorSystem, @unchecked Sendable {
     typealias ActorID = ClusterActorID
@@ -115,7 +115,7 @@ final class ClusterTestingActorSystem: DistributedActorSystem, @unchecked Sendab
     let node: Node
     private let reachability: Mutex<ReachabilitySet>
     private let network: ClusterTestingNetwork
-    var swim: SWIMActor<ClusterTestingActorSystem>? {
+    var swim: SWIM.Shell<ClusterTestingActorSystem>? {
         get async { await self.network.swimActor(for: self.node) }
     }
 
@@ -123,7 +123,7 @@ final class ClusterTestingActorSystem: DistributedActorSystem, @unchecked Sendab
         self.node = node
         self.network = network
         self.reachability = Mutex(ReachabilitySet())
-        let swim = SWIMActor(
+        let swim = SWIM.Shell(
             settings: .init(
                 swim: swimSettings,
                 myself: self.node,
@@ -134,7 +134,7 @@ final class ClusterTestingActorSystem: DistributedActorSystem, @unchecked Sendab
         await network.register(system: self, swim: swim)
     }
 
-    /// Runs the system's `SWIMActor` and tracks reachability from its membership changes,
+    /// Runs the system's `SWIM.Shell` and tracks reachability from its membership changes,
     /// until cancelled. Protocol periods are driven by the test.
     func run() async {
         guard let swim = await self.swim else {
@@ -310,9 +310,9 @@ struct _Done: Codable {}
 /// SWIM actors, replacing global static state with an explicit test harness.
 actor ClusterTestingNetwork {
     private var systems: [Node: ClusterTestingActorSystem] = [:]
-    private var swimActors: [Node: SWIMActor<ClusterTestingActorSystem>] = [:]
+    private var swimActors: [Node: SWIM.Shell<ClusterTestingActorSystem>] = [:]
 
-    func register(system: ClusterTestingActorSystem, swim: SWIMActor<ClusterTestingActorSystem>) {
+    func register(system: ClusterTestingActorSystem, swim: SWIM.Shell<ClusterTestingActorSystem>) {
         self.systems[system.node] = system
         self.swimActors[system.node] = swim
     }
@@ -321,7 +321,7 @@ actor ClusterTestingNetwork {
         self.systems[node]
     }
 
-    func swimActor(for node: Node) -> SWIMActor<ClusterTestingActorSystem>? {
+    func swimActor(for node: Node) -> SWIM.Shell<ClusterTestingActorSystem>? {
         self.swimActors[node]
     }
 
@@ -352,7 +352,7 @@ final class ReachabilitySet: @unchecked Sendable {
     }
 }
 
-/// A minimal wrapper showing how a host system integrates `SWIMActor`.
+/// A minimal wrapper showing how a host system integrates `SWIM.Shell`.
 ///
 /// In a real system this would be part of your `DistributedActorSystem`
 /// implementation (like `ClusterSystem` in swift-distributed-actors).
@@ -360,7 +360,7 @@ final class ReachabilitySet: @unchecked Sendable {
 actor SWIMCluster<System: DistributedActorSystem> {
     let node: Node
     let actorSystem: System
-    let swim: SWIMActor<System>
+    let swim: SWIM.Shell<System>
     private var reachable: Set<Node> = []
 
     init(

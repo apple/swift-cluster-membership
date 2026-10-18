@@ -21,7 +21,7 @@ import Testing
 @testable import SWIM
 @testable import SWIMDistributed
 
-struct SWIMActorMetricsTests {
+struct SWIMShellMetricsTests {
     let nodeA = Node(protocol: "test", host: "127.0.0.1", port: 1111, uid: 1)
     let nodeB = Node(protocol: "test", host: "127.0.0.1", port: 2222, uid: 2)
     let nodeC = Node(protocol: "test", host: "127.0.0.1", port: 3333, uid: 3)

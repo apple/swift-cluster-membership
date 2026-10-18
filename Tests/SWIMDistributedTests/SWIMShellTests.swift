@@ -26,7 +26,7 @@ import FoundationEssentials
 import Foundation
 #endif
 
-struct SWIMActorTests {
+struct SWIMShellTests {
     let nodeA = Node(protocol: "test", host: "127.0.0.1", port: 1111, uid: 1)
     let nodeB = Node(protocol: "test", host: "127.0.0.1", port: 2222, uid: 2)
     let nodeC = Node(protocol: "test", host: "127.0.0.1", port: 3333, uid: 3)
@@ -281,7 +281,7 @@ struct SWIMActorTests {
 
     /// Demonstrates how a real distributed actor system could wrap SWIM.
     ///
-    /// `SWIMCluster` owns a `DistributedActorSystem` and a `SWIMActor`.
+    /// `SWIMCluster` owns a `DistributedActorSystem` and a `SWIM.Shell`.
     /// It exposes a simple API (`join`, `members`) while SWIM handles
     /// the messy work of failure detection and gossip behind the scenes.
     @Test
@@ -385,25 +385,25 @@ struct SWIMActorTests {
 
 // MARK: - Test helpers
 
-/// Thread-safe registry for mapping `Node` to `SWIMActor` in tests.
+/// Thread-safe registry for mapping `Node` to `SWIM.Shell` in tests.
 final class SWIMRegistry<System: DistributedActorSystem>: Sendable {
-    private let actors: Mutex<[Node: SWIMActor<System>]>
+    private let actors: Mutex<[Node: SWIM.Shell<System>]>
 
     init() {
         self.actors = Mutex([:])
     }
 
-    func register(node: Node, actor: SWIMActor<System>) {
+    func register(node: Node, actor: SWIM.Shell<System>) {
         self.actors.withLock { $0[node] = actor }
     }
 
-    func resolve(node: Node) -> SWIMActor<System>? {
+    func resolve(node: Node) -> SWIM.Shell<System>? {
         self.actors.withLock { $0[node] }
     }
 
-    /// Creates a `SWIMActor` for `node` which resolves its peers through this registry, and registers it.
-    func makeSWIM(node: Node, actorSystem: System) -> SWIMActor<System> {
-        let swim = SWIMActor(
+    /// Creates a `SWIM.Shell` for `node` which resolves its peers through this registry, and registers it.
+    func makeSWIM(node: Node, actorSystem: System) -> SWIM.Shell<System> {
+        let swim = SWIM.Shell(
             settings: .init(
                 swim: SWIM.Settings(),
                 myself: node,
@@ -422,7 +422,7 @@ final class SWIMRegistry<System: DistributedActorSystem>: Sendable {
 ///
 /// When this returns, every actor's `membershipChanges` has finished, so its events can be collected.
 func withRunning<System: DistributedActorSystem>(
-    _ swims: [SWIMActor<System>],
+    _ swims: [SWIM.Shell<System>],
     _ body: () async throws -> Void
 ) async throws {
     try await withThrowingTaskGroup(of: Void.self) { group in
@@ -437,7 +437,7 @@ func withRunning<System: DistributedActorSystem>(
 }
 
 /// Handles `count` protocol periods on each of `swims`, giving the pings of each period time to complete.
-func driveProtocolPeriods<System: DistributedActorSystem>(_ swims: [SWIMActor<System>], count: Int) async throws {
+func driveProtocolPeriods<System: DistributedActorSystem>(_ swims: [SWIM.Shell<System>], count: Int) async throws {
     for _ in 0..<count {
         for swim in swims {
             _ = await swim.whenLocal { $0.handlePeriodicProtocolPeriodTick() }
