@@ -33,11 +33,6 @@ extension SWIMActor {
         /// resolving a well-known actor ID for the SWIM peer on the target node.
         public var resolvePeer: @Sendable (Node) async -> SWIMActor?
 
-        /// Called whenever SWIM detects a reachability change.
-        ///
-        /// Use this to wire SWIM events into your cluster's membership state.
-        public var onMembershipChange: @Sendable (SWIM.MemberStatusChangedEvent) async -> Void
-
         /// Creates new settings for a `SWIMActor`.
         ///
         /// - Parameters:
@@ -45,17 +40,14 @@ extension SWIMActor {
         ///   - myself: The node identity of this actor.
         ///   - resolvePeer: Closure that maps a `Node` to the `SWIMActor`
         ///     on that node.
-        ///   - onMembershipChange: Closure called when a reachability change is detected.
         public init(
             swim: SWIM.Settings,
             myself: Node,
-            resolvePeer: @escaping @Sendable (Node) async -> SWIMActor?,
-            onMembershipChange: @escaping @Sendable (SWIM.MemberStatusChangedEvent) async -> Void = { _ in }
+            resolvePeer: @escaping @Sendable (Node) async -> SWIMActor?
         ) {
             self.swim = swim
             self.myself = myself
             self.resolvePeer = resolvePeer
-            self.onMembershipChange = onMembershipChange
         }
     }
 }

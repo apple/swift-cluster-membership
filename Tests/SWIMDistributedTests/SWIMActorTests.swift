@@ -27,102 +27,70 @@ import Foundation
 #endif
 
 struct SWIMActorTests {
+    let nodeA = Node(protocol: "test", host: "127.0.0.1", port: 1111, uid: 1)
+    let nodeB = Node(protocol: "test", host: "127.0.0.1", port: 2222, uid: 2)
+    let nodeC = Node(protocol: "test", host: "127.0.0.1", port: 3333, uid: 3)
+
     // MARK: - Two-node membership
 
     @Test
     func test_twoNodes_monitoringEachOther_shouldSeeBothMembers() async throws {
         let system = LocalTestingDistributedActorSystem()
-        let nodeA = Node(protocol: "test", host: "127.0.0.1", port: 1111, uid: 1)
-        let nodeB = Node(protocol: "test", host: "127.0.0.1", port: 2222, uid: 2)
-
         let registry = SWIMRegistry<LocalTestingDistributedActorSystem>()
+        let swimA = registry.makeSWIM(node: self.nodeA, actorSystem: system)
+        let swimB = registry.makeSWIM(node: self.nodeB, actorSystem: system)
 
-        let swimA = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeA,
-                resolvePeer: { node in registry.resolve(node: node) }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeA, actor: swimA)
+        try await withRunning([swimA, swimB]) {
+            _ = await swimA.whenLocal { await $0.monitor(node: self.nodeB) }
+            _ = await swimB.whenLocal { await $0.monitor(node: self.nodeA) }
 
-        let swimB = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeB,
-                resolvePeer: { node in registry.resolve(node: node) }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeB, actor: swimB)
-
-        _ = await swimA.whenLocal { await $0.monitor(node: nodeB) }
-        _ = await swimB.whenLocal { await $0.monitor(node: nodeA) }
-
-        // Drive a few protocol ticks so both nodes exchange gossip.
-        _ = await swimA.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
-        _ = await swimB.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
-
-        try await Task.sleep(for: .milliseconds(100))
+            // Drive a few protocol ticks so both nodes exchange gossip.
+            try await driveProtocolPeriods([swimA, swimB], count: 2)
+        }
 
         let membersA = await swimA.whenLocal { $0._getMembershipState() } ?? []
         let membersB = await swimB.whenLocal { $0._getMembershipState() } ?? []
 
         #expect(membersA.count == 2, "Node A should see both members")
         #expect(membersB.count == 2, "Node B should see both members")
-        #expect(membersA.contains(where: { $0.node == nodeA }))
-        #expect(membersA.contains(where: { $0.node == nodeB }))
+        #expect(membersA.contains(where: { $0.node == self.nodeA }))
+        #expect(membersA.contains(where: { $0.node == self.nodeB }))
     }
 
-    // MARK: - Reachability change callback
+    // MARK: - Membership changes
 
     @Test
-    func test_onMembershipChange_shouldFireForReachabilityChanges() async throws {
+    func test_membershipChanges_shouldYieldReachabilityChanges() async throws {
         let system = LocalTestingDistributedActorSystem()
-        let nodeA = Node(protocol: "test", host: "127.0.0.1", port: 1111, uid: 1)
-        let nodeB = Node(protocol: "test", host: "127.0.0.1", port: 2222, uid: 2)
-
         let registry = SWIMRegistry<LocalTestingDistributedActorSystem>()
-        let capturedEvents = Mutex<[SWIM.MemberStatusChangedEvent]>([])
+        let swimA = registry.makeSWIM(node: self.nodeA, actorSystem: system)
+        let swimB = registry.makeSWIM(node: self.nodeB, actorSystem: system)
+        let changesA = await swimA.whenLocal { $0.membershipChanges }!
 
-        let swimA = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeA,
-                resolvePeer: { node in registry.resolve(node: node) },
-                onMembershipChange: { event in
-                    capturedEvents.withLock { $0.append(event) }
-                }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeA, actor: swimA)
+        try await withRunning([swimA, swimB]) {
+            _ = await swimA.whenLocal { await $0.monitor(node: self.nodeB) }
+            try await driveProtocolPeriods([swimA, swimB], count: 2)
+        }
 
-        let swimB = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeB,
-                resolvePeer: { node in registry.resolve(node: node) }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeB, actor: swimB)
+        let events = await changesA.collect()
+        #expect(events.first?.member.node == self.nodeA, "First event should announce the actor itself")
+        #expect(events.contains { $0.member.node == self.nodeB && $0.status.isAlive }, "Should announce B as alive")
+    }
 
-        _ = await swimA.whenLocal { await $0.monitor(node: nodeB) }
+    @Test
+    func test_membershipChanges_shouldFinishWhenRunIsCancelled() async throws {
+        let system = LocalTestingDistributedActorSystem()
+        let registry = SWIMRegistry<LocalTestingDistributedActorSystem>()
+        let swimA = registry.makeSWIM(node: self.nodeA, actorSystem: system)
+        let changesA = await swimA.whenLocal { $0.membershipChanges }!
 
-        // A few ticks to let gossip propagate.
-        _ = await swimA.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
-        _ = await swimB.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
-        _ = await swimA.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
-        _ = await swimB.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
+        let run = Task { await swimA.whenLocal { await $0.run() } }
+        run.cancel()
+        await run.value
 
-        try await Task.sleep(for: .milliseconds(100))
-
-        let events = capturedEvents.withLock { $0 }
-
-        // We expect at least one reachability change after both nodes exchange gossip.
-        #expect(events.count >= 1, "Should have received at least one membership change event")
+        // Would hang if the stream was not finished.
+        let events = await changesA.collect()
+        #expect(events.count == 1)
     }
 
     // MARK: - confirmDead
@@ -130,44 +98,21 @@ struct SWIMActorTests {
     @Test
     func test_confirmDead_shouldMarkNodeAsDead() async throws {
         let system = LocalTestingDistributedActorSystem()
-        let nodeA = Node(protocol: "test", host: "127.0.0.1", port: 1111, uid: 1)
-        let nodeB = Node(protocol: "test", host: "127.0.0.1", port: 2222, uid: 2)
-
         let registry = SWIMRegistry<LocalTestingDistributedActorSystem>()
-        let capturedEvents = Mutex<[SWIM.MemberStatusChangedEvent]>([])
+        let swimA = registry.makeSWIM(node: self.nodeA, actorSystem: system)
+        let swimB = registry.makeSWIM(node: self.nodeB, actorSystem: system)
+        _ = swimB
+        let changesA = await swimA.whenLocal { $0.membershipChanges }!
 
-        let swimA = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeA,
-                resolvePeer: { node in registry.resolve(node: node) },
-                onMembershipChange: { event in
-                    capturedEvents.withLock { $0.append(event) }
-                }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeA, actor: swimA)
+        try await withRunning([swimA]) {
+            _ = await swimA.whenLocal { await $0.monitor(node: self.nodeB) }
+            // Confirm B dead from A's perspective.
+            _ = await swimA.whenLocal { $0.confirmDead(node: self.nodeB) }
+        }
 
-        let swimB = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeB,
-                resolvePeer: { node in registry.resolve(node: node) }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeB, actor: swimB)
-
-        _ = await swimA.whenLocal { await $0.monitor(node: nodeB) }
-
-        // Confirm B dead from A's perspective.
-        _ = await swimA.whenLocal { await $0.confirmDead(node: nodeB) }
-
-        let events = capturedEvents.withLock { $0 }
-        let deadEvent = events.first(where: { $0.member.node == nodeB && $0.member.status.isDead })
-        #expect(deadEvent != nil, "Should have received a membership change event for nodeB with .dead status")
-        #expect(deadEvent?.member.status.isDead ?? false, "Node B should be marked dead after confirmDead")
+        let events = await changesA.collect()
+        let eventsAboutB = events.filter { $0.member.node == self.nodeB }
+        #expect(eventsAboutB.last?.status.isDead ?? false, "Last event about B should be .dead, got: \(eventsAboutB)")
     }
 
     // MARK: - Ping round-trip
@@ -175,40 +120,19 @@ struct SWIMActorTests {
     @Test
     func test_ping_shouldReturnAck() async throws {
         let system = LocalTestingDistributedActorSystem()
-        let nodeA = Node(protocol: "test", host: "127.0.0.1", port: 1111, uid: 1)
-        let nodeB = Node(protocol: "test", host: "127.0.0.1", port: 2222, uid: 2)
-
         let registry = SWIMRegistry<LocalTestingDistributedActorSystem>()
-
-        let swimA = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeA,
-                resolvePeer: { node in registry.resolve(node: node) }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeA, actor: swimA)
-
-        let swimB = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeB,
-                resolvePeer: { node in registry.resolve(node: node) }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeB, actor: swimB)
+        _ = registry.makeSWIM(node: self.nodeA, actorSystem: system)
+        let swimB = registry.makeSWIM(node: self.nodeB, actorSystem: system)
 
         let response = try await swimB.ping(
-            origin: nodeA,
+            origin: self.nodeA,
             payload: .none,
             sequenceNumber: 1
         )
 
         switch response {
         case .ack(let target, _, _, _):
-            #expect(target == nodeB)
+            #expect(target == self.nodeB)
         default:
             Issue.record("Expected ack, got \(response)")
         }
@@ -229,85 +153,37 @@ struct SWIMActorTests {
     @Test
     func test_gossipDiscovery_asymmetricJoin_discoversAllNodes() async throws {
         let system = LocalTestingDistributedActorSystem()
-
-        let nodeA = Node(protocol: "test", host: "127.0.0.1", port: 1111, uid: 1)
-        let nodeB = Node(protocol: "test", host: "127.0.0.1", port: 2222, uid: 2)
-        let nodeC = Node(protocol: "test", host: "127.0.0.1", port: 3333, uid: 3)
-
         let registry = SWIMRegistry<LocalTestingDistributedActorSystem>()
+        let swimA = registry.makeSWIM(node: self.nodeA, actorSystem: system)
+        let swimB = registry.makeSWIM(node: self.nodeB, actorSystem: system)
+        let swimC = registry.makeSWIM(node: self.nodeC, actorSystem: system)
+        let changesA = await swimA.whenLocal { $0.membershipChanges }!
+        let changesB = await swimB.whenLocal { $0.membershipChanges }!
+        let changesC = await swimC.whenLocal { $0.membershipChanges }!
 
-        // Each node maintains its own view of the cluster, updated by SWIM callbacks.
-        let knownNodesA = Mutex<Set<Node>>([])
-        let knownNodesB = Mutex<Set<Node>>([])
-        let knownNodesC = Mutex<Set<Node>>([])
+        try await withRunning([swimA, swimB, swimC]) {
+            // ASYMMETRIC join: A only knows B, B only knows C.
+            // Nobody tells A about C directly.
+            _ = await swimA.whenLocal { await $0.monitor(node: self.nodeB) }
+            _ = await swimB.whenLocal { await $0.monitor(node: self.nodeC) }
 
-        let swimA = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeA,
-                resolvePeer: { node in registry.resolve(node: node) },
-                onMembershipChange: { event in
-                    if event.member.status.isAlive {
-                        _ = knownNodesA.withLock { $0.insert(event.member.node) }
-                    }
-                }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeA, actor: swimA)
-
-        let swimB = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeB,
-                resolvePeer: { node in registry.resolve(node: node) },
-                onMembershipChange: { event in
-                    if event.member.status.isAlive {
-                        _ = knownNodesB.withLock { $0.insert(event.member.node) }
-                    }
-                }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeB, actor: swimB)
-
-        let swimC = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: nodeC,
-                resolvePeer: { node in registry.resolve(node: node) },
-                onMembershipChange: { event in
-                    if event.member.status.isAlive {
-                        _ = knownNodesC.withLock { $0.insert(event.member.node) }
-                    }
-                }
-            ),
-            actorSystem: system
-        )
-        registry.register(node: nodeC, actor: swimC)
-
-        // ASYMMETRIC join: A only knows B, B only knows C.
-        // Nobody tells A about C directly.
-        _ = await swimA.whenLocal { await $0.monitor(node: nodeB) }
-        _ = await swimB.whenLocal { await $0.monitor(node: nodeC) }
-
-        // Drive protocol ticks so gossip spreads through the chain A <-> B <-> C.
-        for _ in 0..<4 {
-            _ = await swimA.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
-            _ = await swimB.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
-            _ = await swimC.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
+            // Drive protocol ticks so gossip spreads through the chain A <-> B <-> C.
+            try await driveProtocolPeriods([swimA, swimB, swimC], count: 4)
         }
 
-        try await Task.sleep(for: .milliseconds(100))
+        // Each node's view of the cluster, built from its membership changes.
+        let knownNodesA = await changesA.aliveNodes()
+        let knownNodesB = await changesB.aliveNodes()
+        let knownNodesC = await changesC.aliveNodes()
 
         // All three nodes should now know about each other, even though
         // nobody ever told A about C directly.
-        #expect(knownNodesA.withLock { $0.contains(nodeB) }, "A should know B")
-        #expect(knownNodesA.withLock { $0.contains(nodeC) }, "A should have discovered C via gossip")
-        #expect(knownNodesB.withLock { $0.contains(nodeA) }, "B should know A")
-        #expect(knownNodesB.withLock { $0.contains(nodeC) }, "B should know C")
-        #expect(knownNodesC.withLock { $0.contains(nodeA) }, "C should have discovered A via gossip")
-        #expect(knownNodesC.withLock { $0.contains(nodeB) }, "C should know B")
+        #expect(knownNodesA.contains(self.nodeB), "A should know B")
+        #expect(knownNodesA.contains(self.nodeC), "A should have discovered C via gossip")
+        #expect(knownNodesB.contains(self.nodeA), "B should know A")
+        #expect(knownNodesB.contains(self.nodeC), "B should know C")
+        #expect(knownNodesC.contains(self.nodeA), "C should have discovered A via gossip")
+        #expect(knownNodesC.contains(self.nodeB), "C should know B")
 
         // The host system can query SWIM for the current membership at any time.
         let membersA = await swimA.whenLocal { $0._getMembershipState() } ?? []
@@ -326,46 +202,30 @@ struct SWIMActorTests {
         let system = LocalTestingDistributedActorSystem()
         let registry = SWIMRegistry<LocalTestingDistributedActorSystem>()
 
-        let nodeA = Node(protocol: "test", host: "127.0.0.1", port: 1111, uid: 1)
-        let nodeB = Node(protocol: "test", host: "127.0.0.1", port: 2222, uid: 2)
-        let nodeC = Node(protocol: "test", host: "127.0.0.1", port: 3333, uid: 3)
+        let clusterA = SWIMCluster(node: self.nodeA, actorSystem: system, registry: registry)
+        let clusterB = SWIMCluster(node: self.nodeB, actorSystem: system, registry: registry)
+        let clusterC = SWIMCluster(node: self.nodeC, actorSystem: system, registry: registry)
 
-        let clusterA = await SWIMCluster(
-            node: nodeA,
-            actorSystem: system,
-            registry: registry
-        )
-        let clusterB = await SWIMCluster(
-            node: nodeB,
-            actorSystem: system,
-            registry: registry
-        )
-        let clusterC = await SWIMCluster(
-            node: nodeC,
-            actorSystem: system,
-            registry: registry
-        )
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for cluster in [clusterA, clusterB, clusterC] {
+                group.addTask { await cluster.run() }
+            }
+            defer { group.cancelAll() }
 
-        // Join the cluster through a single seed node.
-        // A knows B, B knows C — gossip will do the rest.
-        await clusterA.join(nodeB)
-        await clusterB.join(nodeC)
+            // Join the cluster through a single seed node.
+            // A knows B, B knows C — gossip will do the rest.
+            await clusterA.join(self.nodeB)
+            await clusterB.join(self.nodeC)
 
-        // Let SWIM exchange a few protocol periods.
-        for _ in 0..<4 {
-            await clusterA.tick()
-            await clusterB.tick()
-            await clusterC.tick()
+            // Let SWIM exchange a few protocol periods.
+            try await driveProtocolPeriods([clusterA.swim, clusterB.swim, clusterC.swim], count: 4)
+
+            // Every cluster should now see every other node.
+            #expect(await clusterA.members().count == 3)
+            #expect(await clusterB.members().count == 3)
+            #expect(await clusterC.members().count == 3)
+            #expect(await clusterA.reachableNodes() == [self.nodeA, self.nodeB, self.nodeC])
         }
-        try await Task.sleep(for: .milliseconds(100))
-
-        // Every cluster should now see every other node.
-        #expect(await clusterA.members().count == 3)
-        #expect(await clusterB.members().count == 3)
-        #expect(await clusterC.members().count == 3)
-
-        // The host system can also react to reachability changes
-        // via the `onMembershipChange` closure (see SWIMCluster.init).
     }
 
     /// Demonstrates that distributed actor calls are gated by SWIM reachability.
@@ -375,72 +235,64 @@ struct SWIMActorTests {
     /// is marked `.dead`, calls to actors on that node fail.
     @Test
     func test_reachability_gatesDistributedActorCalls() async throws {
-        let nodeA = Node(protocol: "test", host: "127.0.0.1", port: 1111, uid: 1)
-        let nodeB = Node(protocol: "test", host: "127.0.0.1", port: 2222, uid: 2)
-        let nodeC = Node(protocol: "test", host: "127.0.0.1", port: 3333, uid: 3)
-
-        var fastSettings = SWIM.Settings()
-        fastSettings.probeInterval = .milliseconds(50)
-
         let network = ClusterTestingNetwork()
 
-        let systemA = await ClusterTestingActorSystem(node: nodeA, network: network, swimSettings: fastSettings)
-        let systemB = await ClusterTestingActorSystem(node: nodeB, network: network, swimSettings: fastSettings)
-        let systemC = await ClusterTestingActorSystem(node: nodeC, network: network, swimSettings: fastSettings)
+        let systemA = await ClusterTestingActorSystem(node: self.nodeA, network: network)
+        let systemB = await ClusterTestingActorSystem(node: self.nodeB, network: network)
+        let systemC = await ClusterTestingActorSystem(node: self.nodeC, network: network)
 
-        // Create actors on each node, but resolve them as proxies on systemA
-        // so all calls go through the distributed mechanism.
-        let actorA = try SampleActor.resolve(
-            id: .init(
-                node: systemA.node,
-                localID: UUID().uuidString
-            ),
-            using: systemA
-        )
-        let actorB = try SampleActor.resolve(id: .init(node: systemB.node, localID: UUID().uuidString), using: systemA)
-        let actorC = try SampleActor.resolve(id: .init(node: systemC.node, localID: UUID().uuidString), using: systemA)
+        // Host an actor on each node; B and C are resolved as proxies on systemA
+        // so calls to them go through the distributed mechanism.
+        let actorA = SampleActor(actorSystem: systemA)
+        let hostedB = SampleActor(actorSystem: systemB)
+        let hostedC = SampleActor(actorSystem: systemC)
+        let actorB = try SampleActor.resolve(id: hostedB.id, using: systemA)
+        let actorC = try SampleActor.resolve(id: hostedC.id, using: systemA)
 
-        // Join the cluster through a single seed (node A).
-        _ = await systemA.swim?.whenLocal { await $0.monitor(node: nodeB) }
-        _ = await systemA.swim?.whenLocal { await $0.monitor(node: nodeC) }
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for system in [systemA, systemB, systemC] {
+                group.addTask { await system.run() }
+            }
+            defer { group.cancelAll() }
 
-        // Drive protocol ticks so gossip propagates.
-        for _ in 0..<5 {
-            _ = await systemA.swim?.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
-            _ = await systemB.swim?.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
-            _ = await systemC.swim?.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
+            // Join the cluster through a single seed (node A).
+            _ = await systemA.swim?.whenLocal { await $0.monitor(node: self.nodeB) }
+            _ = await systemA.swim?.whenLocal { await $0.monitor(node: self.nodeC) }
+
+            // Drive protocol ticks so gossip propagates.
+            let swims = await [systemA.swim, systemB.swim, systemC.swim].compactMap { $0 }
+            try await driveProtocolPeriods(swims, count: 5)
+
+            // All nodes should see each other as alive.
+            #expect(systemA.isNodeReachable(self.nodeB))
+            #expect(systemA.isNodeReachable(self.nodeC))
+
+            // Calls from A to B and C succeed while the targets are reachable.
+            let greetingB = try await actorA.callGreet(on: actorB, name: "Alice")
+            #expect(greetingB.contains("Hello, Alice!"))
+
+            let greetingC = try await actorA.callGreet(on: actorC, name: "Bob")
+            #expect(greetingC.contains("Hello, Bob!"))
+
+            // Mark node B as dead from A's perspective.
+            _ = await systemA.swim?.whenLocal { $0.confirmDead(node: self.nodeB) }
+            // Membership changes are consumed by `systemA.run()`; give it a moment.
+            try await Task.sleep(for: .milliseconds(50))
+
+            // Node B is now unreachable from A.
+            #expect(!systemA.isNodeReachable(self.nodeB))
+            #expect(systemA.isNodeReachable(self.nodeC))
+
+            // Calls to node B should fail now that it's unreachable.
+            await network.unregister(node: self.nodeB)
+            await #expect(throws: ClusterTestingError.nodeUnreachable(self.nodeB)) {
+                try await actorA.callGreet(on: actorB, name: "Dead")
+            }
+
+            // Calls from A to C still work.
+            let greetingC2 = try await actorA.callGreet(on: actorC, name: "Charlie")
+            #expect(greetingC2.contains("Hello, Charlie!"))
         }
-        try await Task.sleep(for: .milliseconds(100))
-
-        // All nodes should see each other as alive.
-        #expect(systemA.isNodeReachable(nodeB))
-        #expect(systemA.isNodeReachable(nodeC))
-
-        // Calls from A to B and C succeed while the targets are reachable.
-        let greetingB = try await actorA.callGreet(on: actorB, name: "Alice")
-        #expect(greetingB.contains("Hello, Alice!"))
-
-        let greetingC = try await actorA.callGreet(on: actorC, name: "Bob")
-        #expect(greetingC.contains("Hello, Bob!"))
-
-        // Mark node B as dead from A's perspective.
-        _ = await systemA.swim?.whenLocal { await $0.confirmDead(node: nodeB) }
-        // `onMembershipChange` is delivered asynchronously; give it a moment.
-        try await Task.sleep(for: .milliseconds(50))
-
-        // Node B is now unreachable from A.
-        #expect(!systemA.isNodeReachable(nodeB))
-        #expect(systemA.isNodeReachable(nodeC))
-
-        // Calls to node B should fail now that it's unreachable.
-        await network.unregister(node: nodeB)
-        await #expect(throws: ClusterTestingError.nodeUnreachable(nodeB)) {
-            try await actorA.callGreet(on: actorB, name: "Dead")
-        }
-
-        // Calls from A to C still work.
-        let greetingC2 = try await actorA.callGreet(on: actorC, name: "Charlie")
-        #expect(greetingC2.contains("Hello, Charlie!"))
     }
 }
 
@@ -460,6 +312,75 @@ final class SWIMRegistry<System: DistributedActorSystem>: Sendable {
 
     func resolve(node: Node) -> SWIMActor<System>? {
         self.actors.withLock { $0[node] }
+    }
+
+    /// Creates a `SWIMActor` for `node` which resolves its peers through this registry, and registers it.
+    func makeSWIM(node: Node, actorSystem: System) -> SWIMActor<System> {
+        let swim = SWIMActor(
+            settings: .init(
+                swim: SWIM.Settings(),
+                myself: node,
+                resolvePeer: { node in self.resolve(node: node) }
+            ),
+            actorSystem: actorSystem
+        )
+        self.register(node: node, actor: swim)
+        return swim
+    }
+}
+
+// MARK: - Running helpers
+
+/// Runs `swims` for the duration of `body`, with protocol periods driven only by the test.
+///
+/// When this returns, every actor's `membershipChanges` has finished, so its events can be collected.
+func withRunning<System: DistributedActorSystem>(
+    _ swims: [SWIMActor<System>],
+    _ body: () async throws -> Void
+) async throws {
+    try await withThrowingTaskGroup(of: Void.self) { group in
+        for swim in swims {
+            group.addTask {
+                await swim.whenLocal { await $0.run(periodicTicks: false) }
+            }
+        }
+        defer { group.cancelAll() }
+        try await body()
+    }
+}
+
+/// Handles `count` protocol periods on each of `swims`, giving the pings of each period time to complete.
+func driveProtocolPeriods<System: DistributedActorSystem>(_ swims: [SWIMActor<System>], count: Int) async throws {
+    for _ in 0..<count {
+        for swim in swims {
+            _ = await swim.whenLocal { $0.handlePeriodicProtocolPeriodTick() }
+        }
+        try await Task.sleep(for: .milliseconds(20))
+    }
+}
+
+extension AsyncStream {
+    func collect() async -> [Element] {
+        var elements: [Element] = []
+        for await element in self {
+            elements.append(element)
+        }
+        return elements
+    }
+}
+
+extension AsyncStream<SWIM.MemberStatusChangedEvent> {
+    /// Nodes that are alive according to the (finished) stream of changes.
+    func aliveNodes() async -> Set<Node> {
+        var nodes: Set<Node> = []
+        for await event in self {
+            if event.status.isAlive {
+                nodes.insert(event.member.node)
+            } else {
+                nodes.remove(event.member.node)
+            }
+        }
+        return nodes
     }
 }
 

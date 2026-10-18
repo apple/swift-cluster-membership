@@ -31,8 +31,8 @@ import Foundation
 /// All actors live in the same process, but remote calls are gated
 /// by SWIM reachability: if the target node is not `.alive`, the call throws.
 ///
-/// The system owns its `SWIMActor` — call `start(network:)` after creation
-/// to bootstrap the cluster membership layer.
+/// The system owns its `SWIMActor` — call `run()` after creation
+/// to drive the cluster membership layer.
 final class ClusterTestingActorSystem: DistributedActorSystem, @unchecked Sendable {
     typealias ActorID = ClusterActorID
     typealias SerializationRequirement = Swift.Codable
@@ -123,12 +123,30 @@ final class ClusterTestingActorSystem: DistributedActorSystem, @unchecked Sendab
         self.node = node
         self.network = network
         self.reachability = Mutex(ReachabilitySet())
-        let swim = await SWIMActor(
+        let swim = SWIMActor(
             settings: .init(
                 swim: swimSettings,
                 myself: self.node,
-                resolvePeer: { node in await network.swimActor(for: node) },
-                onMembershipChange: { event in
+                resolvePeer: { node in await network.swimActor(for: node) }
+            ),
+            actorSystem: self
+        )
+        await network.register(system: self, swim: swim)
+    }
+
+    /// Runs the system's `SWIMActor` and tracks reachability from its membership changes,
+    /// until cancelled. Protocol periods are driven by the test.
+    func run() async {
+        guard let swim = await self.swim else {
+            return
+        }
+        await swim.whenLocal { swim in
+            let changes = swim.membershipChanges
+            await withDiscardingTaskGroup { group in
+                group.addTask {
+                    await swim.whenLocal { await $0.run(periodicTicks: false) }
+                }
+                for await event in changes {
                     self.reachability.withLock {
                         if event.member.status.isAlive {
                             $0.insert(event.member.node)
@@ -137,10 +155,8 @@ final class ClusterTestingActorSystem: DistributedActorSystem, @unchecked Sendab
                         }
                     }
                 }
-            ),
-            actorSystem: self
-        )
-        await network.register(system: self, swim: swim)
+            }
+        }
     }
 
     func assignID<Act>(_ actorType: Act.Type) -> ActorID where Act: DistributedActor {
@@ -345,37 +361,47 @@ actor SWIMCluster<System: DistributedActorSystem> {
     let node: Node
     let actorSystem: System
     let swim: SWIMActor<System>
+    private var reachable: Set<Node> = []
 
     init(
         node: Node,
         actorSystem: System,
         registry: SWIMRegistry<System>
-    ) async {
+    ) {
         self.node = node
         self.actorSystem = actorSystem
+        self.swim = registry.makeSWIM(node: node, actorSystem: actorSystem)
+    }
 
-        self.swim = await SWIMActor(
-            settings: .init(
-                swim: SWIM.Settings(),
-                myself: node,
-                resolvePeer: { node in registry.resolve(node: node) },
-                onMembershipChange: { _ in
-                    // In a real system, update routing tables here.
+    /// Runs SWIM and applies its membership changes until cancelled.
+    /// Protocol periods are driven by the test.
+    func run() async {
+        let swim = self.swim
+        guard let changes = await swim.whenLocal({ $0.membershipChanges }) else {
+            return
+        }
+        await withDiscardingTaskGroup { group in
+            group.addTask {
+                await swim.whenLocal { await $0.run(periodicTicks: false) }
+            }
+            for await event in changes {
+                // In a real system, update routing tables here.
+                if event.status.isAlive {
+                    self.reachable.insert(event.member.node)
+                } else {
+                    self.reachable.remove(event.member.node)
                 }
-            ),
-            actorSystem: actorSystem
-        )
-        registry.register(node: node, actor: self.swim)
+            }
+        }
+    }
+
+    func reachableNodes() -> Set<Node> {
+        self.reachable
     }
 
     /// Start monitoring `otherNode`. This is how a node "joins" the cluster.
     func join(_ otherNode: Node) async {
         await self.swim.whenLocal { await $0.monitor(node: otherNode) }
-    }
-
-    /// Manually drive one protocol tick (for testing).
-    func tick() async {
-        _ = await self.swim.whenLocal { await $0.handlePeriodicProtocolPeriodTick() }
     }
 
     /// Current membership view from SWIM.

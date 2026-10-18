@@ -25,6 +25,9 @@ import SWIM
 /// through distributed actor remote calls. It works with **any** `DistributedActorSystem` —
 /// you only need to provide a `Node -> ActorID` mapping in `Settings.resolvePeer`.
 ///
+/// The actor does no work until ``run()`` is called. All protocol work (periodic ticks, pings and
+/// indirect ping requests) runs as child tasks of ``run()``, so cancelling it stops the actor.
+///
 /// ## Usage
 ///
 /// ```swift
@@ -33,11 +36,17 @@ import SWIM
 ///         swim: swimSettings,
 ///         myself: myNode,
 ///         resolvePeer: { node in await mySystem.resolveSWIMPeer(for: node) }
-///     )
+///     ),
+///     actorSystem: mySystem
 /// )
 ///
-/// for await event in swim.membershipChanges {
-///     await mySystem.applyReachabilityChange(event)
+/// await swim.whenLocal { swim in
+///     await withDiscardingTaskGroup { group in
+///         group.addTask { await swim.run() }
+///         for await event in swim.membershipChanges {
+///             await mySystem.applyReachabilityChange(event)
+///         }
+///     }
 /// }
 /// ```
 ///
@@ -59,27 +68,83 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
         return log
     }()
 
-    private var nextPeriodicTickTask: Task<Void, Never>?
+    /// Reachability changes detected by this actor, in the order they were detected.
+    ///
+    /// The stream finishes when ``run()`` returns.
+    public let membershipChanges: AsyncStream<SWIM.MemberStatusChangedEvent>
+    private let membershipChangesContinuation: AsyncStream<SWIM.MemberStatusChangedEvent>.Continuation
+
+    /// Work that has to outlive the call that produced it (pings and ping requests);
+    /// it is performed as child tasks of ``run()``.
+    private typealias Work = @Sendable (isolated SWIMActor<System>) async -> Void
+    private let pendingWork: AsyncStream<Work>
+    private let pendingWorkContinuation: AsyncStream<Work>.Continuation
+
+    private var hasStarted = false
 
     // MARK: - Initialization
 
     /// Creates a new `SWIMActor` with the given settings.
     ///
-    /// This initializer also starts the periodic protocol tick loop.
-    public init(settings: SWIMActor.Settings, actorSystem: System) async {
+    /// The actor does not take part in the protocol until ``run()`` is called.
+    public init(settings: SWIMActor.Settings, actorSystem: System) {
         self.settings = settings
         self.actorSystem = actorSystem
         self.instance = SWIM.Instance(settings: settings.swim, myself: settings.myself)
-
-        // Kick off the periodic protocol tick loop
-        self.nextPeriodicTickTask = Task {
-            while !Task.isCancelled {
-                await self.handlePeriodicProtocolPeriodTick()
-            }
-        }
+        (self.membershipChanges, self.membershipChangesContinuation) = AsyncStream.makeStream()
+        (self.pendingWork, self.pendingWorkContinuation) = AsyncStream.makeStream()
 
         // Announce ourselves as alive
-        self.announce(.init(previousStatus: nil, member: self.instance.member))
+        self.membershipChangesContinuation.yield(.init(previousStatus: nil, member: self.instance.member))
+    }
+
+    // MARK: - Running
+
+    /// Runs the SWIM protocol until the calling task is cancelled.
+    ///
+    /// Must be called at most once. When it returns, ``membershipChanges`` finishes.
+    public func run() async {
+        await self.run(periodicTicks: true)
+    }
+
+    /// - Parameter periodicTicks: when `false`, protocol periods are only driven by calling
+    ///   `handlePeriodicProtocolPeriodTick()`; used by tests.
+    func run(periodicTicks: Bool) async {
+        precondition(!self.hasStarted, "\(Self.self).run() must be called at most once")
+        self.hasStarted = true
+        defer {
+            self.pendingWorkContinuation.finish()
+            self.membershipChangesContinuation.finish()
+        }
+
+        let pendingWork = self.pendingWork
+        await withDiscardingTaskGroup { group in
+            if periodicTicks {
+                group.addTask {
+                    await self.whenLocal { await $0.runProtocolPeriods() }
+                }
+            }
+            for await work in pendingWork {
+                group.addTask {
+                    await self.whenLocal { await work($0) }
+                }
+            }
+        }
+    }
+
+    private func runProtocolPeriods() async {
+        while !Task.isCancelled {
+            let nextTickDelay = self.handlePeriodicProtocolPeriodTick()
+            do {
+                try await Task.sleep(for: nextTickDelay)
+            } catch {
+                return  // cancelled
+            }
+        }
+    }
+
+    private func enqueue(_ work: @escaping Work) {
+        self.pendingWorkContinuation.yield(work)
     }
 
     // MARK: - Distributed Protocol Surface
@@ -217,14 +282,12 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
     /// Confirms that the given node is dead.
     ///
     /// This should be called by the host system when it decides to permanently remove a node.
-    public func confirmDead(node: Node) async {
+    public func confirmDead(node: Node) {
         let directive = self.instance.confirmDead(node: node)
         switch directive {
         case .applied(let change):
             self.log.info("Confirmed node .dead: \(change)")
-            if change.isReachabilityChange {
-                await self.settings.onMembershipChange(change)
-            }
+            self.announce(change)
         case .ignored:
             self.log.debug("confirmDead for \(node) was ignored")
         }
@@ -233,7 +296,9 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
     // MARK: - Protocol Ticks
 
     /// Handles a single periodic protocol tick.
-    func handlePeriodicProtocolPeriodTick() async {
+    ///
+    /// - Returns: the delay after which the next tick should be handled.
+    func handlePeriodicProtocolPeriodTick() -> Duration {
         let result = self.instance.onPeriodicPingTick()
         for directive in result.directives {
             switch directive {
@@ -241,8 +306,8 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
                 self.announce(change)
 
             case .sendPing(let target, let payload, let timeout, let sequenceNumber):
-                Task {
-                    await self.sendPing(
+                self.enqueue { swim in
+                    await swim.sendPing(
                         to: target,
                         payload: payload,
                         pingRequestOrigin: nil,
@@ -254,13 +319,13 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
             }
         }
 
-        try? await Task.sleep(for: result.nextTickDelay)
+        return result.nextTickDelay
     }
 
     // MARK: - Sending pings
 
     @discardableResult
-    public func sendPing(
+    func sendPing(
         to target: Node,
         payload: SWIM.GossipPayload,
         pingRequestOrigin: Node?,
@@ -343,7 +408,7 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
         }
     }
 
-    public func sendPingRequests(
+    func sendPingRequests(
         _ directive: SWIM.Instance.SendPingRequestDirective
     ) async {
         let pingTimeout = directive.timeout
@@ -410,7 +475,7 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
 
     // MARK: - Response handlers
 
-    public func handlePingResponse(
+    func handlePingResponse(
         response: SWIM.PingResponse,
         pingRequestOrigin: Node?,
         pingRequestSequenceNumber: SWIM.SequenceNumber?
@@ -442,8 +507,8 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
                 )
 
             case .sendPingRequests(let pingRequestDirective):
-                Task {
-                    await self.sendPingRequests(pingRequestDirective)
+                self.enqueue { swim in
+                    await swim.sendPingRequests(pingRequestDirective)
                 }
             }
         }
@@ -451,7 +516,7 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
         return pingRequestOriginResponse ?? response
     }
 
-    public func handlePingRequestResponse(response: SWIM.PingResponse, pinged: Node) {
+    func handlePingRequestResponse(response: SWIM.PingResponse, pinged: Node) {
         let directives = self.instance.onPingRequestResponse(response, pinged: pinged)
         for directive in directives {
             switch directive {
@@ -477,7 +542,7 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
         }
     }
 
-    public func handleEveryPingRequestResponse(response: SWIM.PingResponse, pinged: Node) {
+    func handleEveryPingRequestResponse(response: SWIM.PingResponse, pinged: Node) {
         let directives = self.instance.onEveryPingRequestResponse(response, pinged: pinged)
         if !directives.isEmpty {
             fatalError(
@@ -504,14 +569,12 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
         guard let change = change, change.isReachabilityChange else {
             return
         }
-        Task {
-            await self.settings.onMembershipChange(change)
-        }
+        self.membershipChangesContinuation.yield(change)
     }
 
     deinit {
-        self.nextPeriodicTickTask?.cancel()
-        self.nextPeriodicTickTask = nil
+        self.pendingWorkContinuation.finish()
+        self.membershipChangesContinuation.finish()
     }
 }
 
@@ -527,14 +590,14 @@ extension SWIMActor {
     /// Returns the current membership state.
     ///
     /// For testing only.
-    public func _getMembershipState() -> [SWIM.Member] {
+    func _getMembershipState() -> [SWIM.Member] {
         Array(self.instance.members)
     }
 
     /// Allows configuring the underlying SWIM instance in tests.
     ///
     /// For testing only.
-    public func _configureSWIM(_ configure: (inout SWIM.Instance) throws -> Void) rethrows {
+    func _configureSWIM(_ configure: (inout SWIM.Instance) throws -> Void) rethrows {
         try configure(&self.instance)
     }
 }
