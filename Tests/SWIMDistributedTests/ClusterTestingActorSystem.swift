@@ -406,6 +406,6 @@ actor SWIMCluster<System: DistributedActorSystem> {
 
     /// Current membership view from SWIM.
     func members() async -> [SWIM.Member] {
-        await self.swim.whenLocal { $0._getMembershipState() } ?? []
+        await self.swim.whenLocal { $0.members } ?? []
     }
 }

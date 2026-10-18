@@ -96,7 +96,8 @@ var targets: [PackageDescription.Target] = [
     .testTarget(
         name: "SWIMDistributedTests",
         dependencies: [
-            "SWIMDistributed"
+            "SWIMDistributed",
+            .product(name: "MetricsTestKit", package: "swift-metrics"),
         ]
     ),
 

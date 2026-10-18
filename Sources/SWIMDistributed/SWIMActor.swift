@@ -62,6 +62,11 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
         self.instance.metrics
     }
 
+    /// All members currently known to this actor, including itself.
+    public var members: [SWIM.Member] {
+        Array(self.instance.members)
+    }
+
     private lazy var log: Logger = {
         var log = self.settings.swim.logger
         log[metadataKey: "swim/node"] = "\(self.settings.myself)"
@@ -335,11 +340,15 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
     ) async -> SWIM.PingResponse {
         guard let targetPeer = await self.settings.resolvePeer(target) else {
             self.log.warning("Unable to resolve peer for node: \(target)")
-            return .timeout(
-                target: target,
+            return self.handlePingResponse(
+                response: .timeout(
+                    target: target,
+                    pingRequestOrigin: pingRequestOrigin,
+                    timeout: timeout,
+                    sequenceNumber: sequenceNumber
+                ),
                 pingRequestOrigin: pingRequestOrigin,
-                timeout: timeout,
-                sequenceNumber: sequenceNumber
+                pingRequestSequenceNumber: pingRequestSequenceNumber
             )
         }
         self.log.debug(
@@ -390,13 +399,23 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
         timeout: Duration,
         sequenceNumber: SWIM.SequenceNumber
     ) async throws -> SWIM.PingResponse {
+        try await Self.withTimeout(timeout) {
+            try await peer.ping(
+                origin: origin,
+                payload: payload,
+                sequenceNumber: sequenceNumber
+            )
+        }
+    }
+
+    /// Runs `operation`, failing with `SWIMActorError.timeout` if it does not complete within `timeout`.
+    private static func withTimeout(
+        _ timeout: Duration,
+        _ operation: @escaping @Sendable () async throws -> SWIM.PingResponse
+    ) async throws -> SWIM.PingResponse {
         try await withThrowingTaskGroup(of: SWIM.PingResponse.self) { group in
             group.addTask {
-                try await peer.ping(
-                    origin: origin,
-                    payload: payload,
-                    sequenceNumber: sequenceNumber
-                )
+                try await operation()
             }
             group.addTask {
                 try await Task.sleep(for: timeout)
@@ -413,8 +432,8 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
     ) async {
         let pingTimeout = directive.timeout
         let peerToPing = directive.target
-
-        self.metrics.shell.messageOutboundCount.increment()
+        let shellMetrics = self.metrics.shell
+        let startedSendingPingRequestsAt = ContinuousClock.now
 
         let firstSuccessful = await withTaskGroup(of: SWIM.PingResponse.self) { group in
             for pingRequest in directive.requestDetails {
@@ -428,13 +447,19 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
                         )
                     }
 
+                    shellMetrics.messageOutboundCount.increment()
+                    let pingRequestSentAt = ContinuousClock.now
                     do {
-                        return try await peer.pingRequest(
-                            target: peerToPing,
-                            pingRequestOrigin: self.settings.myself,
-                            payload: pingRequest.payload,
-                            sequenceNumber: pingRequest.sequenceNumber
-                        )
+                        let response = try await Self.withTimeout(pingTimeout) {
+                            try await peer.pingRequest(
+                                target: peerToPing,
+                                pingRequestOrigin: self.settings.myself,
+                                payload: pingRequest.payload,
+                                sequenceNumber: pingRequest.sequenceNumber
+                            )
+                        }
+                        shellMetrics.pingRequestResponseTimeAll.record(duration: .now - pingRequestSentAt)
+                        return response
                     } catch {
                         return .timeout(
                             target: peerToPing,
@@ -451,6 +476,7 @@ public distributed actor SWIMActor<System: DistributedActorSystem> {
                 self.handleEveryPingRequestResponse(response: response, pinged: peerToPing)
 
                 if case .ack = response, firstAck == nil {
+                    shellMetrics.pingRequestResponseTimeFirst.record(duration: .now - startedSendingPingRequestsAt)
                     firstAck = response
                     group.cancelAll()
                 }
@@ -587,13 +613,6 @@ extension SWIMActor: CustomStringConvertible {
 
 // MARK: - Test hooks
 extension SWIMActor {
-    /// Returns the current membership state.
-    ///
-    /// For testing only.
-    func _getMembershipState() -> [SWIM.Member] {
-        Array(self.instance.members)
-    }
-
     /// Allows configuring the underlying SWIM instance in tests.
     ///
     /// For testing only.

@@ -14,7 +14,7 @@
 
 import ClusterMembership
 @preconcurrency import Distributed
-import SWIM
+@testable import SWIM
 import Synchronization
 import Testing
 
@@ -48,8 +48,8 @@ struct SWIMActorTests {
             try await driveProtocolPeriods([swimA, swimB], count: 2)
         }
 
-        let membersA = await swimA.whenLocal { $0._getMembershipState() } ?? []
-        let membersB = await swimB.whenLocal { $0._getMembershipState() } ?? []
+        let membersA = await swimA.whenLocal { $0.members } ?? []
+        let membersB = await swimB.whenLocal { $0.members } ?? []
 
         #expect(membersA.count == 2, "Node A should see both members")
         #expect(membersB.count == 2, "Node B should see both members")
@@ -138,6 +138,93 @@ struct SWIMActorTests {
         }
     }
 
+    // MARK: - Failed probes
+
+    @Test
+    func test_pingRequest_shouldRespondWithNack_whenTargetDoesNotRespond() async throws {
+        let system = LocalTestingDistributedActorSystem()
+        let registry = SWIMRegistry<LocalTestingDistributedActorSystem>()
+        let swimC = registry.makeSWIM(node: self.nodeC, actorSystem: system)
+        // B is a member, but there is no actor to respond for it.
+        _ = await swimC.whenLocal {
+            $0._configureSWIM { _ = $0.addMember(self.nodeB, status: .alive(incarnation: 0)) }
+        }
+
+        // A asks C to ping B on its behalf.
+        let response = try await swimC.pingRequest(
+            target: self.nodeB,
+            pingRequestOrigin: self.nodeA,
+            payload: .none,
+            sequenceNumber: 13
+        )
+
+        guard case .nack(let target, let sequenceNumber) = response else {
+            Issue.record("Expected nack, got \(response)")
+            return
+        }
+        #expect(target == self.nodeB)
+        #expect(sequenceNumber == 13)
+    }
+
+    @Test
+    func test_shouldMarkSuspect_whenPingFails_andNoOtherNodesCanBeRequested() async throws {
+        let system = LocalTestingDistributedActorSystem()
+        let registry = SWIMRegistry<LocalTestingDistributedActorSystem>()
+        let swimA = registry.makeSWIM(node: self.nodeA, actorSystem: system)
+        _ = await swimA.whenLocal {
+            $0._configureSWIM { _ = $0.addMember(self.nodeB, status: .alive(incarnation: 0)) }
+        }
+
+        _ = await swimA.whenLocal {
+            await $0.sendPing(
+                to: self.nodeB,
+                payload: .none,
+                pingRequestOrigin: nil,
+                pingRequestSequenceNumber: nil,
+                timeout: .milliseconds(100),
+                sequenceNumber: 1
+            )
+        }
+
+        let statusOfB = await swimA.whenLocal { $0.members.first { $0.node == self.nodeB }?.status } ?? nil
+        #expect(statusOfB == .suspect(incarnation: 0, suspectedBy: [self.nodeA]))
+    }
+
+    @Test
+    func test_shouldMarkSuspect_whenPingFails_andPingRequestsFail() async throws {
+        let system = LocalTestingDistributedActorSystem()
+        let registry = SWIMRegistry<LocalTestingDistributedActorSystem>()
+        let swimA = registry.makeSWIM(node: self.nodeA, actorSystem: system)
+        let swimC = registry.makeSWIM(node: self.nodeC, actorSystem: system)
+        // B is a member of both, but there is no actor to respond for it.
+        for swim in [swimA, swimC] {
+            _ = await swim.whenLocal {
+                $0._configureSWIM { _ = $0.addMember(self.nodeB, status: .alive(incarnation: 0)) }
+            }
+        }
+        _ = await swimA.whenLocal {
+            $0._configureSWIM { _ = $0.addMember(self.nodeC, status: .alive(incarnation: 0)) }
+        }
+
+        try await withRunning([swimA, swimC]) {
+            // The failed ping makes A ask C to ping B, which fails as well.
+            _ = await swimA.whenLocal {
+                await $0.sendPing(
+                    to: self.nodeB,
+                    payload: .none,
+                    pingRequestOrigin: nil,
+                    pingRequestSequenceNumber: nil,
+                    timeout: .milliseconds(100),
+                    sequenceNumber: 1
+                )
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+
+        let statusOfB = await swimA.whenLocal { $0.members.first { $0.node == self.nodeB }?.status } ?? nil
+        #expect(statusOfB?.isSuspect == true, "Expected B to be suspect, was: \(String(describing: statusOfB))")
+    }
+
     // MARK: - Practical integration: gossip-based discovery
 
     /// Demonstrates SWIM's core value proposition for distributed systems:
@@ -186,7 +273,7 @@ struct SWIMActorTests {
         #expect(knownNodesC.contains(self.nodeB), "C should know B")
 
         // The host system can query SWIM for the current membership at any time.
-        let membersA = await swimA.whenLocal { $0._getMembershipState() } ?? []
+        let membersA = await swimA.whenLocal { $0.members } ?? []
         #expect(membersA.count >= 3, "A's SWIM state should include all discovered nodes")
     }
 
