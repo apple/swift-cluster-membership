@@ -59,6 +59,13 @@ jobs:
     # Workaround https://github.com/nektos/act/issues/1875
     uses: apple/swift-nio/.github/workflows/static_sdk.yml@main
 
+  wasm-sdk:
+    name: WebAssembly Swift SDK
+    # Workaround https://github.com/nektos/act/issues/1875
+    uses: apple/swift-nio/.github/workflows/wasm_swift_sdk.yml@main
+    with:
+      additional_command_arguments: "--target SWIM"
+
   release-builds:
     name: Release builds
     uses: apple/swift-nio/.github/workflows/release_builds.yml@main
