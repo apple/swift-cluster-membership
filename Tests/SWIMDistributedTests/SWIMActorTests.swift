@@ -14,10 +14,10 @@
 
 import ClusterMembership
 @preconcurrency import Distributed
-@testable import SWIM
 import Synchronization
 import Testing
 
+@testable import SWIM
 @testable import SWIMDistributed
 
 #if canImport(FoundationEssentials)
