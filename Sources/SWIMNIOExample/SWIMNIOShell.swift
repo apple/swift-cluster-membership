@@ -633,7 +633,7 @@ public actor SWIMNIOShell {
     }
 
     /// Extra functionality, allowing external callers to ask this swim shell to start monitoring a specific node.
-    private func receiveStartMonitoring(node: Node) {
+    private func receiveStartMonitoring(node: Node, attempt: Int = 1) {
         guard self.node.withoutUID != node.withoutUID else {
             return  // no need to monitor ourselves
         }
@@ -645,6 +645,7 @@ public actor SWIMNIOShell {
         // Cancel any existing monitoring task for this node to avoid duplication
         self.monitoringTasks[node]?.cancel()
 
+        let maxAttempts = self.settings.initialContactPointMaxAttempts
         let task = Task {
             defer { self.monitoringTasks.removeValue(forKey: node) }
 
@@ -667,16 +668,25 @@ public actor SWIMNIOShell {
                 // sendPing calls receivePingResponse internally, so no need to handle here
             } catch {
                 self.log.debug(
-                    "Failed to initial ping, will try again",
+                    "Failed to initial ping, will try again (\(attempt)/\(maxAttempts) attempts made)",
                     metadata: ["ping/target": "\(node)", "error": "\(error)"]
                 )
             }
-            // Retry after delay if not yet a member
-            try? await Task.sleep(for: .seconds(5))
+            // Retry after delay if not yet a member and attempts haven't exceeded maximum
+            try? await Task.sleep(for: .nanoseconds(self.settings.initialContactPointPingInterval.nanoseconds))
             guard !Task.isCancelled else { return }
             if !self.swim.isMember(node, ignoreUID: true) {
-                self.log.info("(Re)-Attempt ping to initial contact point: \(node)")
-                self.receiveStartMonitoring(node: node)
+                if attempt < maxAttempts {
+                    self.log.info(
+                        "(Re)-Attempt ping to initial contact point: \(node) (\(attempt + 1)/\(maxAttempts))"
+                    )
+                    self.receiveStartMonitoring(node: node, attempt: attempt + 1)
+                } else {
+                    self.log.warning(
+                        "Reached maximum attempts to contact initial contact point: \(node) (\(maxAttempts) attempts made), giving up",
+                        metadata: ["ping/target": "\(node)"]
+                    )
+                }
             }
         }
 
