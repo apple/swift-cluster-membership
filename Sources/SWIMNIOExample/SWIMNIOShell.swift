@@ -105,8 +105,16 @@ public actor SWIMNIOShell {
                 group.addTask {
                     do {
                         for try await envelope in inbound {
-                            let bytes = envelope.data.getBytes(at: 0, length: envelope.data.readableBytes)!
-                            let message = try decoder.decode(SWIM.Message.self, from: Data(bytes))
+                            guard let bytes = envelope.data.getBytes(at: 0, length: envelope.data.readableBytes) else {
+                                continue
+                            }
+                            let message: SWIM.Message
+                            do {
+                                message = try decoder.decode(SWIM.Message.self, from: Data(bytes))
+                            } catch {
+                                self.log.warning("Dropping undecodable inbound message from \(envelope.remoteAddress): \(error)")
+                                continue
+                            }
                             shellMetrics.messageInboundCount.increment()
                             shellMetrics.messageInboundBytes.record(bytes.count)
                             self.log.trace(
@@ -127,10 +135,17 @@ public actor SWIMNIOShell {
                 group.addTask {
                     do {
                         for await (message, node) in self.outboundStream {
-                            let data = try encoder.encode(message)
+                            let data: Data
+                            let address: SocketAddress
+                            do {
+                                data = try encoder.encode(message)
+                                address = try SocketAddress(ipAddress: node.host, port: node.port)
+                            } catch {
+                                self.log.warning("Dropping unsendable outbound message to \(node): \(error)")
+                                continue
+                            }
                             var buffer = ByteBuffer()
                             buffer.writeBytes(data)
-                            let address = try SocketAddress(ipAddress: node.host, port: node.port)
                             let envelope = AddressedEnvelope<ByteBuffer>(remoteAddress: address, data: buffer)
                             shellMetrics.messageOutboundCount.increment()
                             shellMetrics.messageOutboundBytes.record(data.count)
