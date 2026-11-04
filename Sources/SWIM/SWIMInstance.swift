@@ -18,10 +18,18 @@ import Logging
 
 #if canImport(Darwin)
 import Darwin
+#elseif os(Windows)
+import ucrt
 #elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Android)
+import Android
 #elseif canImport(Musl)
 import Musl
+#elseif canImport(Bionic)
+import Bionic
+#elseif canImport(WASILibc)
+import WASILibc
 #else
 #error("Unsupported platform")
 #endif
