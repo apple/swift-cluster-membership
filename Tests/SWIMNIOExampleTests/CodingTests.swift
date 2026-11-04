@@ -103,8 +103,8 @@ final class CodingTests {
     // MARK: Utils
 
     func shared_serializationRoundtrip<T: Codable>(_ obj: T) throws {
-        let repr = try SWIMNIODefaultEncoder().encode(obj)
-        let decoder = SWIMNIODefaultDecoder()
+        let repr = try JSONEncoder().encode(obj)
+        let decoder = JSONDecoder()
         let deserialized = try decoder.decode(T.self, from: repr)
 
         #expect("\(obj)" == "\(deserialized)")

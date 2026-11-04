@@ -596,10 +596,9 @@ public actor SWIMNIOShell {
     /// This is the heart of the periodic gossip performed by SWIM.
     func handlePeriodicProtocolPeriodTick() async {
         var reachabilityChangesToAnnounce: [SWIM.MemberStatusChangedEvent?] = []
-        let directives = self.swim.onPeriodicPingTick()
-        var nextDelay: Duration = .seconds(1)
+        let result = self.swim.onPeriodicPingTick()
 
-        for directive in directives {
+        for directive in result.directives {
             switch directive {
             case .membershipChanged(let change):
                 reachabilityChangesToAnnounce.append(change)
@@ -619,9 +618,6 @@ public actor SWIMNIOShell {
                         sequenceNumber: sequenceNumber
                     )
                 }
-
-            case .scheduleNextTick(let delay):
-                nextDelay = delay
             }
         }
 
@@ -629,7 +625,7 @@ public actor SWIMNIOShell {
             self.announceIfReachabilityChange(change)
         }
 
-        try? await Task.sleep(for: nextDelay)
+        try? await Task.sleep(for: result.nextTickDelay)
     }
 
     /// Extra functionality, allowing external callers to ask this swim shell to start monitoring a specific node.

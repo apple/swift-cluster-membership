@@ -41,6 +41,14 @@ var targets: [PackageDescription.Target] = [
     ),
 
     .target(
+        name: "SWIMDistributed",
+        dependencies: [
+            "ClusterMembership",
+            "SWIM",
+        ]
+    ),
+
+    .target(
         name: "SWIMNIOExample",
         dependencies: [
             "SWIM",
@@ -86,6 +94,14 @@ var targets: [PackageDescription.Target] = [
     ),
 
     .testTarget(
+        name: "SWIMDistributedTests",
+        dependencies: [
+            "SWIMDistributed",
+            .product(name: "MetricsTestKit", package: "swift-metrics"),
+        ]
+    ),
+
+    .testTarget(
         name: "SWIMNIOExampleTests",
         dependencies: [
             "SWIMNIOExample",
@@ -127,6 +143,10 @@ let products: [PackageDescription.Product] = [
     .library(
         name: "SWIM",
         targets: ["SWIM"]
+    ),
+    .library(
+        name: "SWIMDistributed",
+        targets: ["SWIMDistributed"]
     ),
     .library(
         name: "SWIMNIOExample",
