@@ -1310,6 +1310,64 @@ final class SWIMInstanceTests {
         self.validateSuspects(swim, expected: [self.secondNode])
     }
 
+    // ==== ------------------------------------------------------------------------------------------------------------
+    // MARK: Suspicion timeout decay
+    @Test
+    func test_suspicionTimeout_decayWithIncomingSuspicions() {
+        var settings = SWIM.Settings()
+        settings.lifeguard.suspicionTimeoutMin = .seconds(3)
+        settings.lifeguard.suspicionTimeoutMax = .seconds(10)
+        settings.lifeguard.maxIndependentSuspicions = 3
+
+        let swim = SWIM.Instance(settings: settings, myself: self.myselfNode)
+
+        // With 0 suspicions, the timeout should equal suspicionTimeoutMax
+        let timeout0 = swim.suspicionTimeout(suspectedByCount: 0)
+        #expect(timeout0 == .seconds(10))
+
+        // As suspicions arrive, the timeout should decay monotonically
+        let timeout1 = swim.suspicionTimeout(suspectedByCount: 1)
+        #expect(timeout1 < timeout0)
+        #expect(timeout1 > .seconds(3))
+
+        let timeout2 = swim.suspicionTimeout(suspectedByCount: 2)
+        #expect(timeout2 < timeout1)
+        #expect(timeout2 > .seconds(3))
+
+        // When reaching maxIndependentSuspicions (K=3), timeout decays to suspicionTimeoutMin
+        let timeout3 = swim.suspicionTimeout(suspectedByCount: 3)
+        #expect(timeout3 == .seconds(3))
+
+        // Further suspicions remain clamped to suspicionTimeoutMin
+        let timeout4 = swim.suspicionTimeout(suspectedByCount: 4)
+        #expect(timeout4 == .seconds(3))
+
+        let timeout10 = swim.suspicionTimeout(suspectedByCount: 10)
+        #expect(timeout10 == .seconds(3))
+    }
+
+    @Test
+    func test_suspicionTimeout_decayWithCustomSettings() {
+        var settings = SWIM.Settings()
+        settings.lifeguard.suspicionTimeoutMin = .seconds(2)
+        settings.lifeguard.suspicionTimeoutMax = .seconds(20)
+        settings.lifeguard.maxIndependentSuspicions = 7
+
+        let swim = SWIM.Instance(settings: settings, myself: self.myselfNode)
+
+        #expect(swim.suspicionTimeout(suspectedByCount: 0) == .seconds(20))
+        #expect(swim.suspicionTimeout(suspectedByCount: 7) == .seconds(2))
+        #expect(swim.suspicionTimeout(suspectedByCount: 100) == .seconds(2))
+
+        var previousTimeout = swim.suspicionTimeout(suspectedByCount: 0)
+        for count in 1...7 {
+            let currentTimeout = swim.suspicionTimeout(suspectedByCount: count)
+            #expect(currentTimeout <= previousTimeout)
+            #expect(currentTimeout >= .seconds(2))
+            previousTimeout = currentTimeout
+        }
+    }
+
     @Test
     func test_memberCount_shouldNotCountDeadMembers() {
         let settings = SWIM.Settings()
