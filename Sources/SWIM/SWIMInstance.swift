@@ -536,6 +536,10 @@ extension SWIM {
                     self.metrics.membersTotalDead.increment()
                 }
                 self.removeFromMembersToPing(member)
+                // the member is no longer known to us, so drop any queued gossip about its previous
+                // (e.g. `.suspect` or `.unreachable`) status; otherwise we would keep spreading it
+                // and peers which did not know the member yet would add it back to their membership.
+                self._messagesToGossip.remove(where: { $0.member.node == node })
                 if let uid = member.node.uid {
                     let deadline = self.protocolPeriod + self.settings.tombstoneTimeToLiveInTicks
                     let tombstone = MemberTombstone(uid: uid, deadlineProtocolPeriod: deadline)

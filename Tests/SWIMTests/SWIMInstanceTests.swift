@@ -1453,6 +1453,44 @@ final class SWIMInstanceTests {
     }
 
     @Test
+    func test_makeGossipPayload_shouldNotGossipStaleStatus_whenMemberMarkedDead() throws {
+        var swim = SWIM.Instance(settings: SWIM.Settings(), myself: self.myselfNode)
+        _ = swim.addMember(self.secondNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.thirdNode, status: .alive(incarnation: 0))
+
+        _ = swim.mark(self.secondNode, as: .suspect(incarnation: 0, suspectedBy: [self.myselfNode]))
+        _ = swim.mark(self.secondNode, as: .dead)
+
+        // The member is gone locally, so we must not keep telling others it is still suspect.
+        for _ in 0..<20 {
+            guard case .membership(let members) = swim.makeGossipPayload(to: self.thirdNode) else {
+                continue
+            }
+            #expect(
+                !members.contains { $0.node == self.secondNode },
+                "Gossiped stale status about a member that was already marked dead: \(members)"
+            )
+        }
+    }
+
+    @Test
+    func test_makeGossipPayload_shouldNotGossipStaleUnreachable_whenMemberConfirmedDead() throws {
+        var settings = SWIM.Settings()
+        settings.unreachability = .enabled
+        var swim = SWIM.Instance(settings: settings, myself: self.myselfNode)
+        _ = swim.addMember(self.secondNode, status: .alive(incarnation: 0))
+        _ = swim.addMember(self.thirdNode, status: .alive(incarnation: 0))
+
+        _ = swim.mark(self.secondNode, as: .unreachable(incarnation: 0))
+        _ = swim.confirmDead(node: self.secondNode)
+
+        // A member that never knew the dead node must not learn about it as a fresh `.unreachable` member.
+        var other = SWIM.Instance(settings: settings, myself: self.fourthNode)
+        _ = other.onGossipPayload(swim.makeGossipPayload(to: self.fourthNode))
+        #expect(!other.isMember(self.secondNode))
+    }
+
+    @Test
     func test_makeGossipPayload_shouldReset_whenNewMembersJoin() throws {
         let settings: SWIM.Settings = .init()
         var swim = SWIM.Instance(settings: settings, myself: self.myselfNode)
